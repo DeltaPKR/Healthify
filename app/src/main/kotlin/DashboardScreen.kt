@@ -424,15 +424,6 @@ private fun formatRemaining(ms: Long): String {
 // ── Streak Banner ─────────────────────────────────────────────────────────────
 @Composable
 fun StreakBanner(streak: Int, longest: Int, isHealthy: Boolean) {
-    val infiniteTransition = rememberInfiniteTransition(label = "streak_pulse")
-    val scale by infiniteTransition.animateFloat(
-        initialValue = 1f, targetValue = 1.12f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(700, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse
-        ), label = "scale"
-    )
-
     val badge  = StreakManager.badge(streak)
     val msg    = StreakManager.message(streak)
     val bgFrom = if (streak >= 7) Color(0xFF2D1A00) else Color(0xFF1A2D00)
@@ -449,7 +440,7 @@ fun StreakBanner(streak: Int, longest: Int, isHealthy: Boolean) {
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(14.dp)
         ) {
-            Text(badge, fontSize = 30.sp, modifier = Modifier.scale(scale))
+            Text(badge, fontSize = 30.sp)
             Column(Modifier.weight(1f)) {
                 Text(msg, style = MaterialTheme.typography.titleMedium,
                     color = if (streak >= 7) Gold else Green)

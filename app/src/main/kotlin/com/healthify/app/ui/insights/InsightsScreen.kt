@@ -10,11 +10,13 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.*
-import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.healthify.app.data.db.CheckInEntity
+import com.healthify.app.data.db.UserEntity
 import com.healthify.app.data.repository.AppRepository
 import com.healthify.app.ui.theme.*
 import kotlinx.coroutines.launch
@@ -22,16 +24,25 @@ import kotlinx.coroutines.launch
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun InsightsScreen(repo: AppRepository, onBack: () -> Unit) {
-    val scope    = rememberCoroutineScope()
+    val scope = rememberCoroutineScope()
     var checkIns by remember { mutableStateOf<List<CheckInEntity>>(emptyList()) }
+    var user by remember { mutableStateOf<UserEntity?>(null) }
     var avgScore by remember { mutableStateOf(0f) }
+    var totalCheckIns by remember { mutableStateOf(0) }
 
     LaunchedEffect(Unit) {
         scope.launch {
-            checkIns = repo.getRecentCheckIns(7)
-            avgScore = repo.avgScoreSince(7)
+            checkIns      = repo.getRecentCheckIns(7)
+            user          = repo.getUserOnce()
+            avgScore      = repo.avgScoreSince(7)
+            totalCheckIns = repo.totalCheckIns()
         }
     }
+
+    val avgSteps = checkIns.map { it.steps }.average().let { if (it.isNaN()) 0 else it.toInt() }
+    val avgWater = checkIns.map { it.waterGlasses }.average().let { if (it.isNaN()) 0.0 else it }
+    val avgSleep = checkIns.map { it.sleepHours.toDouble() }.average().let { if (it.isNaN()) 0.0 else it }
+    val bestDay  = checkIns.maxByOrNull { it.wellnessScore }
 
     Scaffold(
         topBar = {
@@ -47,6 +58,11 @@ fun InsightsScreen(repo: AppRepository, onBack: () -> Unit) {
         },
         containerColor = BgDark
     ) { pad ->
+        if (checkIns.isEmpty()) {
+            EmptyInsights(pad)
+            return@Scaffold
+        }
+
         Column(
             Modifier
                 .fillMaxSize()
@@ -55,54 +71,151 @@ fun InsightsScreen(repo: AppRepository, onBack: () -> Unit) {
                 .padding(horizontal = 24.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
+            // Past 7 days at-a-glance ────────────────────────────────────
             Text("Past 7 Days", style = MaterialTheme.typography.labelSmall)
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                listOf(
-                    Triple("🚶", "Avg Steps", "%,d".format(checkIns.map { it.steps }.average().let { if (it.isNaN()) 0 else it.toInt() })),
-                    Triple("💧", "Avg Water", "%.1f gl".format(checkIns.map { it.waterGlasses }.average().let { if (it.isNaN()) 0.0 else it })),
-                    Triple("🌙", "Avg Sleep", "%.1fh".format(checkIns.map { it.sleepHours.toDouble() }.average().let { if (it.isNaN()) 0.0 else it })),
-                    Triple("⭐", "Avg Score", "%.0f".format(avgScore)),
-                ).forEach { (icon, lbl, val_) ->
-                    Card(Modifier.weight(1f),
-                        colors = CardDefaults.cardColors(containerColor = SurfaceCard),
-                        shape  = RoundedCornerShape(16.dp)) {
-                        Column(Modifier.padding(12.dp)) {
-                            Text(icon, fontSize = 20.sp)
-                            Text(val_, style = MaterialTheme.typography.titleLarge, color = Green)
-                            Text(lbl, style = MaterialTheme.typography.bodySmall)
+                StatCard(Modifier.weight(1f), "⭐", "Avg Score", "%.0f".format(avgScore))
+                StatCard(Modifier.weight(1f), "🚶", "Avg Steps", "%,d".format(avgSteps))
+                StatCard(Modifier.weight(1f), "💧", "Avg Water", "%.1f gl".format(avgWater))
+                StatCard(Modifier.weight(1f), "🌙", "Avg Sleep", "%.1fh".format(avgSleep))
+            }
+
+            // Streak ──────────────────────────────────────────────────────
+            user?.let { u ->
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = SurfaceCard),
+                    shape  = RoundedCornerShape(20.dp)
+                ) {
+                    Row(
+                        Modifier.padding(20.dp).fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text("🔥", fontSize = 36.sp)
+                        Spacer(Modifier.width(14.dp))
+                        Column(Modifier.weight(1f)) {
+                            Text(
+                                "${u.currentStreak} day streak",
+                                style = MaterialTheme.typography.titleLarge,
+                                color = Green
+                            )
+                            Text(
+                                "Longest: ${u.longestStreak} days  •  $totalCheckIns total check-ins",
+                                style = MaterialTheme.typography.bodySmall
+                            )
                         }
                     }
                 }
             }
 
-            if (checkIns.size >= 2) {
-                Card(colors = CardDefaults.cardColors(containerColor = SurfaceCard),
-                    shape = RoundedCornerShape(20.dp)) {
-                    Column(Modifier.padding(20.dp)) {
-                        Text("WELLNESS SCORE TREND", style = MaterialTheme.typography.labelSmall)
-                        Spacer(Modifier.height(16.dp))
-                        WellnessTrendChart(checkIns)
+            // Goal progress ───────────────────────────────────────────────
+            user?.let { u ->
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = SurfaceCard),
+                    shape  = RoundedCornerShape(20.dp)
+                ) {
+                    Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                        Text("GOAL PROGRESS (7-day avg)", style = MaterialTheme.typography.labelSmall)
+                        GoalRow(
+                            emoji   = "🚶",
+                            label   = "Steps",
+                            current = avgSteps.toDouble(),
+                            goal    = u.stepGoal.toDouble(),
+                            display = "%,d / %,d".format(avgSteps, u.stepGoal),
+                            color   = Sky
+                        )
+                        GoalRow(
+                            emoji   = "💧",
+                            label   = "Water",
+                            current = avgWater,
+                            goal    = u.waterGoalGlasses.toDouble(),
+                            display = "%.1f / %d gl".format(avgWater, u.waterGoalGlasses),
+                            color   = Green
+                        )
+                        GoalRow(
+                            emoji   = "🌙",
+                            label   = "Sleep",
+                            current = avgSleep,
+                            goal    = u.sleepGoalHours.toDouble(),
+                            display = "%.1f / %.1fh".format(avgSleep, u.sleepGoalHours),
+                            color   = Lavender
+                        )
                     }
                 }
             }
 
-            if (checkIns.any { it.steps > 0 }) {
-                Card(colors = CardDefaults.cardColors(containerColor = SurfaceCard),
-                    shape = RoundedCornerShape(20.dp)) {
-                    Column(Modifier.padding(20.dp)) {
-                        Text("DAILY STEPS", style = MaterialTheme.typography.labelSmall)
-                        Spacer(Modifier.height(16.dp))
-                        StepsBarChart(checkIns)
+            // Mood mix ────────────────────────────────────────────────────
+            Card(
+                colors = CardDefaults.cardColors(containerColor = SurfaceCard),
+                shape  = RoundedCornerShape(20.dp)
+            ) {
+                Column(Modifier.padding(20.dp)) {
+                    Text("MOOD OVER THE WEEK", style = MaterialTheme.typography.labelSmall)
+                    Spacer(Modifier.height(12.dp))
+                    Row(
+                        Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        // Oldest on the left, newest on the right
+                        checkIns.reversed().forEach { ci ->
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Text(moodEmoji(ci.moodScore), fontSize = 22.sp)
+                                Spacer(Modifier.height(4.dp))
+                                Text(
+                                    ci.date.takeLast(5),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = TextDim,
+                                    fontSize = 9.sp
+                                )
+                            }
+                        }
                     }
                 }
             }
 
+            // Best day highlight ──────────────────────────────────────────
+            bestDay?.let { best ->
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = SurfaceCard),
+                    shape  = RoundedCornerShape(20.dp)
+                ) {
+                    Row(
+                        Modifier
+                            .padding(20.dp)
+                            .fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(
+                            Modifier
+                                .size(56.dp)
+                                .clip(RoundedCornerShape(14.dp))
+                                .background(Brush.linearGradient(listOf(Green, Sky))),
+                            contentAlignment = Alignment.Center
+                        ) { Text("🏆", fontSize = 28.sp) }
+                        Spacer(Modifier.width(14.dp))
+                        Column(Modifier.weight(1f)) {
+                            Text("BEST DAY THIS WEEK", style = MaterialTheme.typography.labelSmall)
+                            Text(best.date, style = MaterialTheme.typography.titleMedium)
+                            Text(
+                                "Wellness score ${best.wellnessScore} · ${moodEmoji(best.moodScore)}",
+                                style = MaterialTheme.typography.bodySmall
+                            )
+                        }
+                    }
+                }
+            }
+
+            // Recent check-ins ────────────────────────────────────────────
             Text("Recent Check-ins", style = MaterialTheme.typography.labelSmall)
             checkIns.take(7).forEach { ci ->
-                Card(colors = CardDefaults.cardColors(containerColor = SurfaceCard),
-                    shape = RoundedCornerShape(14.dp)) {
-                    Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = SurfaceCard),
+                    shape  = RoundedCornerShape(14.dp)
+                ) {
+                    Row(
+                        Modifier.padding(14.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
                         Column(Modifier.weight(1f)) {
                             Text(ci.date, style = MaterialTheme.typography.bodySmall, color = TextMuted)
                             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -111,8 +224,11 @@ fun InsightsScreen(repo: AppRepository, onBack: () -> Unit) {
                                 if (ci.steps > 0) Text("🚶 %,d".format(ci.steps), style = MaterialTheme.typography.bodySmall)
                             }
                         }
-                        Text(ci.wellnessScore.toString(),
-                            style = MaterialTheme.typography.titleLarge, color = Green)
+                        Text(
+                            ci.wellnessScore.toString(),
+                            style = MaterialTheme.typography.titleLarge,
+                            color = Green
+                        )
                     }
                 }
             }
@@ -122,61 +238,85 @@ fun InsightsScreen(repo: AppRepository, onBack: () -> Unit) {
 }
 
 @Composable
-private fun WellnessTrendChart(data: List<CheckInEntity>) {
-    val scores = data.map { it.wellnessScore.toFloat() }
-    val maxV   = (scores.maxOrNull() ?: 100f).coerceAtLeast(1f)
-    Canvas(Modifier.fillMaxWidth().height(90.dp)) {
-        if (scores.size < 2) return@Canvas
-        val w = size.width; val h = size.height
-        val stepX = w / (scores.size - 1)
-        val pts = scores.mapIndexed { i, v -> Pair(i * stepX, h - (v / maxV) * (h - 10f)) }
-        val path = Path().apply {
-            moveTo(pts[0].first, pts[0].second)
-            pts.drop(1).forEach { (x, y) -> lineTo(x, y) }
-        }
-        val fill = Path().apply {
-            moveTo(pts[0].first, h); lineTo(pts[0].first, pts[0].second)
-            pts.drop(1).forEach { (x, y) -> lineTo(x, y) }
-            lineTo(pts.last().first, h); close()
-        }
-        drawPath(fill, Brush.verticalGradient(
-            listOf(Color(0x301AD9A0), Color.Transparent)))
-        drawPath(path, Color(0xFF1AD9A0), style = Stroke(width = 2.5f, cap = StrokeCap.Round))
-        pts.forEach { (x, y) ->
-            drawCircle(Color(0xFF1AD9A0), radius = 5f, center = androidx.compose.ui.geometry.Offset(x, y))
+private fun StatCard(modifier: Modifier, icon: String, label: String, value: String) {
+    Card(
+        modifier = modifier,
+        colors   = CardDefaults.cardColors(containerColor = SurfaceCard),
+        shape    = RoundedCornerShape(16.dp)
+    ) {
+        Column(Modifier.padding(12.dp)) {
+            Text(icon, fontSize = 20.sp)
+            Text(value, style = MaterialTheme.typography.titleLarge, color = Green)
+            Text(label, style = MaterialTheme.typography.bodySmall)
         }
     }
 }
 
 @Composable
-private fun StepsBarChart(data: List<CheckInEntity>) {
-    val maxSteps = (data.maxOfOrNull { it.steps } ?: 1).coerceAtLeast(1)
-    Row(
-        Modifier.fillMaxWidth().height(90.dp),
-        verticalAlignment = Alignment.Bottom,
-        horizontalArrangement = Arrangement.spacedBy(6.dp)
-    ) {
-        data.forEach { ci ->
-            val frac = ci.steps.toFloat() / maxSteps
-            Column(
-                Modifier.weight(1f),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Bottom
-            ) {
+private fun GoalRow(
+    emoji: String,
+    label: String,
+    current: Double,
+    goal: Double,
+    display: String,
+    color: Color
+) {
+    val pct = if (goal > 0) (current / goal).coerceIn(0.0, 1.0).toFloat() else 0f
+    Column {
+        Row(
+            Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment     = Alignment.CenterVertically
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(emoji, fontSize = 16.sp)
+                Text(label, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
+            }
+            Text(display, style = MaterialTheme.typography.bodySmall, color = TextMuted)
+        }
+        Spacer(Modifier.height(6.dp))
+        Box(
+            Modifier
+                .fillMaxWidth()
+                .height(8.dp)
+                .clip(RoundedCornerShape(4.dp))
+                .background(SurfaceCard2)
+        ) {
+            if (pct > 0f) {
                 Box(
-                    Modifier.fillMaxWidth()
-                        .height((frac * 70).dp.coerceAtLeast(4.dp))
-                        .clip(RoundedCornerShape(topStart = 5.dp, topEnd = 5.dp))
-                        .background(
-                            Brush.verticalGradient(
-                                listOf(Color(0xFF5EC4FF), Color(0xFF1AD9A0))
-                            )
-                        )
+                    Modifier
+                        .fillMaxWidth(pct)
+                        .fillMaxHeight()
+                        .clip(RoundedCornerShape(4.dp))
+                        .background(color)
                 )
-                Spacer(Modifier.height(4.dp))
-                Text(ci.date.takeLast(5), style = MaterialTheme.typography.bodySmall,
-                    color = TextDim, fontSize = 8.sp)
             }
         }
     }
 }
+
+@Composable
+private fun EmptyInsights(pad: PaddingValues) {
+    Column(
+        Modifier
+            .fillMaxSize()
+            .padding(pad)
+            .padding(32.dp),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text("📊", fontSize = 56.sp)
+        Spacer(Modifier.height(12.dp))
+        Text("No check-ins yet", style = MaterialTheme.typography.titleLarge)
+        Spacer(Modifier.height(6.dp))
+        Text(
+            "Log a daily check-in to start seeing insights — averages, streak, mood and goal progress will appear here.",
+            style = MaterialTheme.typography.bodyMedium,
+            color = TextMuted
+        )
+    }
+}
+
+private val MOOD_EMOJIS = listOf("😔", "😟", "😐", "🙂", "😄")
+private fun moodEmoji(score: Int): String =
+    if (score in MOOD_EMOJIS.indices) MOOD_EMOJIS[score] else "—"

@@ -20,6 +20,7 @@ import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -27,6 +28,9 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
@@ -35,10 +39,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.platform.LocalViewConfiguration
+import androidx.compose.ui.platform.ViewConfiguration
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.*
@@ -62,21 +70,17 @@ private const val KEY_NOTIF_PERM_ASKED = "notif_perm_asked"
 
 // ── Navigation routes ────────────────────────────────────────────────────────
 object Routes {
-    const val ONBOARDING    = "onboarding"
-    const val DASHBOARD     = "dashboard"
-    const val CHECK_IN      = "checkin"
-    const val INSIGHTS      = "insights"
-    const val NOTIFICATIONS = "notifications"
-    const val PROFILE       = "profile"
+    const val ONBOARDING = "onboarding"
+    const val MAIN       = "main"
+    const val CHECK_IN   = "checkin"
 }
 
-// Routes that show the bottom nav. Onboarding and check-in are flows → hidden there.
-private val TAB_ROUTES = setOf(
-    Routes.DASHBOARD,
-    Routes.INSIGHTS,
-    Routes.NOTIFICATIONS,
-    Routes.PROFILE
-)
+// Tab order for the swipeable pager. Index here == HorizontalPager page index.
+private const val TAB_HOME      = 0
+private const val TAB_INSIGHTS  = 1
+private const val TAB_REMINDERS = 2
+private const val TAB_PROFILE   = 3
+private const val TAB_COUNT     = 4
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -101,7 +105,7 @@ fun HealthifyNavGraph() {
 
     LaunchedEffect(Unit) {
         val user = repo.getUserOnce()
-        resolvedRoute = if (user?.onboardingComplete == true) Routes.DASHBOARD else Routes.ONBOARDING
+        resolvedRoute = if (user?.onboardingComplete == true) Routes.MAIN else Routes.ONBOARDING
     }
     LaunchedEffect(Unit) {
         delay(SPLASH_MIN_DURATION_MS)
@@ -116,153 +120,220 @@ fun HealthifyNavGraph() {
 
     val navController = rememberNavController()
 
-    // Observe the current destination so we know which tab is active
-    // and whether to show the bottom nav at all.
-    val backStackEntry by navController.currentBackStackEntryAsState()
-    val currentRoute = backStackEntry?.destination?.route
-
-    val showBottomNav = currentRoute in TAB_ROUTES
-    val selectedTab = when (currentRoute) {
-        Routes.INSIGHTS      -> "insights"
-        Routes.NOTIFICATIONS -> "reminders"
-        Routes.PROFILE       -> "profile"
-        else                 -> "home"
-    }
-
-    Scaffold(
-        containerColor = BgDark,
-        bottomBar = {
-            if (showBottomNav) {
-                DashBottomNav(
-                    selectedTab     = selectedTab,
-                    onHome          = { navController.navigateTab(Routes.DASHBOARD) },
-                    onInsights      = { navController.navigateTab(Routes.INSIGHTS) },
-                    onCheckIn       = { navController.navigate(Routes.CHECK_IN) },
-                    onNotifications = { navController.navigateTab(Routes.NOTIFICATIONS) },
-                    onProfile       = { navController.navigateTab(Routes.PROFILE) }
-                )
-            }
+    NavHost(
+        navController    = navController,
+        startDestination = startRoute
+    ) {
+        composable(Routes.ONBOARDING) {
+            val vm: OnboardingViewModel = viewModel(
+                factory = OnboardingViewModel.Factory(repo)
+            )
+            OnboardingScreen(
+                viewModel  = vm,
+                onComplete = {
+                    navController.navigate(Routes.MAIN) {
+                        popUpTo(Routes.ONBOARDING) { inclusive = true }
+                    }
+                }
+            )
         }
-    ) { innerPadding ->
-        NavHost(
-            navController    = navController,
-            startDestination = startRoute,
-            modifier         = Modifier.padding(innerPadding)
-        ) {
-            composable(Routes.ONBOARDING) {
-                val vm: OnboardingViewModel = viewModel(
-                    factory = OnboardingViewModel.Factory(repo)
-                )
-                OnboardingScreen(
-                    viewModel  = vm,
-                    onComplete = {
-                        navController.navigate(Routes.DASHBOARD) {
-                            popUpTo(Routes.ONBOARDING) { inclusive = true }
-                        }
-                    }
-                )
-            }
 
-            composable(Routes.DASHBOARD) {
-                val vm: DashboardViewModel = viewModel(
-                    factory = DashboardViewModel.Factory(
-                        repo                 = repo,
-                        healthConnectManager = app.healthConnectManager
-                    )
-                )
+        composable(Routes.MAIN) {
+            MainTabs(navController = navController)
+        }
 
-                // ── Health Connect & notification permission flow ─────────
-                // Ask at most once per install. Persisting the flags in
-                // SharedPreferences means cold launches don't re-prompt.
-                val hc = app.healthConnectManager
-                val ctx = LocalContext.current
-                val permLauncher = rememberLauncherForActivityResult(
-                    contract = PermissionController.createRequestPermissionResultContract()
-                ) {
-                    vm.load()
-                }
-                val notifLauncher = rememberLauncherForActivityResult(
-                    contract = ActivityResultContracts.RequestPermission()
-                ) { /* nothing extra to do; channels are already created */ }
-                LaunchedEffect(Unit) {
-                    val prefs = ctx.getSharedPreferences("healthify_prefs", Context.MODE_PRIVATE)
-
-                    // Notifications: Android 13+ requires runtime permission.
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                        val notifGranted = ContextCompat.checkSelfPermission(
-                            ctx, Manifest.permission.POST_NOTIFICATIONS
-                        ) == PackageManager.PERMISSION_GRANTED
-                        val notifAsked = prefs.getBoolean(KEY_NOTIF_PERM_ASKED, false)
-                        if (!notifGranted && !notifAsked) {
-                            prefs.edit().putBoolean(KEY_NOTIF_PERM_ASKED, true).apply()
-                            notifLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
-                        }
-                    }
-
-                    // Health Connect.
-                    val hcAsked = prefs.getBoolean(KEY_HC_PERMS_ASKED, false)
-                    if (!hcAsked && hc.isAvailable && !hc.hasAllPermissions()) {
-                        prefs.edit().putBoolean(KEY_HC_PERMS_ASKED, true).apply()
-                        permLauncher.launch(hc.requiredPermissions)
-                    }
-                }
-
-                DashboardScreen(
-                    viewModel               = vm,
-                    onNavigateCheckIn       = { navController.navigate(Routes.CHECK_IN) },
-                    onNavigateInsights      = { navController.navigateTab(Routes.INSIGHTS) },
-                    onNavigateNotifications = { navController.navigateTab(Routes.NOTIFICATIONS) },
-                    onNavigateProfile       = { navController.navigateTab(Routes.PROFILE) }
-                )
-            }
-
-            composable(Routes.CHECK_IN) {
-                CheckInScreen(
-                    repo          = repo,
-                    healthConnect = app.healthConnectManager,
-                    onComplete    = { navController.popBackStack() },
-                    onBack        = { navController.popBackStack() }
-                )
-            }
-
-            composable(Routes.INSIGHTS) {
-                InsightsScreen(
-                    repo   = repo,
-                    onBack = { navController.popBackStack() }
-                )
-            }
-
-            composable(Routes.NOTIFICATIONS) {
-                NotificationsScreen(
-                    repo    = repo,
-                    context = app,
-                    onBack  = { navController.popBackStack() }
-                )
-            }
-
-            composable(Routes.PROFILE) {
-                val vm: ProfileViewModel = viewModel(
-                    factory = ProfileViewModel.Factory(repo)
-                )
-                ProfileScreen(
-                    viewModel         = vm,
-                    onBack            = { navController.popBackStack() },
-                    onResetOnboarding = {
-                        navController.navigate(Routes.ONBOARDING) {
-                            popUpTo(Routes.DASHBOARD) { inclusive = true }
-                        }
-                    }
-                )
-            }
+        composable(Routes.CHECK_IN) {
+            CheckInScreen(
+                repo          = repo,
+                healthConnect = app.healthConnectManager,
+                onComplete    = { navController.popBackStack() },
+                onBack        = { navController.popBackStack() }
+            )
         }
     }
 }
 
 /**
- * Tab-style navigation: pops back to Dashboard (the tab root) while saving
- * each tab's state (scroll position, etc.) and restores it on re-entry.
- * Tapping the currently active tab is a no-op.
+ * Hosts the four tab screens in a HorizontalPager so the user can swipe
+ * left/right to switch tabs (Instagram-style). The bottom nav drives the
+ * pager and stays visually in sync with the current page.
  */
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun MainTabs(navController: NavHostController) {
+    val app  = HealthifyApp.instance
+    val repo = app.repository
+
+    val pagerState = rememberPagerState(pageCount = { TAB_COUNT })
+    val scope = rememberCoroutineScope()
+
+    // Tapping the bottom nav jumps directly to the target page — no slide
+    // through the intermediate tabs. (Swipes still animate normally, since
+    // they drive the pager state via its own gesture handling.)
+    fun goTo(page: Int) {
+        scope.launch { pagerState.scrollToPage(page) }
+    }
+
+    val selectedTab = when (pagerState.currentPage) {
+        TAB_INSIGHTS  -> "insights"
+        TAB_REMINDERS -> "reminders"
+        TAB_PROFILE   -> "profile"
+        else          -> "home"
+    }
+
+    // Two-tier touch slop tuned for an Instagram-style direction lock.
+    //   • children (LazyColumn etc.) use 1.5× the default slop so vertical
+    //     scrolling has a small threshold but engages fairly quickly.
+    //   • the pager uses 3.5× the default slop so the drag must be clearly
+    //     horizontal before a page change begins.
+    // The ~2.3:1 ratio means anything more than ~23° off horizontal resolves
+    // as vertical scroll — close to what Instagram's feed/profile uses.
+    val defaultViewConfig = LocalViewConfiguration.current
+    val childViewConfig = remember(defaultViewConfig) {
+        object : ViewConfiguration by defaultViewConfig {
+            override val touchSlop: Float = defaultViewConfig.touchSlop * 1.5f
+        }
+    }
+    val pagerViewConfig = remember(defaultViewConfig) {
+        object : ViewConfiguration by defaultViewConfig {
+            override val touchSlop: Float = defaultViewConfig.touchSlop * 3.5f
+        }
+    }
+
+    Scaffold(
+        containerColor = BgDark,
+        bottomBar = {
+            DashBottomNav(
+                selectedTab     = selectedTab,
+                onHome          = { goTo(TAB_HOME) },
+                onInsights      = { goTo(TAB_INSIGHTS) },
+                onCheckIn       = { navController.navigate(Routes.CHECK_IN) },
+                onNotifications = { goTo(TAB_REMINDERS) },
+                onProfile       = { goTo(TAB_PROFILE) }
+            )
+        }
+    ) { innerPadding ->
+        CompositionLocalProvider(LocalViewConfiguration provides pagerViewConfig) {
+            HorizontalPager(
+                state    = pagerState,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding),
+                // Keep the neighbouring page composed so swipes don't briefly
+                // flash an empty side while the next screen warms up.
+                beyondBoundsPageCount = 1,
+                key      = { it }
+            ) { page ->
+                CompositionLocalProvider(LocalViewConfiguration provides childViewConfig) {
+                    when (page) {
+                        TAB_HOME      -> DashboardPage(
+                            onNavigateCheckIn       = { navController.navigate(Routes.CHECK_IN) },
+                            onNavigateInsights      = { goTo(TAB_INSIGHTS) },
+                            onNavigateNotifications = { goTo(TAB_REMINDERS) },
+                            onNavigateProfile       = { goTo(TAB_PROFILE) }
+                        )
+                        TAB_INSIGHTS  -> InsightsScreen(
+                            repo   = repo,
+                            onBack = { goTo(TAB_HOME) }
+                        )
+                        TAB_REMINDERS -> NotificationsScreen(
+                            repo    = repo,
+                            context = app,
+                            onBack  = { goTo(TAB_HOME) }
+                        )
+                        TAB_PROFILE   -> ProfilePage(
+                            onBack            = { goTo(TAB_HOME) },
+                            onResetOnboarding = {
+                                navController.navigate(Routes.ONBOARDING) {
+                                    popUpTo(Routes.MAIN) { inclusive = true }
+                                }
+                            }
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun DashboardPage(
+    onNavigateCheckIn: () -> Unit,
+    onNavigateInsights: () -> Unit,
+    onNavigateNotifications: () -> Unit,
+    onNavigateProfile: () -> Unit
+) {
+    val app = HealthifyApp.instance
+    val repo = app.repository
+
+    val vm: DashboardViewModel = viewModel(
+        factory = DashboardViewModel.Factory(
+            repo                 = repo,
+            healthConnectManager = app.healthConnectManager
+        )
+    )
+
+    // ── Health Connect & notification permission flow ─────────────────────
+    // Ask at most once per install. Persisting the flags in SharedPreferences
+    // means cold launches don't re-prompt.
+    val hc = app.healthConnectManager
+    val ctx = LocalContext.current
+    val permLauncher = rememberLauncherForActivityResult(
+        contract = PermissionController.createRequestPermissionResultContract()
+    ) {
+        vm.load()
+    }
+    val notifLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { /* nothing extra to do; channels are already created */ }
+    LaunchedEffect(Unit) {
+        val prefs = ctx.getSharedPreferences("healthify_prefs", Context.MODE_PRIVATE)
+
+        // Notifications: Android 13+ requires runtime permission.
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            val notifGranted = ContextCompat.checkSelfPermission(
+                ctx, Manifest.permission.POST_NOTIFICATIONS
+            ) == PackageManager.PERMISSION_GRANTED
+            val notifAsked = prefs.getBoolean(KEY_NOTIF_PERM_ASKED, false)
+            if (!notifGranted && !notifAsked) {
+                prefs.edit().putBoolean(KEY_NOTIF_PERM_ASKED, true).apply()
+                notifLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+            }
+        }
+
+        // Health Connect.
+        val hcAsked = prefs.getBoolean(KEY_HC_PERMS_ASKED, false)
+        if (!hcAsked && hc.isAvailable && !hc.hasAllPermissions()) {
+            prefs.edit().putBoolean(KEY_HC_PERMS_ASKED, true).apply()
+            permLauncher.launch(hc.requiredPermissions)
+        }
+    }
+
+    DashboardScreen(
+        viewModel               = vm,
+        onNavigateCheckIn       = onNavigateCheckIn,
+        onNavigateInsights      = onNavigateInsights,
+        onNavigateNotifications = onNavigateNotifications,
+        onNavigateProfile       = onNavigateProfile
+    )
+}
+
+@Composable
+private fun ProfilePage(
+    onBack: () -> Unit,
+    onResetOnboarding: () -> Unit
+) {
+    val repo = HealthifyApp.instance.repository
+    val vm: ProfileViewModel = viewModel(
+        factory = ProfileViewModel.Factory(repo)
+    )
+    ProfileScreen(
+        viewModel         = vm,
+        onBack            = onBack,
+        onResetOnboarding = onResetOnboarding
+    )
+}
+
 private const val SPLASH_MIN_DURATION_MS = 1800L
 
 @Composable
@@ -299,11 +370,11 @@ private fun SplashScreen() {
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(20.dp)
         ) {
-            Text(
-                text = "❤",
-                color = Green,
-                fontSize = 72.sp,
+            Image(
+                painter = painterResource(R.drawable.ic_heart),
+                contentDescription = null,
                 modifier = Modifier
+                    .size(120.dp)
                     .alpha(alpha.value)
                     .scale(scale.value * pulseScale)
             )
@@ -330,17 +401,5 @@ private fun SplashScreen() {
                 strokeWidth = 3.dp
             )
         }
-    }
-}
-
-private fun NavHostController.navigateTab(route: String) {
-    if (currentDestination?.route == route) return
-    navigate(route) {
-        popUpTo(Routes.DASHBOARD) {
-            saveState = true
-            inclusive = false
-        }
-        launchSingleTop = true
-        restoreState = true
     }
 }
