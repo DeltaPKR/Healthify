@@ -1,0 +1,17 @@
+*.hprof
+.gradle/
+local.properties
+/build
+/app/build
+.idea/
+
+# Local agent / IDE notes
+CLAUDE.md
+.claude/
+
+# Secrets — Firebase config holds the project API key
+app/google-services.json
+google-services.json
+*.keystore
+*.jks
+keystore.properties
