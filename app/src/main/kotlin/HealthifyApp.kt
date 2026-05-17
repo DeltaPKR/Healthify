@@ -50,12 +50,10 @@ class HealthifyApp : Application() {
             // Seed default reminders on first launch
             repository.seedDefaultReminders()
 
-            // Schedule all enabled reminders and persist the fresh WorkManager UUIDs
+            // Re-arm all enabled reminders. AlarmManager.set... is idempotent
+            // per reminder id, so this safely overwrites any prior alarm.
             repository.getEnabledReminders().forEach { reminder ->
-                val newWorkerId = NotificationScheduler.schedule(this@HealthifyApp, reminder)
-                if (newWorkerId.toString() != reminder.workerId) {
-                    repository.saveReminder(reminder.copy(workerId = newWorkerId.toString()))
-                }
+                NotificationScheduler.schedule(this@HealthifyApp, reminder)
             }
         }
     }

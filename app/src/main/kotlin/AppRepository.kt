@@ -2,6 +2,7 @@ package com.healthify.app.data.repository
 
 import com.healthify.app.data.db.*
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
@@ -32,6 +33,35 @@ class AppRepository(
         checkInDao.getCheckInForDate(LocalDate.now().format(iso))
     fun getCheckInForTodayFlow(): Flow<CheckInEntity?> =
         checkInDao.getCheckInForDateFlow(LocalDate.now().format(iso))
+
+    /**
+     * Returns the most recent check-in inside the *current check-in window*.
+     * A window runs from one [CHECKIN_RESET_HOUR] to the next, matching the
+     * cooldown logic the rest of the app uses. The dashboard reads through
+     * this so its "today's metrics" stay in sync with the check-in unlock
+     * boundary (rather than rolling over at midnight).
+     */
+    suspend fun getCheckInForCurrentWindow(now: Long = System.currentTimeMillis()): CheckInEntity? {
+        val windowStartMs = currentWindowStartMs(now)
+        return checkInDao.getRecentCheckIns(1).firstOrNull()
+            ?.takeIf { it.timestamp >= windowStartMs }
+    }
+
+    /** Flow variant — re-emits whenever the check-in table changes. */
+    fun getCheckInForCurrentWindowFlow(): Flow<CheckInEntity?> =
+        checkInDao.getAllCheckIns().map { all ->
+            val windowStartMs = currentWindowStartMs(System.currentTimeMillis())
+            all.firstOrNull()?.takeIf { it.timestamp >= windowStartMs }
+        }
+
+    private fun currentWindowStartMs(now: Long): Long {
+        val zone = ZoneId.systemDefault()
+        val nowZdt = Instant.ofEpochMilli(now).atZone(zone)
+        val todayReset = nowZdt.toLocalDate().atTime(CHECKIN_RESET_HOUR, 0).atZone(zone)
+        val windowStart = if (nowZdt.isBefore(todayReset)) todayReset.minusDays(1) else todayReset
+        return windowStart.toInstant().toEpochMilli()
+    }
+
     suspend fun getRecentCheckIns(n: Int = 7): List<CheckInEntity> =
         checkInDao.getRecentCheckIns(n)
     suspend fun saveCheckIn(ci: CheckInEntity) = checkInDao.upsert(ci)

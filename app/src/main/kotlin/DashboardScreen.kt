@@ -65,17 +65,19 @@ class DashboardViewModel(
         private set
 
     init {
-        // Observe today's check-in as a Flow so the dashboard refreshes
-        // immediately after the user submits a check-in (or any DB write).
+        // Observe the current-window check-in as a Flow so the dashboard
+        // refreshes immediately after the user submits a check-in (or any
+        // DB write) AND rolls over at the same boundary as the check-in
+        // unlock (CHECKIN_RESET_HOUR) — not at midnight.
         viewModelScope.launch {
-            repo.getCheckInForTodayFlow().collectLatest { _ -> load() }
+            repo.getCheckInForCurrentWindowFlow().collectLatest { _ -> load() }
         }
     }
 
     fun load() = viewModelScope.launch {
         uiState = uiState.copy(isLoading = true)
         val user    = repo.getUserOnce()
-        val checkIn = repo.getCheckInForToday()
+        val checkIn = repo.getCheckInForCurrentWindow()
 
         val healthData = healthConnectManager.readAll()
         // Prefer Health Connect when it actually has data; otherwise use whatever

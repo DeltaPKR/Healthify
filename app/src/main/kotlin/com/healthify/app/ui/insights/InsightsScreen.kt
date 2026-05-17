@@ -20,12 +20,16 @@ import com.healthify.app.data.db.UserEntity
 import com.healthify.app.data.repository.AppRepository
 import com.healthify.app.ui.theme.*
 import kotlinx.coroutines.launch
+import java.time.DayOfWeek
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun InsightsScreen(repo: AppRepository, onBack: () -> Unit) {
     val scope = rememberCoroutineScope()
     var checkIns by remember { mutableStateOf<List<CheckInEntity>>(emptyList()) }
+    var weekCheckIns by remember { mutableStateOf<List<CheckInEntity>>(emptyList()) }
     var user by remember { mutableStateOf<UserEntity?>(null) }
     var avgScore by remember { mutableStateOf(0f) }
     var totalCheckIns by remember { mutableStateOf(0) }
@@ -36,6 +40,14 @@ fun InsightsScreen(repo: AppRepository, onBack: () -> Unit) {
             user          = repo.getUserOnce()
             avgScore      = repo.avgScoreSince(7)
             totalCheckIns = repo.totalCheckIns()
+
+            // Pull check-ins for the current Mon..Sun window so the weekly
+            // mood strip can leave un-checked-in days visually blank rather
+            // than skipping them.
+            val today  = LocalDate.now()
+            val monday = today.with(DayOfWeek.MONDAY)
+            val sunday = monday.plusDays(6)
+            weekCheckIns = repo.getCheckInsInRange(monday, sunday)
         }
     }
 
@@ -151,24 +163,7 @@ fun InsightsScreen(repo: AppRepository, onBack: () -> Unit) {
                 Column(Modifier.padding(20.dp)) {
                     Text("MOOD OVER THE WEEK", style = MaterialTheme.typography.labelSmall)
                     Spacer(Modifier.height(12.dp))
-                    Row(
-                        Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        // Oldest on the left, newest on the right
-                        checkIns.reversed().forEach { ci ->
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Text(moodEmoji(ci.moodScore), fontSize = 22.sp)
-                                Spacer(Modifier.height(4.dp))
-                                Text(
-                                    ci.date.takeLast(5),
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = TextDim,
-                                    fontSize = 9.sp
-                                )
-                            }
-                        }
-                    }
+                    WeekMoodStrip(weekCheckIns)
                 }
             }
 
@@ -320,3 +315,64 @@ private fun EmptyInsights(pad: PaddingValues) {
 private val MOOD_EMOJIS = listOf("😔", "😟", "😐", "🙂", "😄")
 private fun moodEmoji(score: Int): String =
     if (score in MOOD_EMOJIS.indices) MOOD_EMOJIS[score] else "—"
+
+/**
+ * Mon..Sun strip. Each cell shows the mood emoji for that day's check-in,
+ * or a muted placeholder when no check-in was logged that day. Today is
+ * highlighted so the user can orient themselves on the strip.
+ */
+@Composable
+private fun WeekMoodStrip(weekCheckIns: List<CheckInEntity>) {
+    val today  = LocalDate.now()
+    val monday = today.with(DayOfWeek.MONDAY)
+    val isoFmt = DateTimeFormatter.ISO_LOCAL_DATE
+    val byDate = weekCheckIns.associateBy { it.date }
+
+    Row(
+        Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        for (i in 0..6) {
+            val date     = monday.plusDays(i.toLong())
+            val ci       = byDate[date.format(isoFmt)]
+            val isToday  = date == today
+            val isFuture = date.isAfter(today)
+            val labelColor = when {
+                isToday  -> Green
+                isFuture -> TextDim
+                else     -> TextMuted
+            }
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                if (ci != null) {
+                    Text(moodEmoji(ci.moodScore), fontSize = 22.sp)
+                } else {
+                    // Blank slot: muted dot keeps visual rhythm without
+                    // implying a recorded mood.
+                    Text(
+                        "·",
+                        fontSize = 22.sp,
+                        color = TextDim
+                    )
+                }
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    dayLetter(date.dayOfWeek),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = labelColor,
+                    fontSize = 11.sp,
+                    fontWeight = if (isToday) FontWeight.Bold else FontWeight.Normal
+                )
+            }
+        }
+    }
+}
+
+private fun dayLetter(d: DayOfWeek): String = when (d) {
+    DayOfWeek.MONDAY    -> "M"
+    DayOfWeek.TUESDAY   -> "T"
+    DayOfWeek.WEDNESDAY -> "W"
+    DayOfWeek.THURSDAY  -> "T"
+    DayOfWeek.FRIDAY    -> "F"
+    DayOfWeek.SATURDAY  -> "S"
+    DayOfWeek.SUNDAY    -> "S"
+}

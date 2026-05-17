@@ -1,18 +1,22 @@
 package com.healthify.app.notifications
 
+import android.app.AlarmManager
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
+import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.os.Build
 import androidx.core.app.NotificationCompat
-import androidx.work.*
+import com.healthify.app.HealthifyApp
 import com.healthify.app.MainActivity
 import com.healthify.app.data.db.ReminderEntity
-import java.time.LocalDate
-import java.util.*
-import java.util.concurrent.TimeUnit
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
+import java.util.Calendar
 
 // ═══════════════════════════════════════════════════════════════════════════
 // NOTIFICATION CHANNELS
@@ -42,39 +46,63 @@ object NotificationChannels {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// NOTIFICATION WORKER  (handles a single reminder at fire time)
+// NOTIFICATION SCHEDULER (AlarmManager-based for exact, reliable timing)
 // ═══════════════════════════════════════════════════════════════════════════
 
-class NotificationWorker(
-    private val context: Context,
-    workerParams: WorkerParameters
-) : CoroutineWorker(context, workerParams) {
+object NotificationScheduler {
 
-    override suspend fun doWork(): Result {
-        val channel  = inputData.getString(KEY_CHANNEL) ?: NotificationChannels.REMINDERS
+    const val ACTION_FIRE = "com.healthify.app.action.REMINDER_FIRE"
+    const val EXTRA_REMINDER_ID = "reminder_id"
 
-        // Skip fire if today's day-of-week isn't in the reminder's repeat set.
-        // Empty/missing => fire every day (back-compat with old workers).
-        val repeatDays = inputData.getString(KEY_REPEAT_DAYS).orEmpty()
-        if (repeatDays.isNotBlank()) {
-            val allowed = repeatDays.split(",").mapNotNull { it.trim().toIntOrNull() }.toSet()
-            val todayIso = LocalDate.now().dayOfWeek.value  // 1=Mon..7=Sun
-            if (allowed.isNotEmpty() && todayIso !in allowed) return Result.success()
-        }
+    /**
+     * Schedule the next single fire for this reminder using AlarmManager.
+     * AlarmManager.setExactAndAllowWhileIdle gives exact firing (within Doze
+     * limits) and the receiver re-schedules itself for the next occurrence.
+     *
+     * Calling this for an existing reminder.id overwrites the previously
+     * scheduled alarm — it is idempotent and safe to call repeatedly.
+     */
+    fun schedule(context: Context, reminder: ReminderEntity) {
+        if (reminder.id == 0) return
+        val am = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+        val now = Calendar.getInstance()
+        val target = nextFireTime(reminder, now)
+        val pi = buildPendingIntent(context, reminder.id)
+            ?: return
 
-        // Don't fire check-in reminders if the user already checked in within the last 24h
-        if (channel == NotificationChannels.CHECK_IN) {
-            val app = applicationContext as? com.healthify.app.HealthifyApp
-            if (app != null) {
-                val (canCheckIn, _) = app.repository.checkInCooldownStatus()
-                if (!canCheckIn) return Result.success()
+        val canExact = Build.VERSION.SDK_INT < Build.VERSION_CODES.S || am.canScheduleExactAlarms()
+        try {
+            if (canExact) {
+                am.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, target.timeInMillis, pi)
+            } else {
+                am.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, target.timeInMillis, pi)
             }
+        } catch (se: SecurityException) {
+            am.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, target.timeInMillis, pi)
         }
+    }
 
-        val label    = inputData.getString(KEY_LABEL)   ?: "Time to check in!"
-        val emoji    = inputData.getString(KEY_EMOJI)   ?: "❤️"
-        val notifId  = inputData.getInt(KEY_ID, System.currentTimeMillis().toInt())
+    fun cancel(context: Context, reminder: ReminderEntity) = cancel(context, reminder.id)
 
+    fun cancel(context: Context, reminderId: Int) {
+        if (reminderId == 0) return
+        val am = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+        val pi = buildPendingIntent(
+            context,
+            reminderId,
+            flags = PendingIntent.FLAG_NO_CREATE or PendingIntent.FLAG_IMMUTABLE
+        )
+        if (pi != null) {
+            am.cancel(pi)
+            pi.cancel()
+        }
+        val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        nm.cancel(reminderId)
+    }
+
+    /** Post an immediate streak-milestone notification (no scheduling). */
+    fun notifyStreakMilestone(context: Context, streak: Int) {
+        val notifId = 10_000 + streak
         val intent = Intent(context, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
         }
@@ -82,137 +110,69 @@ class NotificationWorker(
             context, notifId, intent,
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
         )
-
-        val notification = NotificationCompat.Builder(context, channel)
+        val notification = NotificationCompat.Builder(context, NotificationChannels.STREAK)
             .setSmallIcon(android.R.drawable.ic_dialog_info)
-            .setContentTitle("$emoji Healthify")
-            .setContentText(label)
+            .setContentTitle("🏆 Healthify")
+            .setContentText("🔥 $streak day streak! ${streakMsg(streak)}")
             .setAutoCancel(true)
             .setContentIntent(pi)
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)
             .build()
-
         val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         nm.notify(notifId, notification)
-        return Result.success()
     }
 
-    companion object {
-        const val KEY_LABEL       = "label"
-        const val KEY_EMOJI       = "emoji"
-        const val KEY_CHANNEL     = "channel"
-        const val KEY_ID          = "notif_id"
-        const val KEY_REPEAT_DAYS = "repeat_days"
-    }
-}
+    // ── helpers ──────────────────────────────────────────────────────────────
 
-// ═══════════════════════════════════════════════════════════════════════════
-// NOTIFICATION SCHEDULER
-// ═══════════════════════════════════════════════════════════════════════════
-
-object NotificationScheduler {
-
-    /**
-     * Schedule a daily repeating notification for a reminder.
-     * Uses a periodic WorkManager task aligned to the reminder's time-of-day.
-     */
-    fun schedule(context: Context, reminder: ReminderEntity): UUID {
-        val workManager = WorkManager.getInstance(context)
-
-        // Cancel any previous work for this reminder
-        if (reminder.workerId.isNotEmpty()) {
-            workManager.cancelWorkById(UUID.fromString(reminder.workerId))
-        }
-
-        // Calculate initial delay to first occurrence
-        val now = Calendar.getInstance()
-        val target = Calendar.getInstance().apply {
-            set(Calendar.HOUR_OF_DAY, reminder.hourOfDay)
-            set(Calendar.MINUTE, reminder.minute)
-            set(Calendar.SECOND, 0)
-            if (before(now)) add(Calendar.DAY_OF_YEAR, 1) // if past today, fire tomorrow
-        }
-        val initialDelay = target.timeInMillis - now.timeInMillis
-
-        val data = workDataOf(
-            NotificationWorker.KEY_LABEL       to getNotifText(reminder.label, reminder.category),
-            NotificationWorker.KEY_EMOJI       to reminder.emoji,
-            NotificationWorker.KEY_CHANNEL     to channelFor(reminder.category),
-            NotificationWorker.KEY_ID          to reminder.id,
-            NotificationWorker.KEY_REPEAT_DAYS to reminder.repeatDays
-        )
-
-        val request = PeriodicWorkRequestBuilder<NotificationWorker>(24, TimeUnit.HOURS)
-            .setInitialDelay(initialDelay, TimeUnit.MILLISECONDS)
-            .setInputData(data)
-            .addTag("reminder_${reminder.id}")
-            .build()
-
-        workManager.enqueueUniquePeriodicWork(
-            "reminder_${reminder.id}",
-            ExistingPeriodicWorkPolicy.REPLACE,
-            request
-        )
-        return request.id
-    }
-
-    fun cancel(context: Context, reminder: ReminderEntity) {
-        WorkManager.getInstance(context).cancelAllWorkByTag("reminder_${reminder.id}")
-    }
-
-    /** Schedule a one-time check-in nudge if no check-in has happened by 8 PM */
-    fun scheduleCheckInNudge(context: Context) {
-        val now    = Calendar.getInstance()
-        val target = Calendar.getInstance().apply {
-            set(Calendar.HOUR_OF_DAY, 20); set(Calendar.MINUTE, 0); set(Calendar.SECOND, 0)
-            if (before(now)) add(Calendar.DAY_OF_YEAR, 1)
-        }
-        val delay = target.timeInMillis - now.timeInMillis
-
-        val data = workDataOf(
-            NotificationWorker.KEY_LABEL   to "Don't forget your daily check-in! How are you feeling?",
-            NotificationWorker.KEY_EMOJI   to "❤️",
-            NotificationWorker.KEY_CHANNEL to NotificationChannels.CHECK_IN,
-            NotificationWorker.KEY_ID      to 9999
-        )
-
-        val request = PeriodicWorkRequestBuilder<NotificationWorker>(24, TimeUnit.HOURS)
-            .setInitialDelay(delay, TimeUnit.MILLISECONDS)
-            .setInputData(data)
-            .addTag("check_in_nudge")
-            .build()
-
-        WorkManager.getInstance(context).enqueueUniquePeriodicWork(
-            "check_in_nudge",
-            ExistingPeriodicWorkPolicy.KEEP,
-            request
-        )
-    }
-
-    /** Send an immediate streak milestone notification */
-    fun notifyStreakMilestone(context: Context, streak: Int) {
-        val request = OneTimeWorkRequestBuilder<NotificationWorker>()
-            .setInputData(workDataOf(
-                NotificationWorker.KEY_LABEL   to "🔥 $streak day streak! ${streakMsg(streak)}",
-                NotificationWorker.KEY_EMOJI   to "🏆",
-                NotificationWorker.KEY_CHANNEL to NotificationChannels.STREAK,
-                NotificationWorker.KEY_ID      to (10000 + streak)
-            ))
-            .build()
-        WorkManager.getInstance(context).enqueue(request)
-    }
-
-    private fun channelFor(category: String) = when (category) {
+    fun channelFor(category: String) = when (category) {
         "wellness" -> NotificationChannels.CHECK_IN
         else       -> NotificationChannels.REMINDERS
     }
 
-    private fun getNotifText(label: String, category: String) = when (category) {
+    fun getNotifText(label: String, category: String) = when (category) {
         "water"    -> "Time to hydrate! Have you had water recently? 💧"
         "movement" -> "Get moving! A short walk can boost your mood and energy 🏃"
         "meds"     -> "Medication reminder: time for $label 💊"
         "wellness" -> "How's your day going? Open Healthify for your check-in ❤️"
         else       -> label
+    }
+
+    private fun buildPendingIntent(
+        context: Context,
+        reminderId: Int,
+        flags: Int = PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+    ): PendingIntent? {
+        val intent = Intent(context, ReminderReceiver::class.java).apply {
+            action = ACTION_FIRE
+            putExtra(EXTRA_REMINDER_ID, reminderId)
+        }
+        return PendingIntent.getBroadcast(context, reminderId, intent, flags)
+    }
+
+    /**
+     * Find the next valid fire time honoring repeatDays (ISO Mon=1..Sun=7).
+     * Empty repeatDays => fires every day. Looks ahead up to 7 days.
+     */
+    private fun nextFireTime(reminder: ReminderEntity, now: Calendar): Calendar {
+        val allowed = reminder.repeatDays.split(",")
+            .mapNotNull { it.trim().toIntOrNull() }.toSet()
+        val cand = Calendar.getInstance().apply {
+            timeInMillis = now.timeInMillis
+            set(Calendar.HOUR_OF_DAY, reminder.hourOfDay)
+            set(Calendar.MINUTE, reminder.minute)
+            set(Calendar.SECOND, 0)
+            set(Calendar.MILLISECOND, 0)
+        }
+        if (!cand.after(now)) cand.add(Calendar.DAY_OF_YEAR, 1)
+        if (allowed.isEmpty()) return cand
+        repeat(7) {
+            val calDow = cand.get(Calendar.DAY_OF_WEEK)
+            // Calendar.DAY_OF_WEEK: Sun=1..Sat=7; ISO: Mon=1..Sun=7
+            val isoDow = if (calDow == Calendar.SUNDAY) 7 else calDow - 1
+            if (isoDow in allowed) return cand
+            cand.add(Calendar.DAY_OF_YEAR, 1)
+        }
+        return cand
     }
 
     private fun streakMsg(streak: Int) = when {
@@ -225,4 +185,91 @@ object NotificationScheduler {
 
     private val MILESTONE_STREAKS = setOf(3, 7, 14, 21, 30, 60, 90, 100, 365)
     fun isMilestone(streak: Int) = streak in MILESTONE_STREAKS
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// REMINDER RECEIVER (fires on alarm; posts notification and reschedules)
+// ═══════════════════════════════════════════════════════════════════════════
+
+class ReminderReceiver : BroadcastReceiver() {
+    override fun onReceive(context: Context, intent: Intent) {
+        if (intent.action != NotificationScheduler.ACTION_FIRE) return
+        val reminderId = intent.getIntExtra(NotificationScheduler.EXTRA_REMINDER_ID, -1)
+        if (reminderId <= 0) return
+
+        val pendingResult = goAsync()
+        CoroutineScope(SupervisorJob() + Dispatchers.Default).launch {
+            try {
+                val app = context.applicationContext as? HealthifyApp ?: return@launch
+                val reminder = app.repository.getReminderById(reminderId) ?: return@launch
+                if (!reminder.enabled) return@launch
+
+                val channel = NotificationScheduler.channelFor(reminder.category)
+
+                // Suppress check-in nudge if user has already checked in this window.
+                val shouldFire = if (channel == NotificationChannels.CHECK_IN) {
+                    val (canCheckIn, _) = app.repository.checkInCooldownStatus()
+                    canCheckIn
+                } else true
+
+                if (shouldFire) {
+                    postReminderNotification(context, reminder)
+                }
+
+                // Always queue the next occurrence so the daily cycle keeps running.
+                NotificationScheduler.schedule(context, reminder)
+            } finally {
+                pendingResult.finish()
+            }
+        }
+    }
+
+    private fun postReminderNotification(context: Context, reminder: ReminderEntity) {
+        val channel = NotificationScheduler.channelFor(reminder.category)
+        val intent = Intent(context, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+        }
+        val pi = PendingIntent.getActivity(
+            context, reminder.id, intent,
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+        )
+        val notification = NotificationCompat.Builder(context, channel)
+            .setSmallIcon(android.R.drawable.ic_dialog_info)
+            .setContentTitle("${reminder.emoji} Healthify")
+            .setContentText(NotificationScheduler.getNotifText(reminder.label, reminder.category))
+            .setAutoCancel(true)
+            .setContentIntent(pi)
+            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+            .build()
+        val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        nm.notify(reminder.id, notification)
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// BOOT RECEIVER (re-schedules all enabled reminders after device restart)
+// ═══════════════════════════════════════════════════════════════════════════
+
+class BootReceiver : BroadcastReceiver() {
+    override fun onReceive(context: Context, intent: Intent) {
+        val act = intent.action ?: return
+        if (act != Intent.ACTION_BOOT_COMPLETED &&
+            act != Intent.ACTION_LOCKED_BOOT_COMPLETED &&
+            act != "android.intent.action.QUICKBOOT_POWERON" &&
+            act != Intent.ACTION_MY_PACKAGE_REPLACED &&
+            act != Intent.ACTION_TIME_CHANGED &&
+            act != Intent.ACTION_TIMEZONE_CHANGED) return
+
+        val pendingResult = goAsync()
+        CoroutineScope(SupervisorJob() + Dispatchers.Default).launch {
+            try {
+                val app = context.applicationContext as? HealthifyApp ?: return@launch
+                app.repository.getEnabledReminders().forEach { reminder ->
+                    NotificationScheduler.schedule(context, reminder)
+                }
+            } finally {
+                pendingResult.finish()
+            }
+        }
+    }
 }

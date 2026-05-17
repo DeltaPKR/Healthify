@@ -3,9 +3,13 @@ package com.healthify.app.ui.notifications
 import android.content.Context
 import androidx.compose.animation.*
 import androidx.compose.foundation.*
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -19,6 +23,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -29,6 +34,7 @@ import com.healthify.app.data.repository.AppRepository
 import com.healthify.app.notifications.NotificationScheduler
 import com.healthify.app.ui.theme.*
 import kotlinx.coroutines.launch
+import kotlin.math.abs
 
 // ── Icon catalog -> (emoji, category) ────────────────────────────────────────
 private data class IconChoice(val emoji: String, val category: String, val label: String)
@@ -180,10 +186,7 @@ fun NotificationsScreen(repo: AppRepository, context: Context, onBack: () -> Uni
                             scope.launch {
                                 repo.toggleReminder(reminder.id, enabled)
                                 if (enabled) {
-                                    val workerId = NotificationScheduler.schedule(context, reminder)
-                                    repo.saveReminder(
-                                        reminder.copy(enabled = true, workerId = workerId.toString())
-                                    )
+                                    NotificationScheduler.schedule(context, reminder.copy(enabled = true))
                                 } else {
                                     NotificationScheduler.cancel(context, reminder)
                                 }
@@ -215,16 +218,19 @@ fun NotificationsScreen(repo: AppRepository, context: Context, onBack: () -> Uni
             onSave = { result ->
                 showEditor = false
                 scope.launch {
-                    // Persist
-                    val newId = repo.saveReminder(result).toInt()
-                    // Cancel previous if editing, then schedule fresh
+                    // Cancel any prior alarm (matches by reminder id) before
+                    // writing the new state, so an in-flight fire can't race
+                    // with the upcoming schedule call.
                     if (editing != null) {
                         NotificationScheduler.cancel(context, editing!!)
                     }
+                    val newId = repo.saveReminder(result).toInt()
                     val saved = result.copy(id = if (result.id == 0) newId else result.id)
                     if (saved.enabled) {
-                        val workerId = NotificationScheduler.schedule(context, saved)
-                        repo.saveReminder(saved.copy(workerId = workerId.toString()))
+                        NotificationScheduler.schedule(context, saved)
+                    } else {
+                        // Saved as disabled — ensure no stale alarm survives.
+                        NotificationScheduler.cancel(context, saved)
                     }
                 }
             },
@@ -649,7 +655,7 @@ private fun IconGrid(category: String, selected: String, onSelect: (IconChoice) 
     }
 }
 
-// ── Time stepper (hour + minute with +/- buttons) ────────────────────────────
+// ── Time picker (Android-alarm-style scroll wheels) ──────────────────────────
 @Composable
 private fun TimeStepper(
     hour: Int,
@@ -662,69 +668,144 @@ private fun TimeStepper(
         shape  = RoundedCornerShape(14.dp)
     ) {
         Row(
-            Modifier.fillMaxWidth().padding(vertical = 14.dp, horizontal = 12.dp),
+            Modifier
+                .fillMaxWidth()
+                .padding(vertical = 12.dp, horizontal = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.Center
         ) {
-            Stepper(
+            WheelPicker(
                 label = "HOUR",
+                range = 0..23,
                 value = hour,
-                onDec = { onHourChange((hour - 1 + 24) % 24) },
-                onInc = { onHourChange((hour + 1) % 24) }
+                onValueChange = onHourChange,
+                modifier = Modifier.weight(1f)
             )
-            Text(":", fontSize = 32.sp, color = TextPrimary,
-                modifier = Modifier.padding(horizontal = 4.dp))
-            Stepper(
+            Text(
+                ":",
+                fontSize = 32.sp,
+                color = TextPrimary,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.padding(horizontal = 4.dp)
+            )
+            WheelPicker(
                 label = "MIN",
+                range = 0..59,
                 value = minute,
-                onDec = { onMinuteChange((minute - 5 + 60) % 60) },
-                onInc = { onMinuteChange((minute + 5) % 60) }
+                onValueChange = onMinuteChange,
+                modifier = Modifier.weight(1f)
             )
         }
     }
-    Text(
-        "Minute increments of 5",
-        style = MaterialTheme.typography.bodySmall,
-        color = TextDim,
-        modifier = Modifier.padding(start = 6.dp, top = 2.dp)
-    )
 }
 
+/**
+ * Vertical scrolling number wheel — looks/feels like Android's alarm-clock
+ * time picker. Wraps infinitely so swiping past 23 lands on 0 (hours) or 59
+ * lands on 0 (minutes). Snaps to whole rows. The currently centered row is
+ * highlighted between two thin dividers and rendered at full opacity.
+ */
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun Stepper(label: String, value: Int, onDec: () -> Unit, onInc: () -> Unit) {
+private fun WheelPicker(
+    label: String,
+    range: IntRange,
+    value: Int,
+    onValueChange: (Int) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val count            = range.last - range.first + 1
+    val visibleCount     = 5
+    val visibleHalfCount = visibleCount / 2          // 2 rows above/below center
+    val itemHeight       = 40.dp
+
+    // Repeat the value list so the wheel scrolls effectively forever in both
+    // directions. baseRepeat * count items; start near the middle so the user
+    // can scroll either way without hitting an edge.
+    val baseRepeat = 2000
+    val totalCount = baseRepeat * count
+
+    val initialFirstVisible = remember(value, range) {
+        // Place the requested `value` at the centered row when the picker
+        // first lays out. firstVisibleItemIndex points to the row at the TOP
+        // of the viewport, so subtract visibleHalfCount.
+        val centeredIdx = (baseRepeat / 2) * count + (value - range.first)
+        centeredIdx - visibleHalfCount
+    }
+
+    val listState = rememberLazyListState(initialFirstVisibleItemIndex = initialFirstVisible)
+    val flingBehavior = rememberSnapFlingBehavior(lazyListState = listState)
+
+    // Centered row's absolute index in the LazyColumn.
+    val centeredAbsIndex by remember {
+        derivedStateOf { listState.firstVisibleItemIndex + visibleHalfCount }
+    }
+
+    // Whenever the scroll comes to rest on a new row, propagate it.
+    LaunchedEffect(listState) {
+        snapshotFlow { listState.isScrollInProgress }.collect { scrolling ->
+            if (!scrolling) {
+                val itemValue = (centeredAbsIndex % count) + range.first
+                if (itemValue != value) onValueChange(itemValue)
+            }
+        }
+    }
+
     Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(2.dp),
-        modifier = Modifier.padding(horizontal = 6.dp)
+        modifier = modifier,
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Text(label, style = MaterialTheme.typography.labelSmall, color = Green)
-        Row(verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            StepBtn(text = "−", onClick = onDec)
-            Text(
-                "%02d".format(value),
-                fontSize = 30.sp,
-                color = TextPrimary,
-                modifier = Modifier.widthIn(min = 54.dp),
-                textAlign = TextAlign.Center
+        Spacer(Modifier.height(4.dp))
+        Box(
+            Modifier
+                .fillMaxWidth()
+                .height(itemHeight * visibleCount),
+            contentAlignment = Alignment.Center
+        ) {
+            LazyColumn(
+                state = listState,
+                flingBehavior = flingBehavior,
+                modifier = Modifier.fillMaxSize()
+            ) {
+                items(totalCount, key = { it }) { i ->
+                    val labelValue = (i % count) + range.first
+                    val distance   = abs(i - centeredAbsIndex)
+                    val alpha = when (distance) {
+                        0    -> 1f
+                        1    -> 0.55f
+                        else -> 0.25f
+                    }
+                    val isCenter = distance == 0
+                    Box(
+                        Modifier
+                            .height(itemHeight)
+                            .fillMaxWidth(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            "%02d".format(labelValue),
+                            fontSize = if (isCenter) 26.sp else 22.sp,
+                            fontWeight = if (isCenter) FontWeight.Bold else FontWeight.Normal,
+                            color = if (isCenter) TextPrimary else TextPrimary.copy(alpha = alpha),
+                            textAlign = TextAlign.Center
+                        )
+                    }
+                }
+            }
+            // Highlighted selection window around the centered row.
+            Box(
+                Modifier
+                    .fillMaxWidth()
+                    .height(itemHeight)
+                    .align(Alignment.Center)
+                    .border(
+                        width = 1.dp,
+                        color = Green.copy(alpha = 0.45f),
+                        shape = RoundedCornerShape(8.dp)
+                    )
             )
-            StepBtn(text = "+", onClick = onInc)
         }
-    }
-}
-
-@Composable
-private fun StepBtn(text: String, onClick: () -> Unit) {
-    Box(
-        Modifier
-            .size(38.dp)
-            .clip(RoundedCornerShape(10.dp))
-            .background(GreenDim)
-            .border(1.dp, Green.copy(alpha = 0.5f), RoundedCornerShape(10.dp))
-            .clickable(onClick = onClick),
-        contentAlignment = Alignment.Center
-    ) {
-        Text(text, fontSize = 22.sp, color = Green)
     }
 }
 
