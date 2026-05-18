@@ -1,9 +1,29 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <!--
+      Main app theme — applied to the Activity once it's fully drawn.
+      Status / nav bar colors mirror the deep-navy background so the Compose
+      content meets the system chrome cleanly.
+    -->
     <style name="Theme.Healthify" parent="Theme.Material3.DayNight.NoActionBar">
-        <item name="android:statusBarColor">#070D1A</item>
-        <item name="android:navigationBarColor">#05090F</item>
+        <item name="android:statusBarColor">@color/status_bar</item>
+        <item name="android:navigationBarColor">@color/nav_bar</item>
         <item name="android:windowLightStatusBar">false</item>
         <item name="android:windowLightNavigationBar">false</item>
+    </style>
+
+    <!--
+      Cold-start splash theme — handed to the Activity via the manifest so
+      Android 12+ shows the proper system splash (centered launcher icon on
+      a solid background) instead of the default chrome flash. On API < 31
+      androidx.core:core-splashscreen emulates the same look.
+
+      The compositor swaps to @style/Theme.Healthify once the Activity is
+      ready, which is when MainActivity.onCreate() finishes super().
+    -->
+    <style name="Theme.App.Starting" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">@color/splash_bg</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/ic_launcher_foreground</item>
+        <item name="postSplashScreenTheme">@style/Theme.Healthify</item>
     </style>
 </resources>

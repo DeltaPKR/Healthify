@@ -15,3 +15,7 @@ google-services.json
 *.keystore
 *.jks
 keystore.properties
+
+# Node modules (used by docs/store-assets/render.js)
+node_modules/
+package-lock.json

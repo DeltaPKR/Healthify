@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Network security policy.
+  - cleartextTrafficPermitted=false: every outbound connection MUST be HTTPS.
+    Firestore + Firebase Auth + Crashlytics all already use TLS, so this
+    enforcement costs nothing and catches regressions early (e.g. dev images
+    served over plain HTTP).
+  - trust-anchors → system only: do not trust user-installed CAs in release.
+    Prevents traffic-inspection proxies on a victim's device from seeing
+    Health-Connect-derived data in transit.
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="false">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+</network-security-config>

@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+      Centralised color resources. Hex values mirror the Compose-side palette
+      in `ui/theme/Color.kt` so the system chrome (status bar, splash) stays
+      visually consistent with the in-app surfaces.
+    -->
+    <color name="status_bar">#070D1A</color>
+    <color name="nav_bar">#05090F</color>
+    <color name="splash_bg">#070D1A</color>
+</resources>

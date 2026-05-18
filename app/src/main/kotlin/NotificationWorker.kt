@@ -11,6 +11,7 @@ import android.os.Build
 import androidx.core.app.NotificationCompat
 import com.healthify.app.HealthifyApp
 import com.healthify.app.MainActivity
+import com.healthify.app.R
 import com.healthify.app.data.db.ReminderEntity
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -31,16 +32,25 @@ object NotificationChannels {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
         val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         nm.createNotificationChannel(
-            NotificationChannel(REMINDERS, "Health Reminders", NotificationManager.IMPORTANCE_DEFAULT)
-                .apply { description = "Water, medication, and movement reminders" }
+            NotificationChannel(
+                REMINDERS,
+                context.getString(R.string.channel_reminders_name),
+                NotificationManager.IMPORTANCE_DEFAULT
+            ).apply { description = context.getString(R.string.channel_reminders_desc) }
         )
         nm.createNotificationChannel(
-            NotificationChannel(CHECK_IN, "Daily Check-in", NotificationManager.IMPORTANCE_HIGH)
-                .apply { description = "Your evening wellness check-in prompt" }
+            NotificationChannel(
+                CHECK_IN,
+                context.getString(R.string.channel_checkin_name),
+                NotificationManager.IMPORTANCE_HIGH
+            ).apply { description = context.getString(R.string.channel_checkin_desc) }
         )
         nm.createNotificationChannel(
-            NotificationChannel(STREAK, "Streak Updates", NotificationManager.IMPORTANCE_DEFAULT)
-                .apply { description = "Streak milestone notifications" }
+            NotificationChannel(
+                STREAK,
+                context.getString(R.string.channel_streak_name),
+                NotificationManager.IMPORTANCE_DEFAULT
+            ).apply { description = context.getString(R.string.channel_streak_desc) }
         )
     }
 }
@@ -253,8 +263,10 @@ class ReminderReceiver : BroadcastReceiver() {
 class BootReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         val act = intent.action ?: return
+        // Receiver only handles post-unlock broadcasts so the Credential-Encrypted
+        // Room database is accessible when we re-arm alarms. LOCKED_BOOT_COMPLETED
+        // intentionally omitted — see the matching note in AndroidManifest.xml.
         if (act != Intent.ACTION_BOOT_COMPLETED &&
-            act != Intent.ACTION_LOCKED_BOOT_COMPLETED &&
             act != "android.intent.action.QUICKBOOT_POWERON" &&
             act != Intent.ACTION_MY_PACKAGE_REPLACED &&
             act != Intent.ACTION_TIME_CHANGED &&

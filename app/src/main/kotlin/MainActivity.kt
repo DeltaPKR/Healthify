@@ -8,7 +8,9 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.content.ContextCompat
 import androidx.health.connect.client.PermissionController
@@ -84,7 +86,15 @@ private const val TAB_COUNT     = 4
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
+        // installSplashScreen() must run before super.onCreate() so the
+        // framework keeps the splash drawn until our first Compose frame.
+        installSplashScreen()
         super.onCreate(savedInstanceState)
+        // API 35 enforces edge-to-edge regardless of opt-in; calling this
+        // explicitly makes the behaviour identical pre- and post-API 35
+        // and ensures Scaffold's innerPadding contains the right inset values
+        // (status / navigation / IME).
+        enableEdgeToEdge()
         setContent {
             HealthifyTheme {
                 HealthifyNavGraph()

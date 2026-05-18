@@ -2,6 +2,9 @@ package com.healthify.app
 
 import android.app.Application
 import androidx.room.Room
+import com.google.firebase.Firebase
+import com.google.firebase.auth.auth
+import com.google.firebase.crashlytics.crashlytics
 import com.healthify.app.data.db.AppDatabase
 import com.healthify.app.data.repository.AppRepository
 import com.healthify.app.firebase.FirebaseSync
@@ -40,12 +43,21 @@ class HealthifyApp : Application() {
         super.onCreate()
         _instance = this
 
+        // Crashlytics — disabled on debug builds so local crashes (which we'd
+        // see in logcat anyway) don't pollute the production crash dashboard.
+        // Toggling at runtime beats duplicating manifest entries per build type.
+        Firebase.crashlytics.setCrashlyticsCollectionEnabled(!BuildConfig.DEBUG)
+
         // Create notification channels
         NotificationChannels.createAll(this)
 
         // Sign in to Firebase anonymously (offline-safe)
         appScope.launch {
             FirebaseSync.ensureSignedIn()
+
+            // Tag crash reports with the anonymous Firebase UID so a single
+            // user's crashes are de-duplicated server-side, without storing PII.
+            Firebase.auth.currentUser?.uid?.let { Firebase.crashlytics.setUserId(it) }
 
             // Seed default reminders on first launch
             repository.seedDefaultReminders()

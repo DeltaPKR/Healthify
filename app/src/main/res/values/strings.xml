@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- App identity -->
+    <string name="app_name">Healthify</string>
+
+    <!-- Notification channels (shown in system settings → Apps → Healthify → Notifications) -->
+    <string name="channel_reminders_name">Health reminders</string>
+    <string name="channel_reminders_desc">Water, movement, and other scheduled nudges.</string>
+    <string name="channel_checkin_name">Daily check-in</string>
+    <string name="channel_checkin_desc">Reminder to log how your day went.</string>
+    <string name="channel_streak_name">Streak updates</string>
+    <string name="channel_streak_desc">Milestones and streak protection alerts.</string>
+</resources>

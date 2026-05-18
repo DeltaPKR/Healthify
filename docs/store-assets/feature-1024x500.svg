@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Play Store feature graphic, 1024x500.
+  Required by Play; appears at the top of the store listing on mobile.
+  Layout: full-bleed navy gradient + wordmark + tagline left, large green
+  heart right. Heart is positioned so it survives the Play Store's
+  per-device cropping (Play crops the right edge on narrow surfaces).
+-->
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="500" viewBox="0 0 1024 500">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%"   stop-color="#0A1326"/>
+      <stop offset="100%" stop-color="#05090F"/>
+    </linearGradient>
+    <radialGradient id="halo" cx="50%" cy="50%" r="50%">
+      <stop offset="0%"  stop-color="#1AD9A0" stop-opacity="0.22"/>
+      <stop offset="60%" stop-color="#1AD9A0" stop-opacity="0.06"/>
+      <stop offset="100%" stop-color="#1AD9A0" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <rect width="1024" height="500" fill="url(#bg)"/>
+
+  <!-- Green halo behind the heart -->
+  <circle cx="800" cy="250" r="220" fill="url(#halo)"/>
+
+  <!-- Heart on the right -->
+  <g transform="translate(800 250) scale(13) translate(-12 -12)">
+    <path fill="#1AD9A0"
+          d="M12,21.35l-1.45,-1.32C5.4,15.36 2,12.28 2,8.5
+             C2,5.42 4.42,3 7.5,3
+             c1.74,0 3.41,0.81 4.5,2.09
+             C13.09,3.81 14.76,3 16.5,3
+             C19.58,3 22,5.42 22,8.5
+             c0,3.78 -3.4,6.86 -8.55,11.54
+             L12,21.35z"/>
+  </g>
+
+  <!-- Wordmark + tagline on the left -->
+  <g font-family="Inter, 'Helvetica Neue', Arial, sans-serif" fill="#FFFFFF">
+    <text x="72" y="210" font-size="84" font-weight="700" letter-spacing="-2">Healthify</text>
+    <text x="72" y="270" font-size="28" font-weight="400" fill="#9FB1C7">
+      A quiet daily wellness tracker.
+    </text>
+    <text x="72" y="306" font-size="28" font-weight="400" fill="#9FB1C7">
+      Mood, sleep, water, steps — one minute a day.
+    </text>
+  </g>
+</svg>

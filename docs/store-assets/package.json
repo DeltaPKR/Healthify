@@ -1,0 +1,12 @@
+{
+  "name": "healthify-store-assets",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Renders Play Store visual assets from SVG sources.",
+  "scripts": {
+    "render": "node render.js"
+  },
+  "dependencies": {
+    "sharp": "^0.33.5"
+  }
+}
