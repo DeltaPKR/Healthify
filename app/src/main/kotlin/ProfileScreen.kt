@@ -25,6 +25,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.ViewModel
@@ -162,16 +163,27 @@ fun ProfileScreen(
                             fontSize = 36.sp, color = Green
                         )
                     }
+                    // maxLines=1 + ellipsis keeps an unusually long display
+                    // name (or 200% system font scale) from pushing the
+                    // "Edit profile" button off-card.
                     Text(
                         u.name.ifBlank { "Friend" },
-                        style = MaterialTheme.typography.headlineLarge.copy(fontSize = 26.sp)
+                        style = MaterialTheme.typography.headlineLarge.copy(fontSize = 26.sp),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
                     val subtitle = buildList {
                         if (u.age > 0) add("${u.age} yrs")
                         if (u.gender.isNotBlank() && u.gender != "Skip") add(u.gender)
                     }.joinToString(" · ")
                     if (subtitle.isNotBlank()) {
-                        Text(subtitle, style = MaterialTheme.typography.bodyMedium, color = TextMuted)
+                        Text(
+                            subtitle,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = TextMuted,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
                     }
                     Spacer(Modifier.height(2.dp))
                     OutlinedButton(
@@ -603,6 +615,11 @@ private fun CloudSyncRow() {
         CloudSyncState.ACTIVE     -> Green
         CloudSyncState.CONNECTING -> Gold
         CloudSyncState.OFFLINE    -> Coral
+        // ERROR = sign-in attempts exhausted (e.g. SHA-1 mismatch on a
+        // Play-served install). Coral signals "user-actionable problem"
+        // — Coral is the same hue used for the danger zone elsewhere so
+        // it reads as "something is wrong, not just slow".
+        CloudSyncState.ERROR      -> Coral
     }
     Row(verticalAlignment = Alignment.CenterVertically) {
         Text("☁️ Cloud sync", style = MaterialTheme.typography.bodyMedium,

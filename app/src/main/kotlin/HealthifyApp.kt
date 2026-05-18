@@ -51,22 +51,25 @@ class HealthifyApp : Application() {
         // Create notification channels
         NotificationChannels.createAll(this)
 
-        // Sign in to Firebase anonymously (offline-safe)
+        // Seed defaults + re-arm reminders in their own coroutine. The auth
+        // launch below can hang or fail (e.g. SHA-1 mismatch on a Play-served
+        // install) — if reminders waited on it, no alarms would ever fire on
+        // affected devices. AlarmManager.set... is idempotent per reminder
+        // id, so re-arming on every launch is safe.
         appScope.launch {
-            FirebaseSync.ensureSignedIn()
-
-            // Tag crash reports with the anonymous Firebase UID so a single
-            // user's crashes are de-duplicated server-side, without storing PII.
-            Firebase.auth.currentUser?.uid?.let { Firebase.crashlytics.setUserId(it) }
-
-            // Seed default reminders on first launch
             repository.seedDefaultReminders()
-
-            // Re-arm all enabled reminders. AlarmManager.set... is idempotent
-            // per reminder id, so this safely overwrites any prior alarm.
             repository.getEnabledReminders().forEach { reminder ->
                 NotificationScheduler.schedule(this@HealthifyApp, reminder)
             }
+        }
+
+        // Sign in to Firebase anonymously (offline-safe). Independent of
+        // reminder scheduling above so a failure here cannot break alarms.
+        appScope.launch {
+            FirebaseSync.ensureSignedIn()
+            // Tag crash reports with the anonymous Firebase UID so a single
+            // user's crashes are de-duplicated server-side, without storing PII.
+            Firebase.auth.currentUser?.uid?.let { Firebase.crashlytics.setUserId(it) }
         }
     }
 

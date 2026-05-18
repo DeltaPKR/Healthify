@@ -17,6 +17,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.healthify.app.data.db.CheckInEntity
@@ -26,8 +27,10 @@ import com.healthify.app.health.HealthConnectManager
 import com.healthify.app.notifications.NotificationScheduler
 import com.healthify.app.streak.StreakManager
 import com.healthify.app.ui.theme.*
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 
@@ -128,17 +131,25 @@ fun CheckInScreen(
                 wellnessScore = score,
                 timestamp     = System.currentTimeMillis()
             )
-            repo.saveCheckIn(ci)
-            FirebaseSync.syncCheckIn(ci)
 
-            val sr = StreakManager.evaluate(repo)
-            streakResult = sr
-
-            if (NotificationScheduler.isMilestone(sr.current)) {
-                NotificationScheduler.notifyStreakMilestone(context, sr.current)
+            // The persistence work below MUST complete even if the user
+            // presses back during the saving spinner (which destroys the
+            // composable and cancels `scope`). Without NonCancellable a
+            // back-press could interrupt the Room upsert and the check-in
+            // is silently lost. The Firebase calls inside also become
+            // uncancellable, but they only `await()` queued writes that
+            // Firestore will retry anyway, so the extra latency is OK.
+            val sr = withContext(NonCancellable) {
+                repo.saveCheckIn(ci)
+                FirebaseSync.syncCheckIn(ci)
+                val result = StreakManager.evaluate(repo)
+                if (NotificationScheduler.isMilestone(result.current)) {
+                    NotificationScheduler.notifyStreakMilestone(context, result.current)
+                }
+                FirebaseSync.pushStreakUpdate(streak = result.current, longest = result.longest)
+                result
             }
-
-            FirebaseSync.pushStreakUpdate(streak = sr.current, longest = sr.longest)
+            streakResult = sr
             isSaving = false
             // Jump straight back to the dashboard. ON_RESUME on the dashboard
             // re-runs viewModel.load(), so the home page picks up the new
@@ -291,10 +302,17 @@ private fun CooldownScreen(msRemaining: Long, onBack: () -> Unit) {
                     Text("NEXT CHECK-IN",
                         style = MaterialTheme.typography.labelSmall, color = Lavender)
                     Spacer(Modifier.height(6.dp))
+                    // Countdown is 8 chars max ("99:59:59") — clamp to one
+                    // line and disable soft-wrap so a 200% font scale shows
+                    // it on a single line (ellipsised if it truly can't fit)
+                    // rather than wrapping into two cramped lines.
                     Text(
                         formatCountdown(msRemaining),
                         style = MaterialTheme.typography.displayLarge.copy(fontSize = 44.sp),
-                        color = Lavender
+                        color = Lavender,
+                        maxLines = 1,
+                        softWrap = false,
+                        overflow = TextOverflow.Ellipsis
                     )
                 }
             }

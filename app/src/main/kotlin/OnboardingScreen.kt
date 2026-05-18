@@ -30,7 +30,9 @@ class OnboardingViewModel(private val repo: AppRepository) : ViewModel() {
 
     var step by mutableStateOf(0)
     var name by mutableStateOf("")
-    var age  by mutableStateOf(28f)
+    // Age is a free-text field (matches heightCm/weightKg). Parsed back to
+    // Int in finish(). Empty string means "user hasn't entered one yet".
+    var age  by mutableStateOf("")
     var gender by mutableStateOf("")
     var heightCm by mutableStateOf("")
     var weightKg by mutableStateOf("")
@@ -49,7 +51,7 @@ class OnboardingViewModel(private val repo: AppRepository) : ViewModel() {
             existing = user
             if (user != null) {
                 if (user.name.isNotEmpty())   name     = user.name
-                if (user.age > 0)             age      = user.age.toFloat()
+                if (user.age > 0)             age      = user.age.toString()
                 if (user.gender.isNotEmpty()) gender   = user.gender
                 if (user.heightCm > 0f)       heightCm = user.heightCm.toInt().toString()
                 if (user.weightKg > 0f)       weightKg = "%.1f".format(user.weightKg)
@@ -75,7 +77,7 @@ class OnboardingViewModel(private val repo: AppRepository) : ViewModel() {
         val updated = base.copy(
             id                 = 0,
             name               = name.ifBlank { "Friend" },
-            age                = age.toInt(),
+            age                = age.toIntOrNull()?.coerceIn(0, 120) ?: 0,
             gender             = gender,
             heightCm           = heightCm.toFloatOrNull() ?: 0f,
             weightKg           = weightKg.toFloatOrNull() ?: 0f,
@@ -197,9 +199,24 @@ private fun StepDemographics(vm: OnboardingViewModel) {
     Column(verticalArrangement = Arrangement.spacedBy(24.dp)) {
         Text("About you 👋", style = MaterialTheme.typography.headlineLarge)
         Text("This helps us personalise your health insights.", color = TextMuted)
-        OBLabel("Age: ${vm.age.toInt()}", trailingColor = Green)
-        Slider(value = vm.age, onValueChange = { vm.age = it }, valueRange = 13f..90f,
-            colors = SliderDefaults.colors(thumbColor = Green, activeTrackColor = Green))
+        OBLabel("Age")
+        // Replaced the previous Slider with a numeric text field. The
+        // slider was lossy (drag granularity ≈ 1yr but felt unprecise) and
+        // forced a min of 13 — testers asked for direct entry. Digits-only
+        // filter + max-3-chars cap prevents the keyboard from accepting
+        // unrelated input.
+        OutlinedTextField(
+            value = vm.age,
+            onValueChange = { input ->
+                vm.age = input.filter { it.isDigit() }.take(3)
+            },
+            placeholder = { Text("e.g. 28", color = TextDim) },
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(14.dp),
+            colors = textFieldColors()
+        )
         OBLabel("Gender")
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             listOf("Male", "Female", "Non-binary", "Skip").forEach { g ->

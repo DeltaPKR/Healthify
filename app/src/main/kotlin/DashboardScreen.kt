@@ -16,6 +16,7 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.*
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.Lifecycle
@@ -199,18 +200,27 @@ fun DashboardScreen(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment     = Alignment.CenterVertically
             ) {
-                Column {
+                // weight(1f) caps the column at "row width minus avatar" so
+                // a long display name doesn't push the avatar off-screen on
+                // 320dp devices or at 200% font scale.
+                Column(Modifier.weight(1f)) {
                     Text(
                         LocalDate.now().format(DateTimeFormatter.ofPattern("EEEE, MMMM d", Locale.US)),
-                        style = MaterialTheme.typography.bodySmall
+                        style = MaterialTheme.typography.bodySmall,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
                     Text(
                         "$greeting, $greetEmoji",
-                        style = MaterialTheme.typography.bodyMedium, color = TextMuted
+                        style = MaterialTheme.typography.bodyMedium, color = TextMuted,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
                     Text(
                         s.user?.name ?: "Friend",
-                        style = MaterialTheme.typography.headlineMedium, color = Green
+                        style = MaterialTheme.typography.headlineMedium, color = Green,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
                 }
                 // Avatar — tapping it opens the Profile screen
@@ -477,9 +487,13 @@ fun HealthScoreRing(score: Int) {
             )
         }
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(animatedScore.toString(),
+            Text(
+                animatedScore.toString(),
                 style = MaterialTheme.typography.headlineLarge.copy(fontSize = 32.sp),
-                color = TextPrimary)
+                color = TextPrimary,
+                maxLines = 1,
+                softWrap = false
+            )
             Text("HEALTH\nSCORE", style = MaterialTheme.typography.labelSmall,
                 color = TextMuted, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
         }
@@ -502,9 +516,27 @@ fun RowScope.MetricCard(
                 contentAlignment = Alignment.Center) {
                 Text(icon, fontSize = 18.sp)
             }
-            Text(value, style = MaterialTheme.typography.titleLarge.copy(
-                fontSize = 17.sp, fontWeight = FontWeight.ExtraBold), color = TextPrimary)
-            Text(unit, style = MaterialTheme.typography.bodySmall, color = TextDim)
+            // maxLines = 1 + Ellipsis stops a long value (e.g. "12,345"
+            // with the system at 200% font scale) from breaking the card
+            // height. softWrap=false ensures the number stays on one line
+            // even before the maxLines kicks in.
+            Text(
+                value,
+                style = MaterialTheme.typography.titleLarge.copy(
+                    fontSize = 17.sp, fontWeight = FontWeight.ExtraBold
+                ),
+                color = TextPrimary,
+                maxLines = 1,
+                softWrap = false,
+                overflow = TextOverflow.Ellipsis
+            )
+            Text(
+                unit,
+                style = MaterialTheme.typography.bodySmall,
+                color = TextDim,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
             LinearProgressIndicator(
                 progress = { minOf(1f, maxOf(0f, progress)) },
                 modifier = Modifier.fillMaxWidth().height(3.dp).clip(RoundedCornerShape(2.dp)),
