@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="index, follow">
+  <meta name="description" content="Request deletion of your Healthify account data — instructions for the Healthify Android app.">
+  <link rel="canonical" href="https://deltapkr.github.io/Healthify/delete-data/">
+  <title>Delete your Healthify data</title>
+  <style>
+    :root {
+      color-scheme: light dark;
+      --bg:        #fafbfc;
+      --surface:   #ffffff;
+      --text:      #1a1f2c;
+      --text-dim:  #5a6678;
+      --accent:    #0e8d6a;
+      --rule:      #e5e9f0;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg:        #070d1a;
+        --surface:   #0f1626;
+        --text:      #e7ecf3;
+        --text-dim:  #9fb1c7;
+        --accent:    #1ad9a0;
+        --rule:      #1e2a40;
+      }
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; }
+    body {
+      font: 16px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+            "Helvetica Neue", Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      padding: 32px 16px 96px;
+    }
+    main {
+      max-width: 760px;
+      margin: 0 auto;
+      background: var(--surface);
+      border: 1px solid var(--rule);
+      border-radius: 16px;
+      padding: 40px 44px;
+    }
+    header {
+      max-width: 760px;
+      margin: 0 auto 24px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+    .logo {
+      width: 40px; height: 40px;
+      border-radius: 10px;
+      background:
+        radial-gradient(circle at 50% 50%, #111E30 0%, #070D1A 100%);
+      display: grid; place-items: center;
+    }
+    .logo svg { width: 24px; height: 24px; fill: var(--accent); }
+    header h1 {
+      margin: 0; font-size: 20px; font-weight: 600; letter-spacing: -0.2px;
+    }
+    h1, h2 { color: var(--text); line-height: 1.25; }
+    h2 {
+      font-size: 20px; margin: 32px 0 12px;
+    }
+    p, ul, ol { margin: 0 0 12px; }
+    ul, ol { padding-left: 22px; }
+    li { margin-bottom: 6px; }
+    a { color: var(--accent); text-decoration: underline; text-underline-offset: 2px; }
+    a:hover { text-decoration: none; }
+    code {
+      font: 13.5px/1.6 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      background: var(--rule); padding: 2px 6px; border-radius: 4px;
+    }
+    .callout {
+      background: color-mix(in srgb, var(--accent) 12%, transparent);
+      border: 1px solid color-mix(in srgb, var(--accent) 38%, transparent);
+      border-radius: 10px;
+      padding: 16px 18px;
+      margin: 16px 0 24px;
+    }
+    .callout strong { color: var(--accent); }
+    table {
+      width: 100%; border-collapse: collapse;
+      font-size: 14.5px; margin: 8px 0 16px;
+    }
+    th, td {
+      text-align: left; vertical-align: top;
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--rule);
+    }
+    th { font-weight: 600; }
+    .meta {
+      color: var(--text-dim); font-size: 14px; margin-bottom: 28px;
+    }
+    footer {
+      max-width: 760px; margin: 28px auto 0;
+      color: var(--text-dim); font-size: 13px; text-align: center;
+    }
+    .btn {
+      display: inline-block;
+      background: var(--accent); color: #06231b;
+      padding: 12px 22px; border-radius: 999px;
+      font-weight: 600; text-decoration: none;
+      margin-top: 8px;
+    }
+    .btn:hover { filter: brightness(1.06); text-decoration: none; }
+    @media (max-width: 600px) {
+      body { padding: 20px 12px 64px; }
+      main { padding: 28px 22px; border-radius: 12px; }
+      header { padding-left: 4px; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="logo" aria-hidden="true">
+    <svg viewBox="0 0 24 24"><path d="M12,21.35l-1.45,-1.32C5.4,15.36 2,12.28 2,8.5 2,5.42 4.42,3 7.5,3c1.74,0 3.41,0.81 4.5,2.09C13.09,3.81 14.76,3 16.5,3 19.58,3 22,5.42 22,8.5c0,3.78 -3.4,6.86 -8.55,11.54L12,21.35z"/></svg>
+  </div>
+  <h1>Healthify</h1>
+</header>
+
+<main>
+
+<h1 style="font-size:28px;margin:0 0 6px;letter-spacing:-0.4px;">Delete your Healthify data</h1>
+<p class="meta">
+  <strong>Last updated:</strong> 2026-05-18 &nbsp;·&nbsp;
+  <strong>App:</strong> Healthify (<code>com.DeltaPKR.Healthify</code>)
+</p>
+
+<p>
+  Healthify is designed so most of your data stays on your device. Uninstalling
+  the app already removes the local database, your reminders, and your check-in
+  history from the phone.
+</p>
+
+<p>
+  A small amount of data is mirrored to Firebase (cloud) so the same anonymous
+  account can be used across devices. The instructions below cover both the
+  on-device and the cloud copies.
+</p>
+
+<h2>1. Delete the on-device data</h2>
+<ol>
+  <li>Open <strong>Android Settings → Apps → Healthify</strong>.</li>
+  <li>Tap <strong>Storage</strong>, then <strong>Clear storage</strong>. This wipes
+      the local database (<code>healthify.db</code>), reminders, and any cached
+      Firebase tokens.</li>
+  <li>(Optional) Tap <strong>Uninstall</strong> to remove the app itself.</li>
+</ol>
+
+<h2>2. Delete the cloud copy</h2>
+<p>
+  The cloud copy is stored under an <em>anonymous</em> identifier (Firebase
+  UID) — we never associate it with your name, email, or phone number. To have
+  it erased, send an email request:
+</p>
+
+<div class="callout">
+  <p style="margin:0 0 8px"><strong>To:</strong>
+    <a href="mailto:deltapkr.developer@gmail.com?subject=Healthify%20data%20deletion%20request">deltapkr.developer@gmail.com</a>
+  </p>
+  <p style="margin:0 0 8px"><strong>Subject:</strong> Healthify data deletion request</p>
+  <p style="margin:0">
+    <strong>Body should include:</strong>
+  </p>
+  <ul style="margin-top:6px">
+    <li>Your anonymous Firebase UID
+        (find it in the app: open <strong>Profile</strong> tab — the UID is shown at the bottom of the profile card).</li>
+    <li>Optional: the approximate date you first installed the app, so we can
+        cross-reference if the UID has rotated.</li>
+  </ul>
+</div>
+
+<p>
+  We acknowledge each request within 7 days and complete the deletion within
+  <strong>30 days</strong>.
+</p>
+
+<a class="btn"
+   href="mailto:deltapkr.developer@gmail.com?subject=Healthify%20data%20deletion%20request&amp;body=Please%20delete%20my%20Healthify%20cloud%20data.%0A%0AAnonymous%20Firebase%20UID%3A%20(paste%20from%20Profile%20screen)%0AApprox.%20install%20date%3A%20">
+  Email a deletion request
+</a>
+
+<h2>3. What gets deleted</h2>
+<table>
+  <thead><tr><th>Data type</th><th>Location</th><th>Removed by</th></tr></thead>
+  <tbody>
+    <tr><td>Profile, check-ins, reminders</td>
+        <td>On-device SQLite (<code>healthify.db</code>)</td>
+        <td>Step 1 (Clear storage or Uninstall)</td></tr>
+    <tr><td>Profile mirror + check-in summaries</td>
+        <td>Firebase Firestore</td>
+        <td>Step 2 (email request)</td></tr>
+    <tr><td>Anonymous Firebase UID + auth token</td>
+        <td>Firebase Authentication</td>
+        <td>Step 2 (email request)</td></tr>
+    <tr><td>Crash reports + diagnostics</td>
+        <td>Firebase Crashlytics</td>
+        <td>Auto-purged after 90 days per Firebase policy</td></tr>
+  </tbody>
+</table>
+
+<h2>4. Data we never collect</h2>
+<p>For full clarity, the items below were never sent off your device, so they
+do not need separate deletion:</p>
+<ul>
+  <li>Your name, email address, phone number, or any government identifiers.</li>
+  <li>Location (precise or approximate).</li>
+  <li>Health Connect raw records — only daily summaries leave the device.</li>
+</ul>
+
+<h2>5. Questions</h2>
+<p>
+  Read the full <a href="../privacy/">Healthify Privacy Policy</a> for context
+  on what data is collected and why. Other privacy questions:
+  <a href="mailto:deltapkr.developer@gmail.com?subject=Healthify%20privacy">deltapkr.developer@gmail.com</a>.
+</p>
+
+</main>
+
+<footer>
+  © 2026 DeltaPKR. &nbsp;·&nbsp; Healthify is not a medical device.
+</footer>
+
+</body>
+</html>
