@@ -94,7 +94,7 @@ Installed apps, User-payment info.
 
 ### Security practices
 - ☑️ **Data is encrypted in transit** — Yes, TLS (network security config).
-- ☑️ **Users can request data deletion** — Yes, via email to hayk.khachatryan25@gmail.com.
+- ☑️ **Users can request data deletion** — Yes, via email to deltapkr.developer@gmail.com.
 - ☑️ **Independent security review** — No.
 - ☑️ **Family Policy compliance** — Not enrolled.
 

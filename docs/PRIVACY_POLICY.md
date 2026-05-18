@@ -4,7 +4,7 @@
 **Last updated:** 2026-05-18
 **App:** Healthify (`com.DeltaPKR.Healthify`)
 **Publisher:** DeltaPKR
-**Contact:** hayk.khachatryan25@gmail.com
+**Contact:** deltapkr.developer@gmail.com
 
 This Privacy Policy explains what information the Healthify mobile application
 ("Healthify", "the app", "we") collects, how it is used, where it is stored,
@@ -128,10 +128,10 @@ You can, at any time:
   Notifications.
 - **Delete your data** — Uninstall the app to remove the local database.
   To delete the synced copy on Firestore, email
-  hayk.khachatryan25@gmail.com with your anonymous UID (shown in the
+  deltapkr.developer@gmail.com with your anonymous UID (shown in the
   Profile screen) and we will erase the corresponding documents within
   30 days.
-- **Export your data** — Email hayk.khachatryan25@gmail.com and we will
+- **Export your data** — Email deltapkr.developer@gmail.com and we will
   return a JSON export of all Firestore documents associated with your UID.
 
 You also have rights under applicable law (GDPR, CCPA) including access,
@@ -144,7 +144,7 @@ complaint with your supervisory authority.
 
 Healthify is **not directed at children under 13**. We do not knowingly
 collect data from children under 13. If you believe a child has provided
-data to us, contact hayk.khachatryan25@gmail.com and we will delete it.
+data to us, contact deltapkr.developer@gmail.com and we will delete it.
 
 ---
 
@@ -158,7 +158,7 @@ data to us, contact hayk.khachatryan25@gmail.com and we will delete it.
 - We do not log raw health data; only aggregated summaries are persisted.
 
 No system is perfectly secure. If you discover a vulnerability, email
-hayk.khachatryan25@gmail.com.
+deltapkr.developer@gmail.com.
 
 ---
 
@@ -183,7 +183,7 @@ after the effective date of any change constitutes acceptance.
 
 ## 10. Contact
 
-**Email:** hayk.khachatryan25@gmail.com
+**Email:** deltapkr.developer@gmail.com
 **Publisher:** DeltaPKR
 **Country of operation:** Armenia
 

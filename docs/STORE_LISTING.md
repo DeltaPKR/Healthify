@@ -72,7 +72,7 @@ PRIVACY THAT MATCHES THE MARKETING
 • Your local database is excluded from Android cloud backup and device
   transfer so health data does not roam through Google account backup.
 • You can request full data deletion at any time by emailing
-  hayk.khachatryan25@gmail.com.
+  deltapkr.developer@gmail.com.
 
 Full Privacy Policy: https://deltapkr.github.io/Healthify/privacy/
 
@@ -100,7 +100,7 @@ REQUIREMENTS
 Healthify is not a medical device. It does not diagnose, treat, or prevent
 any condition. If you have a health concern, see a clinician.
 
-— Built by DeltaPKR. Feedback: hayk.khachatryan25@gmail.com
+— Built by DeltaPKR. Feedback: deltapkr.developer@gmail.com
 ```
 
 (~2950 chars)
@@ -114,7 +114,7 @@ any condition. If you have a health concern, see a clinician.
 ---
 
 ## Contact details
-- **Email (required, public):** hayk.khachatryan25@gmail.com
+- **Email (required, public):** deltapkr.developer@gmail.com
 - **Phone:** (leave blank — optional)
 - **Website:** https://deltapkr.github.io/Healthify/ (or your real domain — update if you buy one)
 
