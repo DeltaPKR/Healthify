@@ -15,29 +15,26 @@ metadata) and the Play Console / store-listing docs.
 
 ## Click-by-click setup (one-time, ~2 minutes)
 
-1. **Merge this branch to `main`** so the `docs/` folder lives on the
-   default branch. Push to GitHub.
+The `docs/` folder is already on the `main` branch — last commit pushes
+everything Pages needs. You only need to flip the switch in the repo's
+settings.
 
-2. Open the repo on github.com:
-   👉 https://github.com/DeltaPKR/Healthify
+1. Open the repo settings page directly:
+   👉 https://github.com/DeltaPKR/Healthify/settings/pages
 
-3. Click **Settings** (top right tab — gear icon).
-
-4. In the left sidebar, click **Pages**.
-
-5. **Source** section:
+2. **Source** section:
    - **Branch:** `main`
    - **Folder:** `/docs`
    - Click **Save**.
 
-6. Wait ~30 seconds. The page reloads with a green banner:
+3. Wait ~30 seconds. The page reloads with a green banner:
    > _Your site is live at `https://deltapkr.github.io/Healthify/`_
 
-7. Verify the live URLs:
-   - Root (redirects): https://deltapkr.github.io/Healthify/
+4. Verify the live URLs in a browser:
+   - Root (redirects to /privacy/): https://deltapkr.github.io/Healthify/
    - Policy: https://deltapkr.github.io/Healthify/privacy/
 
-   Both should load with no auth.
+   Both should load with no auth and render the dark-themed policy page.
 
 That's it. The policy is now publicly hosted on Microsoft / GitHub's
 infrastructure at zero cost.
