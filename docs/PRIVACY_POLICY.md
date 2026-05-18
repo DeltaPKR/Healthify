@@ -129,8 +129,10 @@ You can, at any time:
 - **Delete your data** — Uninstall the app to remove the local database.
   To delete the synced copy on Firestore, email
   deltapkr.developer@gmail.com with your anonymous UID (shown in the
-  Profile screen) and we will erase the corresponding documents within
-  30 days.
+  Profile tab under **About → Account ID** — tap the row to copy it to
+  the clipboard) and we will erase the corresponding documents within
+  30 days. The Profile tab also has a one-tap **Request data deletion**
+  row that opens a pre-filled email.
 - **Export your data** — Email deltapkr.developer@gmail.com and we will
   return a JSON export of all Firestore documents associated with your UID.
 

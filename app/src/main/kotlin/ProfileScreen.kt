@@ -1,5 +1,8 @@
 package com.healthify.app.ui.profile
 
+import android.content.Intent
+import android.net.Uri
+import android.widget.Toast
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.*
@@ -17,7 +20,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -25,6 +30,9 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import com.google.firebase.Firebase
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.auth
 import com.healthify.app.data.db.UserEntity
 import com.healthify.app.BuildConfig
 import com.healthify.app.data.repository.AppRepository
@@ -293,6 +301,10 @@ fun ProfileScreen(
                     InfoRow("🌿 App", "Healthify v${BuildConfig.VERSION_NAME}")
                     HorizontalDivider(color = Divider)
                     CloudSyncRow()
+                    HorizontalDivider(color = Divider)
+                    AccountIdRow()
+                    HorizontalDivider(color = Divider)
+                    DeleteDataRow()
                 }
             }
 
@@ -596,6 +608,109 @@ private fun CloudSyncRow() {
         Text("☁️ Cloud sync", style = MaterialTheme.typography.bodyMedium,
             modifier = Modifier.weight(1f), color = TextPrimary)
         Text(state.label, style = MaterialTheme.typography.titleMedium, color = valueColor)
+    }
+}
+
+/**
+ * Shows the anonymous Firebase UID assigned to this install. The privacy
+ * policy and the data-deletion landing page tell users to find their UID
+ * here so they can include it when emailing a deletion request; surfacing
+ * it explicitly makes that promise actually fulfillable.
+ *
+ * Tap-to-copy: the full UID is placed on the clipboard. Re-renders if
+ * Firebase auth signs in after first composition (anonymous sign-in is
+ * async at app start) via a manifest auth-state listener.
+ */
+@Composable
+private fun AccountIdRow() {
+    val ctx = LocalContext.current
+    val clipboard = LocalClipboardManager.current
+    val uid by produceState(initialValue = Firebase.auth.currentUser?.uid) {
+        val listener = FirebaseAuth.AuthStateListener { auth ->
+            value = auth.currentUser?.uid
+        }
+        Firebase.auth.addAuthStateListener(listener)
+        awaitDispose { Firebase.auth.removeAuthStateListener(listener) }
+    }
+    val display = uid?.let { "${it.take(8)}…" } ?: "Signing in…"
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .let { mod ->
+                if (uid != null) mod.clickable {
+                    clipboard.setText(AnnotatedString(uid!!))
+                    Toast.makeText(ctx, "Account ID copied", Toast.LENGTH_SHORT).show()
+                } else mod
+            },
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text("🪪 Account ID", style = MaterialTheme.typography.bodyMedium,
+            modifier = Modifier.weight(1f), color = TextPrimary)
+        Text(display, style = MaterialTheme.typography.titleMedium, color = Sky)
+        if (uid != null) {
+            Spacer(Modifier.width(8.dp))
+            Icon(
+                imageVector = Icons.Default.ContentCopy,
+                contentDescription = "Copy Account ID",
+                tint = TextMuted,
+                modifier = Modifier.size(16.dp)
+            )
+        }
+    }
+}
+
+/**
+ * Opens an email composer pre-addressed to the support inbox with the
+ * user's Firebase UID and install info already filled in, matching the
+ * deletion instructions on https://deltapkr.github.io/Healthify/delete-data/.
+ * If no email client is installed the click is a no-op and a Toast tells
+ * the user to use the URL instead.
+ */
+@Composable
+private fun DeleteDataRow() {
+    val ctx = LocalContext.current
+    val uid by produceState(initialValue = Firebase.auth.currentUser?.uid) {
+        val listener = FirebaseAuth.AuthStateListener { auth ->
+            value = auth.currentUser?.uid
+        }
+        Firebase.auth.addAuthStateListener(listener)
+        awaitDispose { Firebase.auth.removeAuthStateListener(listener) }
+    }
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable {
+                val body = buildString {
+                    append("Please delete my Healthify cloud data.\n\n")
+                    append("Anonymous Firebase UID: ")
+                    append(uid ?: "(not signed in yet — please attach a screenshot of the Profile screen)")
+                    append("\n\nApprox. install date: ")
+                }
+                val mailto = Uri.parse(
+                    "mailto:deltapkr.developer@gmail.com" +
+                    "?subject=" + Uri.encode("Healthify data deletion request") +
+                    "&body=" + Uri.encode(body)
+                )
+                val intent = Intent(Intent.ACTION_SENDTO, mailto)
+                try {
+                    ctx.startActivity(intent)
+                } catch (_: android.content.ActivityNotFoundException) {
+                    Toast.makeText(
+                        ctx,
+                        "No email app found — visit deltapkr.github.io/Healthify/delete-data/",
+                        Toast.LENGTH_LONG
+                    ).show()
+                }
+            },
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text("🗑️ Request data deletion", style = MaterialTheme.typography.bodyMedium,
+            modifier = Modifier.weight(1f), color = TextPrimary)
+        Icon(
+            imageVector = Icons.Default.ChevronRight,
+            contentDescription = null,
+            tint = TextMuted
+        )
     }
 }
 
