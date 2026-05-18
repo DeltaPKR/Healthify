@@ -19,6 +19,29 @@
     <uses-permission android:name="android.permission.health.READ_DISTANCE" />
     <uses-permission android:name="android.permission.health.READ_ACTIVE_CALORIES_BURNED" />
 
+    <!-- ── Strip Firebase-injected advertising-ID + AdServices permissions ─
+         Firebase Analytics's manifest declares com.google.android.gms.permission.AD_ID
+         and the modern Privacy-Sandbox AdServices permissions
+         (ACCESS_ADSERVICES_AD_ID, ACCESS_ADSERVICES_ATTRIBUTION). The
+         manifest merger pulls all three into our APK by default.
+         Healthify is marketed as "no trackers, no ads" and the Play Data
+         Safety form declares no advertising data collection, so we
+         explicitly remove every ad-related permission here. Firebase
+         Analytics still functions — it just can't attribute events to
+         the advertising ID for demographics. -->
+    <uses-permission
+        android:name="com.google.android.gms.permission.AD_ID"
+        tools:node="remove" />
+    <uses-permission
+        android:name="android.permission.ACCESS_ADSERVICES_AD_ID"
+        tools:node="remove" />
+    <uses-permission
+        android:name="android.permission.ACCESS_ADSERVICES_ATTRIBUTION"
+        tools:node="remove" />
+    <uses-permission
+        android:name="android.permission.ACCESS_ADSERVICES_TOPICS"
+        tools:node="remove" />
+
     <application
         android:name=".HealthifyApp"
         android:allowBackup="true"
