@@ -8,7 +8,6 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
-import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.compose.ui.platform.LocalContext
@@ -90,11 +89,14 @@ class MainActivity : ComponentActivity() {
         // framework keeps the splash drawn until our first Compose frame.
         installSplashScreen()
         super.onCreate(savedInstanceState)
-        // API 35 enforces edge-to-edge regardless of opt-in; calling this
-        // explicitly makes the behaviour identical pre- and post-API 35
-        // and ensures Scaffold's innerPadding contains the right inset values
-        // (status / navigation / IME).
-        enableEdgeToEdge()
+        // NOTE: enableEdgeToEdge() intentionally NOT called. The existing
+        // screens were laid out before edge-to-edge was opt-in here and
+        // each one applies its own top padding; calling enableEdgeToEdge()
+        // adds the status-bar inset on top of that and produces a visible
+        // empty band. On API 35+ the OS forces edge-to-edge regardless,
+        // so re-enabling this should be done together with auditing each
+        // screen's root padding to consume the system-bar insets exactly
+        // once (e.g. via `Modifier.systemBarsPadding()` at the screen root).
         setContent {
             HealthifyTheme {
                 HealthifyNavGraph()
