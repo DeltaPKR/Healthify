@@ -91,6 +91,21 @@ object FirebaseSync {
         ensureSignedIn()
     }
 
+    /**
+     * Short, user-facing description of the last sign-in failure. Returns
+     * a Firebase error code when available (e.g.
+     * `ERROR_OPERATION_NOT_ALLOWED` — Anonymous sign-in disabled in
+     * Firebase Console), otherwise the exception's simple class name.
+     * Null when no failure has been recorded.
+     */
+    fun lastAuthErrorReason(): String? {
+        val e = lastAuthError ?: return null
+        val code = (e as? com.google.firebase.FirebaseException)?.let {
+            (it as? com.google.firebase.auth.FirebaseAuthException)?.errorCode
+        }
+        return code ?: e::class.java.simpleName
+    }
+
     private val uid: String?
         get() = auth.currentUser?.uid
 

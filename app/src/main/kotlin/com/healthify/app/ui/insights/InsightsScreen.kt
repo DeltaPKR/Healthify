@@ -19,7 +19,6 @@ import com.healthify.app.data.db.CheckInEntity
 import com.healthify.app.data.db.UserEntity
 import com.healthify.app.data.repository.AppRepository
 import com.healthify.app.ui.theme.*
-import kotlinx.coroutines.launch
 import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
@@ -27,28 +26,35 @@ import java.time.format.DateTimeFormatter
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun InsightsScreen(repo: AppRepository, onBack: () -> Unit) {
-    val scope = rememberCoroutineScope()
-    var checkIns by remember { mutableStateOf<List<CheckInEntity>>(emptyList()) }
-    var weekCheckIns by remember { mutableStateOf<List<CheckInEntity>>(emptyList()) }
-    var user by remember { mutableStateOf<UserEntity?>(null) }
-    var avgScore by remember { mutableStateOf(0f) }
-    var totalCheckIns by remember { mutableStateOf(0) }
+    // Observe all check-ins as a Flow so the screen refreshes the moment a
+    // new check-in is saved. The previous implementation used a one-shot
+    // LaunchedEffect(Unit) which only runs once per composition — and
+    // because Insights lives in a HorizontalPager it stays composed across
+    // tab swipes, so a brand-new check-in never appeared until process death.
+    val allCheckIns by repo.getAllCheckIns()
+        .collectAsState(initial = emptyList())
+    val user by repo.getUser()
+        .collectAsState(initial = null)
 
-    LaunchedEffect(Unit) {
-        scope.launch {
-            checkIns      = repo.getRecentCheckIns(7)
-            user          = repo.getUserOnce()
-            avgScore      = repo.avgScoreSince(7)
-            totalCheckIns = repo.totalCheckIns()
+    // "Past 7 entries" — most recent 7 rows regardless of how spread out.
+    val checkIns = remember(allCheckIns) { allCheckIns.take(7) }
 
-            // Pull check-ins for the current Mon..Sun window so the weekly
-            // mood strip can leave un-checked-in days visually blank rather
-            // than skipping them.
-            val today  = LocalDate.now()
-            val monday = today.with(DayOfWeek.MONDAY)
-            val sunday = monday.plusDays(6)
-            weekCheckIns = repo.getCheckInsInRange(monday, sunday)
-        }
+    // Current Mon..Sun window for the weekly mood strip.
+    val weekCheckIns = remember(allCheckIns) {
+        val today  = LocalDate.now()
+        val monday = today.with(DayOfWeek.MONDAY)
+        val sunday = monday.plusDays(6)
+        val isoFmt = DateTimeFormatter.ISO_LOCAL_DATE
+        val mondayStr = monday.format(isoFmt)
+        val sundayStr = sunday.format(isoFmt)
+        allCheckIns.filter { it.date in mondayStr..sundayStr }
+    }
+
+    // Derived counters / averages — recompute when the underlying list changes.
+    val totalCheckIns = allCheckIns.size
+    val avgScore = remember(checkIns) {
+        if (checkIns.isEmpty()) 0f
+        else checkIns.map { it.wellnessScore }.average().toFloat()
     }
 
     val avgSteps = checkIns.map { it.steps }.average().let { if (it.isNaN()) 0 else it.toInt() }

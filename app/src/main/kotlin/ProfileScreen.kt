@@ -603,11 +603,14 @@ private fun InfoRow(label: String, value: String) {
 @Composable
 private fun CloudSyncRow() {
     val ctx = LocalContext.current
+    val scope = rememberCoroutineScope()
     var state by remember { mutableStateOf(FirebaseSync.currentState(ctx)) }
+    var errorReason by remember { mutableStateOf(FirebaseSync.lastAuthErrorReason()) }
     // Poll every 2s — connectivity and auth flip rarely, this is cheap.
     LaunchedEffect(Unit) {
         while (true) {
             state = FirebaseSync.currentState(ctx)
+            errorReason = FirebaseSync.lastAuthErrorReason()
             delay(2000)
         }
     }
@@ -621,10 +624,39 @@ private fun CloudSyncRow() {
         // it reads as "something is wrong, not just slow".
         CloudSyncState.ERROR      -> Coral
     }
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        Text("☁️ Cloud sync", style = MaterialTheme.typography.bodyMedium,
-            modifier = Modifier.weight(1f), color = TextPrimary)
-        Text(state.label, style = MaterialTheme.typography.titleMedium, color = valueColor)
+    // Tapping the row in ERROR state retries sign-in. CONNECTING / ACTIVE
+    // are passive — no action — and tapping wouldn't help. OFFLINE is also
+    // passive because we can't fix the network from here.
+    val rowMod = Modifier
+        .fillMaxWidth()
+        .let { mod ->
+            if (state == CloudSyncState.ERROR) mod.clickable {
+                scope.launch {
+                    // Show CONNECTING during the retry so the user gets feedback.
+                    state = CloudSyncState.CONNECTING
+                    errorReason = null
+                    FirebaseSync.retrySignIn()
+                    state = FirebaseSync.currentState(ctx)
+                    errorReason = FirebaseSync.lastAuthErrorReason()
+                }
+            } else mod
+        }
+    Column(modifier = rowMod) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text("☁️ Cloud sync", style = MaterialTheme.typography.bodyMedium,
+                modifier = Modifier.weight(1f), color = TextPrimary)
+            Text(state.label, style = MaterialTheme.typography.titleMedium, color = valueColor)
+        }
+        if (state == CloudSyncState.ERROR) {
+            Spacer(Modifier.height(4.dp))
+            Text(
+                "Tap to retry • ${errorReason ?: "Unknown error"}",
+                style = MaterialTheme.typography.bodySmall,
+                color = TextMuted,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
     }
 }
 
@@ -649,7 +681,29 @@ private fun AccountIdRow() {
         Firebase.auth.addAuthStateListener(listener)
         awaitDispose { Firebase.auth.removeAuthStateListener(listener) }
     }
-    val display = uid?.let { "${it.take(8)}…" } ?: "Signing in…"
+    // Poll auth-state status too, so we can distinguish "still trying" from
+    // "definitively failed" — when failed we show that instead of pretending
+    // sign-in is in progress. The auth listener only fires on real state
+    // changes (null → uid or uid → null); a sequence of failed sign-in
+    // attempts never produces a fire, so a side channel is required.
+    var authState by remember { mutableStateOf(FirebaseSync.currentState(ctx)) }
+    LaunchedEffect(Unit) {
+        while (uid == null) {
+            authState = FirebaseSync.currentState(ctx)
+            delay(2000)
+        }
+    }
+    val display = when {
+        uid != null                           -> "${uid!!.take(8)}…"
+        authState == CloudSyncState.ERROR     -> "Sign-in failed"
+        authState == CloudSyncState.OFFLINE   -> "Offline"
+        else                                  -> "Signing in…"
+    }
+    val displayColor = when {
+        uid != null                           -> Sky
+        authState == CloudSyncState.ERROR     -> Coral
+        else                                  -> TextMuted
+    }
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -663,7 +717,13 @@ private fun AccountIdRow() {
     ) {
         Text("🪪 Account ID", style = MaterialTheme.typography.bodyMedium,
             modifier = Modifier.weight(1f), color = TextPrimary)
-        Text(display, style = MaterialTheme.typography.titleMedium, color = Sky)
+        Text(
+            display,
+            style = MaterialTheme.typography.titleMedium,
+            color = displayColor,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
         if (uid != null) {
             Spacer(Modifier.width(8.dp))
             Icon(

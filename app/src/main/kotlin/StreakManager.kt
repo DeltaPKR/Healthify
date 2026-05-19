@@ -3,6 +3,8 @@ package com.healthify.app.streak
 import com.healthify.app.data.db.CheckInEntity
 import com.healthify.app.data.db.UserEntity
 import com.healthify.app.data.repository.AppRepository
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.withContext
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.time.temporal.ChronoUnit
@@ -44,18 +46,29 @@ object StreakManager {
             )
         }
 
-        val missed = mutableListOf<String>()
+        // Hint list — surfaces what's not optimal today. Not used for the
+        // streak count anymore (see below); kept so callers can show
+        // motivational hints. Renamed from "missed" to clarify it does
+        // NOT break the streak.
+        val hints = mutableListOf<String>()
         if (checkIn.waterGlasses < criteria.minWaterGlasses)
-            missed += "Drink more water (${checkIn.waterGlasses}/${criteria.minWaterGlasses} glasses)"
+            hints += "Drink more water (${checkIn.waterGlasses}/${criteria.minWaterGlasses} glasses)"
         if (checkIn.sleepHours < criteria.minSleepHours)
-            missed += "Sleep more (${checkIn.sleepHours}h / goal ${criteria.minSleepHours}h)"
+            hints += "Sleep more (${checkIn.sleepHours}h / goal ${criteria.minSleepHours}h)"
         if (checkIn.steps > 0 && checkIn.steps < criteria.minSteps)
-            missed += "More steps (${checkIn.steps}/${criteria.minSteps})"
+            hints += "More steps (${checkIn.steps}/${criteria.minSteps})"
         if (checkIn.moodScore in 0..4 && checkIn.moodScore < criteria.minMoodScore)
-            missed += "Mood is low – we're here for you 💙"
-        val isHealthy = missed.isEmpty()
+            hints += "Mood is low – we're here for you 💙"
+        // "Healthy today" badge stays attached to meeting all criteria.
+        val isHealthy = hints.isEmpty()
 
-        // Determine new streak
+        // Streak counts consecutive *days the user checked in at all* —
+        // not days they hit every wellness target. Testers reported that
+        // a single suboptimal day (e.g. 4 glasses of water on a busy
+        // travel day) silently reset the streak; users perceived this as
+        // a save bug ("my streak vanished"). Consistency of the habit
+        // itself is the right primitive to reward; per-day quality is
+        // surfaced separately via `isHealthyToday` + `hints`.
         val lastDate = if (user.lastStreakDate.isNotEmpty())
             LocalDate.parse(user.lastStreakDate, iso) else null
 
@@ -63,15 +76,21 @@ object StreakManager {
             ChronoUnit.DAYS.between(lastDate, today) else Long.MAX_VALUE
 
         val newStreak = when {
-            isHealthy && daysSinceLast == 1L -> user.currentStreak + 1  // consecutive day
-            isHealthy && daysSinceLast == 0L -> user.currentStreak      // same day update
-            isHealthy                        -> 1                        // streak reset / new start
-            else                             -> 0                        // failed today
+            daysSinceLast == 1L -> user.currentStreak + 1   // consecutive day
+            daysSinceLast == 0L -> maxOf(user.currentStreak, 1) // same day re-save
+            else                -> 1                         // gap → fresh streak of 1
         }
 
         val newLongest = maxOf(user.longestStreak, newStreak)
 
-        if (newStreak != user.currentStreak || newLongest != user.longestStreak) {
+        // Always persist lastStreakDate as today so a future evaluate sees
+        // an up-to-date anchor even when newStreak == currentStreak. Wrap
+        // in NonCancellable: this call is reached from a Flow collector
+        // (`DashboardViewModel.init { collectLatest ... }`) which cancels
+        // the previous evaluate on every new emission. Without
+        // NonCancellable a quick second emission could cancel the write
+        // mid-flight and the streak would silently fail to update.
+        withContext(NonCancellable) {
             repo.updateStreak(newStreak, newLongest, today.format(iso))
         }
 
@@ -79,7 +98,7 @@ object StreakManager {
             current        = newStreak,
             longest        = newLongest,
             isHealthyToday = isHealthy,
-            missedCriteria = missed
+            missedCriteria = hints
         )
     }
 
