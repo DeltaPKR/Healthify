@@ -650,10 +650,18 @@ private fun CloudSyncRow() {
         if (state == CloudSyncState.ERROR) {
             Spacer(Modifier.height(4.dp))
             Text(
-                "Tap to retry • ${errorReason ?: "Unknown error"}",
+                "Tap to retry",
+                style = MaterialTheme.typography.bodySmall,
+                color = Coral
+            )
+            // 3 lines + ellipsis — gives room for the full Firebase message
+            // (e.g. "An internal error has occurred. [INVALID_REFRESH_TOKEN]")
+            // without exploding the card on long traces.
+            Text(
+                errorReason ?: "Unknown error",
                 style = MaterialTheme.typography.bodySmall,
                 color = TextMuted,
-                maxLines = 1,
+                maxLines = 3,
                 overflow = TextOverflow.Ellipsis
             )
         }

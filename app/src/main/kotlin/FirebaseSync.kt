@@ -92,18 +92,21 @@ object FirebaseSync {
     }
 
     /**
-     * Short, user-facing description of the last sign-in failure. Returns
-     * a Firebase error code when available (e.g.
-     * `ERROR_OPERATION_NOT_ALLOWED` — Anonymous sign-in disabled in
-     * Firebase Console), otherwise the exception's simple class name.
-     * Null when no failure has been recorded.
+     * Short, user-facing description of the last sign-in failure.
+     * Prefers FirebaseAuthException.errorCode (e.g. ERROR_OPERATION_NOT_ALLOWED
+     * = Anonymous sign-in disabled). Falls back to the exception message,
+     * then the class simpleName. Truncated so the Profile row stays one line.
      */
     fun lastAuthErrorReason(): String? {
         val e = lastAuthError ?: return null
-        val code = (e as? com.google.firebase.FirebaseException)?.let {
-            (it as? com.google.firebase.auth.FirebaseAuthException)?.errorCode
+        val code = (e as? com.google.firebase.auth.FirebaseAuthException)?.errorCode
+        val msg  = e.message?.replace('\n', ' ')?.take(120)
+        return when {
+            code != null && msg != null -> "$code · $msg"
+            code != null                -> code
+            msg != null                 -> "${e::class.java.simpleName}: $msg"
+            else                        -> e::class.java.simpleName
         }
-        return code ?: e::class.java.simpleName
     }
 
     private val uid: String?
