@@ -32,6 +32,7 @@ import com.healthify.app.streak.StreakManager
 import com.healthify.app.ui.theme.*
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
@@ -78,11 +79,22 @@ class DashboardViewModel(
         // until the user backgrounded and reopened the app — which is the
         // exact bug testers reported ("streak doesn't update after
         // check-in until I restart").
+        //
+        // `distinctUntilChanged` on the (checkIn, user) pair is the
+        // defensive guard against the infinite-loop regression: if any
+        // downstream code ever writes to the users table with the same
+        // values it already holds, Room will still re-emit on the user
+        // flow, but `distinctUntilChanged` swallows the duplicate so we
+        // don't re-enter load() and trigger another no-op write. Data
+        // classes (`CheckInEntity`, `UserEntity`) give us structural
+        // equality for free.
         viewModelScope.launch {
             combine(
                 repo.getCheckInForCurrentWindowFlow(),
                 repo.getUser()
-            ) { _, _ -> Unit }.collectLatest { _ -> load() }
+            ) { ci, u -> ci to u }
+                .distinctUntilChanged()
+                .collectLatest { _ -> load() }
         }
     }
 

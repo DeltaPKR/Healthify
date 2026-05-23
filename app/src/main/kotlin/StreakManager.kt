@@ -83,15 +83,33 @@ object StreakManager {
 
         val newLongest = maxOf(user.longestStreak, newStreak)
 
-        // Always persist lastStreakDate as today so a future evaluate sees
-        // an up-to-date anchor even when newStreak == currentStreak. Wrap
-        // in NonCancellable: this call is reached from a Flow collector
-        // (`DashboardViewModel.init { collectLatest ... }`) which cancels
-        // the previous evaluate on every new emission. Without
-        // NonCancellable a quick second emission could cancel the write
-        // mid-flight and the streak would silently fail to update.
-        withContext(NonCancellable) {
-            repo.updateStreak(newStreak, newLongest, today.format(iso))
+        // Only write when something actually changed. Room invalidates
+        // every Flow observer on the table on ANY successful UPDATE —
+        // even one that sets columns to the same values they already
+        // hold. DashboardViewModel observes the user flow and calls
+        // evaluate() from inside load(); an unconditional write here
+        // therefore feeds a no-op UPDATE back into the flow, which
+        // re-triggers load(), which writes again, etc., producing the
+        // infinite "Profile screen endlessly refreshing" loop testers
+        // reported. Comparing the proposed values against what is
+        // already in the row breaks the cycle without giving up the
+        // "lastStreakDate anchor" behaviour: the only path that
+        // actually mutates the row is one where something genuinely
+        // changed (streak count, longest, or anchor date).
+        val todayStr = today.format(iso)
+        val needsWrite = newStreak != user.currentStreak ||
+            newLongest != user.longestStreak ||
+            todayStr != user.lastStreakDate
+        if (needsWrite) {
+            // NonCancellable: this call can be reached from a Flow
+            // collector (`DashboardViewModel.init { collectLatest ... }`)
+            // which cancels the previous evaluate on every new emission.
+            // Without NonCancellable a quick second emission could cancel
+            // the write mid-flight and the streak would silently fail to
+            // update.
+            withContext(NonCancellable) {
+                repo.updateStreak(newStreak, newLongest, todayStr)
+            }
         }
 
         return StreakResult(

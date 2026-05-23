@@ -33,6 +33,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import com.google.firebase.Firebase
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.auth
@@ -69,11 +70,21 @@ class ProfileViewModel(private val repo: AppRepository) : ViewModel() {
         // a check-in until they killed and reopened the app.
         // combine() fires once on subscribe (giving us the initial load)
         // and again on every downstream emission.
+        // `distinctUntilChanged` on the (user, check-ins) pair stops the
+        // infinite-refresh loop that occurred when downstream code wrote
+        // back to the users table with unchanged values: Room re-emits
+        // on every successful UPDATE regardless of whether the row
+        // actually changed, so without the de-dup we'd re-enter load()
+        // forever (visible to the user as the Profile screen flickering
+        // its loading spinner non-stop). Data classes give structural
+        // equality for free.
         viewModelScope.launch {
             combine(
                 repo.getUser(),
                 repo.getAllCheckIns()
-            ) { _, _ -> Unit }.collectLatest { _ -> load() }
+            ) { u, cis -> u to cis }
+                .distinctUntilChanged()
+                .collectLatest { _ -> load() }
         }
     }
 
