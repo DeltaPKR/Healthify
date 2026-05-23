@@ -66,7 +66,13 @@ import com.healthify.app.ui.theme.Green
 import com.healthify.app.ui.theme.HealthifyTheme
 import com.healthify.app.ui.theme.TextPrimary
 
-private const val KEY_HC_PERMS_ASKED   = "hc_perms_asked"
+// Notification perm flag stays persisted: it's a one-shot native system
+// dialog and re-prompting every cold start would be spammy.
+// Health Connect perm is NOT persisted — see DashboardPage. We re-prompt
+// on every cold launch when the perms aren't granted, because the HC
+// permission UI is a full-screen activity (not a tiny system dialog) and
+// repeat-asking is the standard pattern (user can deny inside HC itself
+// to permanently opt out; that's a separate system-level state).
 private const val KEY_NOTIF_PERM_ASKED = "notif_perm_asked"
 
 // ── Navigation routes ────────────────────────────────────────────────────────
@@ -286,10 +292,16 @@ private fun DashboardPage(
     )
 
     // ── Health Connect & notification permission flow ─────────────────────
-    // Ask at most once per install. Persisting the flags in SharedPreferences
-    // means cold launches don't re-prompt.
+    // Notifications: once per install (persisted via SharedPreferences).
+    // Health Connect: once per app session (in-memory flag below) — if
+    // the user dismissed the HC consent screen on the previous launch
+    // and reopens the app, we ask again. Skipping the persisted flag is
+    // the actual fix for testers reporting "the app never asks for
+    // Health Connect access". Once the perms ARE granted,
+    // hc.hasAllPermissions() short-circuits and the launcher never fires.
     val hc = app.healthConnectManager
     val ctx = LocalContext.current
+    var hcAskedThisSession by rememberSaveable { mutableStateOf(false) }
     val permLauncher = rememberLauncherForActivityResult(
         contract = PermissionController.createRequestPermissionResultContract()
     ) {
@@ -313,10 +325,11 @@ private fun DashboardPage(
             }
         }
 
-        // Health Connect.
-        val hcAsked = prefs.getBoolean(KEY_HC_PERMS_ASKED, false)
-        if (!hcAsked && hc.isAvailable && !hc.hasAllPermissions()) {
-            prefs.edit().putBoolean(KEY_HC_PERMS_ASKED, true).apply()
+        // Health Connect: re-prompt every cold launch when missing perms.
+        // Session flag prevents firing twice if DashboardPage recomposes
+        // (e.g. user swipes away to Insights and back to Home).
+        if (!hcAskedThisSession && hc.isAvailable && !hc.hasAllPermissions()) {
+            hcAskedThisSession = true
             permLauncher.launch(hc.requiredPermissions)
         }
     }

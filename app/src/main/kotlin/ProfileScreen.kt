@@ -31,6 +31,8 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.combine
 import com.google.firebase.Firebase
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.auth
@@ -59,7 +61,21 @@ class ProfileViewModel(private val repo: AppRepository) : ViewModel() {
     var uiState by mutableStateOf(ProfileUiState())
         private set
 
-    init { load() }
+    init {
+        // Re-fetch whenever either the user row (streak, name, goals) or
+        // the check_ins table changes. Without this the Profile screen
+        // would show stale stats until the app is cold-restarted —
+        // testers reported the streak/total counters never moving after
+        // a check-in until they killed and reopened the app.
+        // combine() fires once on subscribe (giving us the initial load)
+        // and again on every downstream emission.
+        viewModelScope.launch {
+            combine(
+                repo.getUser(),
+                repo.getAllCheckIns()
+            ) { _, _ -> Unit }.collectLatest { _ -> load() }
+        }
+    }
 
     fun load() = viewModelScope.launch {
         uiState = uiState.copy(isLoading = true)

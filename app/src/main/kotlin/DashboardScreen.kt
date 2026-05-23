@@ -31,6 +31,7 @@ import com.healthify.app.health.HealthConnectManager
 import com.healthify.app.streak.StreakManager
 import com.healthify.app.ui.theme.*
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
@@ -66,12 +67,22 @@ class DashboardViewModel(
         private set
 
     init {
-        // Observe the current-window check-in as a Flow so the dashboard
-        // refreshes immediately after the user submits a check-in (or any
-        // DB write) AND rolls over at the same boundary as the check-in
-        // unlock (CHECKIN_RESET_HOUR) — not at midnight.
+        // Observe BOTH the current-window check-in flow AND the user row so
+        // the dashboard refreshes immediately after:
+        //   • a check-in is saved (check_ins table changes)
+        //   • the streak is recomputed inside StreakManager.evaluate
+        //     (UPDATE users SET currentStreak=…)
+        // Combining the two means a single collector hop triggers `load()`
+        // on either upstream change. Without the user-flow leg, the
+        // streak/longestStreak counters on the dashboard would stay stale
+        // until the user backgrounded and reopened the app — which is the
+        // exact bug testers reported ("streak doesn't update after
+        // check-in until I restart").
         viewModelScope.launch {
-            repo.getCheckInForCurrentWindowFlow().collectLatest { _ -> load() }
+            combine(
+                repo.getCheckInForCurrentWindowFlow(),
+                repo.getUser()
+            ) { _, _ -> Unit }.collectLatest { _ -> load() }
         }
     }
 
@@ -559,19 +570,33 @@ fun DashBottomNav(
     onNotifications: () -> Unit,
     onProfile: () -> Unit
 ) {
+    // Shared label style for all five tabs: forces a single line and
+    // shrinks the font slightly so the longest label ("Reminders") fits
+    // inside its slot on narrow / 200% font-scale devices instead of
+    // wrapping to a second row ("Reminder" + "s" on the next line).
+    val navLabel: @Composable (String, Color?) -> Unit = { text, color ->
+        Text(
+            text       = text,
+            color      = color ?: Color.Unspecified,
+            fontSize   = 11.sp,
+            maxLines   = 1,
+            softWrap   = false,
+            overflow   = TextOverflow.Visible
+        )
+    }
     NavigationBar(containerColor = Color(0xFF05090F), tonalElevation = 0.dp) {
         NavigationBarItem(
             selected = selectedTab == "home",
             onClick  = onHome,
             icon     = { Text("🏠", fontSize = 20.sp) },
-            label    = { Text("Home") },
+            label    = { navLabel("Home", null) },
             colors   = navColors()
         )
         NavigationBarItem(
             selected = selectedTab == "insights",
             onClick  = onInsights,
             icon     = { Text("📊", fontSize = 20.sp) },
-            label    = { Text("Insights") },
+            label    = { navLabel("Insights", null) },
             colors   = navColors()
         )
         NavigationBarItem(
@@ -584,21 +609,21 @@ fun DashBottomNav(
                     contentAlignment = Alignment.Center
                 ) { Text("❤️", fontSize = 22.sp) }
             },
-            label  = { Text("Check-in", color = Green) },
+            label  = { navLabel("Check-in", Green) },
             colors = navColors()
         )
         NavigationBarItem(
             selected = selectedTab == "reminders",
             onClick  = onNotifications,
             icon     = { Text("🔔", fontSize = 20.sp) },
-            label    = { Text("Reminders") },
+            label    = { navLabel("Reminders", null) },
             colors   = navColors()
         )
         NavigationBarItem(
             selected = selectedTab == "profile",
             onClick  = onProfile,
             icon     = { Text("👤", fontSize = 20.sp) },
-            label    = { Text("Profile") },
+            label    = { navLabel("Profile", null) },
             colors   = navColors()
         )
     }

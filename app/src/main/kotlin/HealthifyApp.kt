@@ -1,6 +1,7 @@
 package com.healthify.app
 
 import android.app.Application
+import android.content.Context
 import androidx.room.Room
 import com.google.firebase.Firebase
 import com.google.firebase.auth.auth
@@ -56,8 +57,21 @@ class HealthifyApp : Application() {
         // install) — if reminders waited on it, no alarms would ever fire on
         // affected devices. AlarmManager.set... is idempotent per reminder
         // id, so re-arming on every launch is safe.
+        //
+        // Seeding is one-shot per install (gated by KEY_DEFAULTS_SEEDED).
+        // Previously seedDefaultReminders() re-added defaults whenever the
+        // reminders table was empty, so deleting every reminder caused the
+        // full default set to reappear on the next launch — testers
+        // reported this as "the app silently re-creates notifications I
+        // already deleted". With the flag, an empty reminders table is a
+        // deliberate user choice we respect.
         appScope.launch {
-            repository.seedDefaultReminders()
+            val prefs = getSharedPreferences("healthify_prefs", Context.MODE_PRIVATE)
+            val alreadySeeded = prefs.getBoolean(KEY_DEFAULTS_SEEDED, false)
+            if (!alreadySeeded) {
+                repository.seedDefaultReminders()
+                prefs.edit().putBoolean(KEY_DEFAULTS_SEEDED, true).apply()
+            }
             repository.getEnabledReminders().forEach { reminder ->
                 NotificationScheduler.schedule(this@HealthifyApp, reminder)
             }
@@ -76,5 +90,9 @@ class HealthifyApp : Application() {
     companion object {
         private var _instance: HealthifyApp? = null
         val instance get() = _instance!!
+
+        // Flag persisted in SharedPreferences so the default-reminders
+        // seed runs exactly once per install (see onCreate).
+        private const val KEY_DEFAULTS_SEEDED = "default_reminders_seeded"
     }
 }
