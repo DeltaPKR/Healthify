@@ -66,11 +66,30 @@ class HealthifyApp : Application() {
         // already deleted". With the flag, an empty reminders table is a
         // deliberate user choice we respect.
         appScope.launch {
-            val prefs = getSharedPreferences("healthify_prefs", Context.MODE_PRIVATE)
+            val prefs = getSharedPreferences(PREFS_FILE, Context.MODE_PRIVATE)
             val alreadySeeded = prefs.getBoolean(KEY_DEFAULTS_SEEDED, false)
             if (!alreadySeeded) {
                 repository.seedDefaultReminders()
                 prefs.edit().putBoolean(KEY_DEFAULTS_SEEDED, true).apply()
+            }
+            // Cache the row id of the seeded Daily Check-in reminder so
+            // the rest of the app (ReminderReceiver suppression rule,
+            // NotificationsScreen edit-lock UI) can identify it by id —
+            // not by category and not by display label. This is the
+            // single source of truth that decouples the "skip notif if
+            // user already checked in" semantic from the broader
+            // "wellness" category. Before this fix any wellness-category
+            // reminder inherited that suppression by accident; the
+            // bedtime "Wind Down" default in particular went silent
+            // whenever the user checked in after 18:00 because its
+            // wellness tag was being read as "this IS the check-in
+            // nudge". Looking up by label here is a one-shot bootstrap
+            // step: once the id is cached, the label can be edited,
+            // translated, or detached without breaking anything.
+            if (prefs.getInt(KEY_CHECKIN_REMINDER_ID, -1) == -1) {
+                repository.findReminderByLabel(DAILY_CHECKIN_LABEL)?.let { row ->
+                    prefs.edit().putInt(KEY_CHECKIN_REMINDER_ID, row.id).apply()
+                }
             }
             repository.getEnabledReminders().forEach { reminder ->
                 NotificationScheduler.schedule(this@HealthifyApp, reminder)
@@ -91,8 +110,23 @@ class HealthifyApp : Application() {
         private var _instance: HealthifyApp? = null
         val instance get() = _instance!!
 
+        // ── Shared-preferences keys ──────────────────────────────────────
+        // PREFS_FILE is the single backing file every key below lives in.
+        // Other modules (NotificationsScreen, ReminderReceiver) read the
+        // check-in-reminder id directly via SharedPreferences, so the
+        // constants need to be visible outside this class.
+        const val PREFS_FILE                = "healthify_prefs"
+        const val KEY_CHECKIN_REMINDER_ID   = "checkin_reminder_id"
+
         // Flag persisted in SharedPreferences so the default-reminders
         // seed runs exactly once per install (see onCreate).
         private const val KEY_DEFAULTS_SEEDED = "default_reminders_seeded"
+
+        // Label the Daily Check-in row is seeded with. Used ONLY at
+        // bootstrap (HealthifyApp.onCreate) to locate the row and cache
+        // its id; never read by the suppression rule or the UI at
+        // run-time, so a later rename/translation does not detach the
+        // id from the rules built on top of it.
+        private const val DAILY_CHECKIN_LABEL = "Daily Check-in"
     }
 }

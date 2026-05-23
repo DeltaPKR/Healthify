@@ -105,6 +105,8 @@ class AppRepository(
     suspend fun toggleReminder(id: Int, enabled: Boolean) = reminderDao.setEnabled(id, enabled)
     suspend fun deleteReminder(reminder: ReminderEntity) = reminderDao.delete(reminder)
     suspend fun getReminderById(id: Int): ReminderEntity? = reminderDao.getById(id)
+    suspend fun findReminderByLabel(label: String): ReminderEntity? =
+        reminderDao.findByLabel(label)
 
     // ── Seed default reminders ──────────────────────────────────────────────
     suspend fun seedDefaultReminders() {

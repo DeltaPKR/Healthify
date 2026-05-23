@@ -214,10 +214,20 @@ class ReminderReceiver : BroadcastReceiver() {
                 val reminder = app.repository.getReminderById(reminderId) ?: return@launch
                 if (!reminder.enabled) return@launch
 
-                val channel = NotificationScheduler.channelFor(reminder.category)
-
-                // Suppress check-in nudge if user has already checked in this window.
-                val shouldFire = if (channel == NotificationChannels.CHECK_IN) {
+                // Suppress only the seeded Daily Check-in nudge if the
+                // user has already checked in for the current window. We
+                // identify it by the row id we cached in SharedPreferences
+                // at first launch (HealthifyApp.onCreate) — NOT by
+                // channel / category. The previous "channel == CHECK_IN"
+                // check accidentally muted every wellness-category
+                // reminder (e.g. the 22:00 "Wind Down" default) whenever
+                // the user checked in after 18:00, because all wellness
+                // reminders route to the CHECK_IN channel.
+                val prefs = context.getSharedPreferences(
+                    HealthifyApp.PREFS_FILE, Context.MODE_PRIVATE
+                )
+                val checkInReminderId = prefs.getInt(HealthifyApp.KEY_CHECKIN_REMINDER_ID, -1)
+                val shouldFire = if (reminder.id == checkInReminderId) {
                     val (canCheckIn, _) = app.repository.checkInCooldownStatus()
                     canCheckIn
                 } else true

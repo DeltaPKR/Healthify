@@ -29,6 +29,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import com.healthify.app.HealthifyApp
 import com.healthify.app.data.db.ReminderEntity
 import com.healthify.app.data.repository.AppRepository
 import com.healthify.app.notifications.NotificationScheduler
@@ -75,6 +76,19 @@ private val ICON_CATALOG = listOf(
 fun NotificationsScreen(repo: AppRepository, context: Context, onBack: () -> Unit) {
     val scope = rememberCoroutineScope()
     val reminders by repo.getAllReminders().collectAsState(emptyList())
+
+    // The Daily Check-in default reminder is locked in the UI — the user
+    // can toggle it on/off but cannot rename, retime, or delete it. This
+    // keeps the row id stable so the suppression rule wired up in
+    // ReminderReceiver (only the seeded check-in nudge is silenced when
+    // the user has already checked in) never detaches from the row it's
+    // meant to apply to. -1 sentinel = lookup hasn't run yet (e.g.
+    // first-launch race) → no row is treated as protected this session,
+    // which is the safe default.
+    val checkInReminderId = remember {
+        context.getSharedPreferences(HealthifyApp.PREFS_FILE, Context.MODE_PRIVATE)
+            .getInt(HealthifyApp.KEY_CHECKIN_REMINDER_ID, -1)
+    }
 
     var showEditor by remember { mutableStateOf(false) }
     var editing    by remember { mutableStateOf<ReminderEntity?>(null) }
@@ -180,8 +194,10 @@ fun NotificationsScreen(repo: AppRepository, context: Context, onBack: () -> Uni
                     modifier = Modifier.padding(start = 4.dp, top = 4.dp))
 
                 reminders.forEach { reminder ->
+                    val isProtected = reminder.id == checkInReminderId
                     ReminderCard(
-                        reminder = reminder,
+                        reminder    = reminder,
+                        isProtected = isProtected,
                         onToggle = { enabled ->
                             scope.launch {
                                 repo.toggleReminder(reminder.id, enabled)
@@ -193,6 +209,11 @@ fun NotificationsScreen(repo: AppRepository, context: Context, onBack: () -> Uni
                             }
                         },
                         onEdit = {
+                            // Locked rows don't open the editor — the
+                            // launcher is wired to a no-op above when
+                            // isProtected is true, so this lambda is
+                            // unreachable for them. Kept here only so
+                            // the parameter shape stays uniform.
                             editing = reminder
                             showEditor = true
                         },
@@ -255,6 +276,7 @@ fun NotificationsScreen(repo: AppRepository, context: Context, onBack: () -> Uni
 @Composable
 private fun ReminderCard(
     reminder: ReminderEntity,
+    isProtected: Boolean,
     onToggle: (Boolean) -> Unit,
     onEdit:   () -> Unit,
     onDelete: () -> Unit
@@ -276,8 +298,13 @@ private fun ReminderCard(
 
     var showConfirmDelete by remember { mutableStateOf(false) }
 
+    // Protected (seeded Daily Check-in) rows: the card opens nothing on
+    // tap and the trash button is replaced by a "DEFAULT" chip. The
+    // Switch stays interactive so the user can still mute the nudge
+    // without losing the suppression-rule anchor. See HealthifyApp and
+    // ReminderReceiver for why the row id has to stay stable.
     Card(
-        onClick  = onEdit,
+        onClick  = if (isProtected) ({ /* no-op */ }) else onEdit,
         modifier = Modifier.fillMaxWidth().then(
             if (!reminder.enabled) Modifier.alpha(0.55f) else Modifier
         ),
@@ -305,15 +332,30 @@ private fun ReminderCard(
                 )
             }
 
-            IconButton(
-                onClick = { showConfirmDelete = true },
-                modifier = Modifier
-                    .size(40.dp)
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(CoralDim)
-            ) {
-                Icon(Icons.Default.Delete, "Delete reminder", tint = Coral,
-                    modifier = Modifier.size(22.dp))
+            if (isProtected) {
+                Box(
+                    Modifier
+                        .clip(RoundedCornerShape(100.dp))
+                        .background(GreenDim)
+                        .padding(horizontal = 10.dp, vertical = 6.dp)
+                ) {
+                    Text(
+                        "DEFAULT",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = Green
+                    )
+                }
+            } else {
+                IconButton(
+                    onClick = { showConfirmDelete = true },
+                    modifier = Modifier
+                        .size(40.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(CoralDim)
+                ) {
+                    Icon(Icons.Default.Delete, "Delete reminder", tint = Coral,
+                        modifier = Modifier.size(22.dp))
+                }
             }
 
             Switch(

@@ -121,6 +121,9 @@ interface ReminderDao {
     @Query("SELECT * FROM reminders WHERE id=:id")
     suspend fun getById(id: Int): ReminderEntity?
 
+    @Query("SELECT * FROM reminders WHERE label = :label LIMIT 1")
+    suspend fun findByLabel(label: String): ReminderEntity?
+
     @Query("SELECT COUNT(*) FROM reminders")
     suspend fun totalCount(): Int
 }
