@@ -7,6 +7,8 @@ import android.app.PendingIntent
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.media.AudioAttributes
+import android.media.RingtoneManager
 import android.os.Build
 import androidx.core.app.NotificationCompat
 import com.healthify.app.HealthifyApp
@@ -28,29 +30,84 @@ object NotificationChannels {
     const val CHECK_IN    = "healthify_checkin"
     const val STREAK      = "healthify_streak"
 
+    // Bump this any time we need to force every existing install to drop
+    // and re-create its NotificationChannels with refreshed settings.
+    // NotificationChannel settings (sound, importance, vibration) are
+    // immutable once created — only the user can change them through OS
+    // settings — so calling createNotificationChannel() with new values
+    // on an existing id is a no-op. Bumping this constant flips the
+    // SharedPreferences gate below and forces a one-time delete + create.
+    private const val CHANNEL_SETTINGS_REVISION = 2
+    private const val KEY_CHANNEL_SETTINGS_REV  = "channel_settings_rev"
+
     fun createAll(context: Context) {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
         val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        val prefs = context.getSharedPreferences(
+            HealthifyApp.PREFS_FILE, Context.MODE_PRIVATE
+        )
+
+        // One-time refresh: if the current revision doesn't match the
+        // value we last persisted, drop every existing channel so that
+        // the createNotificationChannel calls below get fresh settings
+        // (including the explicit sound + vibration we set up next).
+        // Without this step the original silent-by-accident channel
+        // config from older installs would persist forever — testers
+        // reported "no sound when notification is sent" for exactly
+        // this reason.
+        val storedRev = prefs.getInt(KEY_CHANNEL_SETTINGS_REV, 0)
+        if (storedRev != CHANNEL_SETTINGS_REVISION) {
+            listOf(REMINDERS, CHECK_IN, STREAK).forEach { id ->
+                try { nm.deleteNotificationChannel(id) } catch (_: Exception) { /* ignore */ }
+            }
+            prefs.edit().putInt(KEY_CHANNEL_SETTINGS_REV, CHANNEL_SETTINGS_REVISION).apply()
+        }
+
+        // Explicit sound + vibration. Without setSound() the platform
+        // sometimes leaves a channel silent depending on OEM defaults
+        // (especially on Xiaomi / Vivo / Realme variants); calling it
+        // unconditionally with the system default tone guarantees an
+        // audible ping.
+        val soundUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
+        val audioAttrs = AudioAttributes.Builder()
+            .setUsage(AudioAttributes.USAGE_NOTIFICATION)
+            .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+            .build()
+
         nm.createNotificationChannel(
             NotificationChannel(
                 REMINDERS,
                 context.getString(R.string.channel_reminders_name),
                 NotificationManager.IMPORTANCE_DEFAULT
-            ).apply { description = context.getString(R.string.channel_reminders_desc) }
+            ).apply {
+                description = context.getString(R.string.channel_reminders_desc)
+                setSound(soundUri, audioAttrs)
+                enableVibration(true)
+                vibrationPattern = longArrayOf(0L, 250L, 200L, 250L)
+            }
         )
         nm.createNotificationChannel(
             NotificationChannel(
                 CHECK_IN,
                 context.getString(R.string.channel_checkin_name),
                 NotificationManager.IMPORTANCE_HIGH
-            ).apply { description = context.getString(R.string.channel_checkin_desc) }
+            ).apply {
+                description = context.getString(R.string.channel_checkin_desc)
+                setSound(soundUri, audioAttrs)
+                enableVibration(true)
+                vibrationPattern = longArrayOf(0L, 300L, 200L, 300L)
+            }
         )
         nm.createNotificationChannel(
             NotificationChannel(
                 STREAK,
                 context.getString(R.string.channel_streak_name),
                 NotificationManager.IMPORTANCE_DEFAULT
-            ).apply { description = context.getString(R.string.channel_streak_desc) }
+            ).apply {
+                description = context.getString(R.string.channel_streak_desc)
+                setSound(soundUri, audioAttrs)
+                enableVibration(true)
+            }
         )
     }
 }
@@ -134,17 +191,42 @@ object NotificationScheduler {
 
     // ── helpers ──────────────────────────────────────────────────────────────
 
-    fun channelFor(category: String) = when (category) {
-        "wellness" -> NotificationChannels.CHECK_IN
-        else       -> NotificationChannels.REMINDERS
-    }
+    /**
+     * Routes a reminder to its notification channel.
+     *
+     * The CHECK_IN channel uses IMPORTANCE_HIGH so the daily check-in
+     * nudge is hard to miss. Every other reminder — including bedtime
+     * wellness reminders like the default "Wind Down" — uses the
+     * standard REMINDERS channel: high importance at 22:00 is too
+     * disruptive, and routing all wellness reminders to CHECK_IN was
+     * the same "category = identity" mistake that caused the suppression
+     * and notification-text bugs.
+     */
+    fun channelFor(isCheckInReminder: Boolean): String =
+        if (isCheckInReminder) NotificationChannels.CHECK_IN else NotificationChannels.REMINDERS
 
-    fun getNotifText(label: String, category: String) = when (category) {
-        "water"    -> "Time to hydrate! Have you had water recently? 💧"
-        "movement" -> "Get moving! A short walk can boost your mood and energy 🏃"
-        "meds"     -> "Medication reminder: time for $label 💊"
-        "wellness" -> "How's your day going? Open Healthify for your check-in ❤️"
-        else       -> label
+    /**
+     * Returns the body text for a reminder notification.
+     *
+     * The check-in copy ("How's your day going? …") is reserved for the
+     * seeded Daily Check-in reminder identified by [isCheckInReminder]
+     * — NOT for every wellness-category reminder. Before this change
+     * the default 22:00 "Wind Down" reminder fired with the check-in
+     * body text because it shared category="wellness" with the
+     * check-in nudge. Wellness (and general) reminders now fall back
+     * to the user's own label, which matches the body the user
+     * configured in the editor.
+     */
+    fun getNotifText(reminder: ReminderEntity, isCheckInReminder: Boolean): String {
+        if (isCheckInReminder) {
+            return "How's your day going? Open Healthify for your check-in ❤️"
+        }
+        return when (reminder.category) {
+            "water"    -> "Time to hydrate! Have you had water recently? 💧"
+            "movement" -> "Get moving! A short walk can boost your mood and energy 🏃"
+            "meds"     -> "Medication reminder: time for ${reminder.label} 💊"
+            else       -> reminder.label
+        }
     }
 
     private fun buildPendingIntent(
@@ -227,13 +309,14 @@ class ReminderReceiver : BroadcastReceiver() {
                     HealthifyApp.PREFS_FILE, Context.MODE_PRIVATE
                 )
                 val checkInReminderId = prefs.getInt(HealthifyApp.KEY_CHECKIN_REMINDER_ID, -1)
-                val shouldFire = if (reminder.id == checkInReminderId) {
+                val isCheckInReminder = reminder.id == checkInReminderId
+                val shouldFire = if (isCheckInReminder) {
                     val (canCheckIn, _) = app.repository.checkInCooldownStatus()
                     canCheckIn
                 } else true
 
                 if (shouldFire) {
-                    postReminderNotification(context, reminder)
+                    postReminderNotification(context, reminder, isCheckInReminder)
                 }
 
                 // Always queue the next occurrence so the daily cycle keeps running.
@@ -244,8 +327,17 @@ class ReminderReceiver : BroadcastReceiver() {
         }
     }
 
-    private fun postReminderNotification(context: Context, reminder: ReminderEntity) {
-        val channel = NotificationScheduler.channelFor(reminder.category)
+    private fun postReminderNotification(
+        context: Context,
+        reminder: ReminderEntity,
+        isCheckInReminder: Boolean
+    ) {
+        // Channel + body text both pivot on the same id-anchored flag,
+        // so a wellness-category reminder (e.g. the 22:00 "Wind Down"
+        // default) gets the REMINDERS channel and its own label as
+        // body text instead of being forced into the CHECK_IN channel
+        // with the "How's your day going?" copy.
+        val channel = NotificationScheduler.channelFor(isCheckInReminder)
         val intent = Intent(context, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
         }
@@ -256,7 +348,7 @@ class ReminderReceiver : BroadcastReceiver() {
         val notification = NotificationCompat.Builder(context, channel)
             .setSmallIcon(android.R.drawable.ic_dialog_info)
             .setContentTitle("${reminder.emoji} Healthify")
-            .setContentText(NotificationScheduler.getNotifText(reminder.label, reminder.category))
+            .setContentText(NotificationScheduler.getNotifText(reminder, isCheckInReminder))
             .setAutoCancel(true)
             .setContentIntent(pi)
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)

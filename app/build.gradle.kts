@@ -26,8 +26,8 @@ android {
         applicationId = "com.DeltaPKR.Healthify"
         minSdk        = 26        // Android 8.0+; Health Connect needs 9+, enforced at runtime
         targetSdk     = 36        // Forward-compatible with Aug-2026 Play target-API requirement
-        versionCode   = 9
-        versionName   = "1.0.8"
+        versionCode   = 10
+        versionName   = "1.0.9"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
