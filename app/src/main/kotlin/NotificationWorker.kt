@@ -15,6 +15,7 @@ import com.healthify.app.HealthifyApp
 import com.healthify.app.MainActivity
 import com.healthify.app.R
 import com.healthify.app.data.db.ReminderEntity
+import com.healthify.app.data.db.ReminderEntity
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
