@@ -22,6 +22,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
@@ -39,6 +40,8 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.auth
 import com.healthify.app.data.db.UserEntity
 import com.healthify.app.BuildConfig
+import com.healthify.app.LocaleManager
+import com.healthify.app.R
 import com.healthify.app.data.repository.AppRepository
 import com.healthify.app.firebase.CloudSyncState
 import com.healthify.app.firebase.FirebaseSync
@@ -137,7 +140,7 @@ fun ProfileScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Profile", style = MaterialTheme.typography.headlineMedium) },
+                title = { Text(stringResource(R.string.profile_title), style = MaterialTheme.typography.headlineMedium) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.Default.ArrowBack, null, tint = TextMuted)
@@ -145,7 +148,7 @@ fun ProfileScreen(
                 },
                 actions = {
                     IconButton(onClick = { showEdit = true }) {
-                        Icon(Icons.Default.Edit, "Edit profile", tint = Green)
+                        Icon(Icons.Default.Edit, stringResource(R.string.btn_edit_profile), tint = Green)
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = BgDark)
@@ -194,7 +197,7 @@ fun ProfileScreen(
                     // name (or 200% system font scale) from pushing the
                     // "Edit profile" button off-card.
                     Text(
-                        u.name.ifBlank { "Friend" },
+                        u.name.ifBlank { stringResource(R.string.default_name) },
                         style = MaterialTheme.typography.headlineLarge.copy(fontSize = 26.sp),
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
@@ -222,7 +225,7 @@ fun ProfileScreen(
                         Icon(Icons.Default.Edit, null, tint = Green,
                             modifier = Modifier.size(16.dp))
                         Spacer(Modifier.width(6.dp))
-                        Text("Edit profile", color = Green,
+                        Text(stringResource(R.string.btn_edit_profile), color = Green,
                             style = MaterialTheme.typography.titleMedium)
                     }
                 }
@@ -233,48 +236,48 @@ fun ProfileScreen(
                 StatTile(
                     icon = "🔥",
                     value = u.currentStreak.toString(),
-                    label = "Current\nstreak",
+                    label = stringResource(R.string.stat_current_streak),
                     color = Green
                 )
                 StatTile(
                     icon = "👑",
                     value = u.longestStreak.toString(),
-                    label = "Best\nstreak",
+                    label = stringResource(R.string.stat_best_streak),
                     color = Gold
                 )
                 StatTile(
                     icon = "✓",
                     value = s.totalCheckIns.toString(),
-                    label = "Total\ncheck-ins",
+                    label = stringResource(R.string.stat_total_checkins),
                     color = Sky
                 )
                 StatTile(
                     icon = "⭐",
                     value = if (s.avgScore > 0) "%d".format(s.avgScore.toInt()) else "—",
-                    label = "Avg\nscore",
+                    label = stringResource(R.string.stat_avg_score),
                     color = Lavender
                 )
             }
 
             // ── Body Metrics ─────────────────────────────────────────────
-            SectionLabel("Body metrics")
+            SectionLabel(stringResource(R.string.section_body_metrics))
             Card(
                 Modifier.fillMaxWidth(),
                 colors = CardDefaults.cardColors(containerColor = SurfaceCard),
                 shape = RoundedCornerShape(16.dp)
             ) {
                 Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                    InfoRow("📏 Height", if (u.heightCm > 0) "%.0f cm".format(u.heightCm) else "—")
+                    InfoRow("📏 ${stringResource(R.string.label_height_cm).substringBefore(" (")}", if (u.heightCm > 0) "%.0f cm".format(u.heightCm) else "—")
                     HorizontalDivider(color = Divider)
-                    InfoRow("⚖️ Weight", if (u.weightKg > 0) "%.1f kg".format(u.weightKg) else "—")
+                    InfoRow("⚖️ ${stringResource(R.string.label_weight_kg).substringBefore(" (")}", if (u.weightKg > 0) "%.1f kg".format(u.weightKg) else "—")
                     if (u.heightCm > 0 && u.weightKg > 0) {
                         HorizontalDivider(color = Divider)
                         val bmi = u.weightKg / ((u.heightCm / 100f) * (u.heightCm / 100f))
                         val bmiLabel = when {
-                            bmi < 18.5 -> "Underweight" to Sky
-                            bmi < 25   -> "Healthy"     to Green
-                            bmi < 30   -> "Overweight"  to Gold
-                            else       -> "Obese"       to Coral
+                            bmi < 18.5 -> stringResource(R.string.bmi_underweight) to Sky
+                            bmi < 25   -> stringResource(R.string.bmi_healthy)     to Green
+                            bmi < 30   -> stringResource(R.string.bmi_overweight)  to Gold
+                            else       -> stringResource(R.string.bmi_obese)       to Coral
                         }
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text("🩺 BMI",
@@ -298,18 +301,18 @@ fun ProfileScreen(
             }
 
             // ── Goals ────────────────────────────────────────────────────
-            SectionLabel("Daily goals")
+            SectionLabel(stringResource(R.string.section_daily_goals))
             Card(
                 Modifier.fillMaxWidth(),
                 colors = CardDefaults.cardColors(containerColor = SurfaceCard),
                 shape = RoundedCornerShape(16.dp)
             ) {
                 Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                    InfoRow("🚶 Steps", "%,d".format(u.stepGoal))
+                    InfoRow("🚶 ${stringResource(R.string.label_steps_field)}", "%,d".format(u.stepGoal))
                     HorizontalDivider(color = Divider)
-                    InfoRow("💧 Water", "${u.waterGoalGlasses} glasses")
+                    InfoRow("💧 ${stringResource(R.string.label_water_gl)}", "${u.waterGoalGlasses} ${stringResource(R.string.unit_glasses)}")
                     HorizontalDivider(color = Divider)
-                    InfoRow("🌙 Sleep", "%.1fh".format(u.sleepGoalHours))
+                    InfoRow("🌙 ${stringResource(R.string.label_sleep_h)}", "%.1fh".format(u.sleepGoalHours))
                 }
             }
 
@@ -317,7 +320,7 @@ fun ProfileScreen(
             val conditions = u.conditions.split(",")
                 .map { it.trim() }.filter { it.isNotEmpty() }
             if (conditions.isNotEmpty()) {
-                SectionLabel("Health conditions")
+                SectionLabel(stringResource(R.string.section_conditions))
                 ChipFlow(conditions, color = Coral, dim = CoralDim)
             }
 
@@ -325,12 +328,12 @@ fun ProfileScreen(
             val goals = u.goals.split(",")
                 .map { it.trim() }.filter { it.isNotEmpty() }
             if (goals.isNotEmpty()) {
-                SectionLabel("Wellness goals")
+                SectionLabel(stringResource(R.string.section_goals))
                 ChipFlow(goals, color = Green, dim = GreenDim)
             }
 
             // ── About ────────────────────────────────────────────────────
-            SectionLabel("About")
+            SectionLabel(stringResource(R.string.section_about))
             Card(
                 Modifier.fillMaxWidth(),
                 colors = CardDefaults.cardColors(containerColor = SurfaceCard),
@@ -338,6 +341,8 @@ fun ProfileScreen(
             ) {
                 Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
                     InfoRow("🌿 App", "Healthify v${BuildConfig.VERSION_NAME}")
+                    HorizontalDivider(color = Divider)
+                    LanguageRow()
                     HorizontalDivider(color = Divider)
                     CloudSyncRow()
                     HorizontalDivider(color = Divider)
@@ -362,9 +367,9 @@ fun ProfileScreen(
                 ) {
                     Text("🔄", fontSize = 22.sp)
                     Column(Modifier.weight(1f)) {
-                        Text("Re-do onboarding", color = Coral,
+                        Text(stringResource(R.string.card_redo_onboarding), color = Coral,
                             style = MaterialTheme.typography.titleMedium)
-                        Text("Update your name, body metrics, conditions and goals",
+                        Text(stringResource(R.string.card_redo_onboarding_desc),
                             style = MaterialTheme.typography.bodySmall, color = TextMuted)
                     }
                     Icon(Icons.Default.ChevronRight, null, tint = Coral)
@@ -390,23 +395,18 @@ fun ProfileScreen(
     if (showConfirmReset) {
         AlertDialog(
             onDismissRequest = { showConfirmReset = false },
-            title = { Text("Re-do onboarding?", color = TextPrimary) },
-            text = {
-                Text(
-                    "You'll go through the welcome flow again. Your check-ins and streak are kept.",
-                    color = TextMuted
-                )
-            },
+            title = { Text(stringResource(R.string.dialog_redo_title), color = TextPrimary) },
+            text  = { Text(stringResource(R.string.dialog_redo_desc), color = TextMuted) },
             confirmButton = {
                 TextButton(onClick = {
                     showConfirmReset = false
                     viewModel.resetOnboarding()
                     onResetOnboarding()
-                }) { Text("Continue", color = Coral) }
+                }) { Text(stringResource(R.string.btn_continue_action), color = Coral) }
             },
             dismissButton = {
                 TextButton(onClick = { showConfirmReset = false }) {
-                    Text("Cancel", color = TextMuted)
+                    Text(stringResource(R.string.btn_cancel), color = TextMuted)
                 }
             },
             containerColor = SurfaceCard,
@@ -453,10 +453,10 @@ private fun EditProfileDialog(
                     .padding(22.dp),
                 verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
-                Text("Edit profile",
+                Text(stringResource(R.string.dialog_edit_profile_title),
                     style = MaterialTheme.typography.headlineMedium, color = TextPrimary)
 
-                FieldLabel("Name")
+                FieldLabel(stringResource(R.string.label_name_field))
                 OutlinedTextField(
                     value = name, onValueChange = { name = it },
                     modifier = Modifier.fillMaxWidth(),
@@ -466,7 +466,7 @@ private fun EditProfileDialog(
 
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     Column(Modifier.weight(1f)) {
-                        FieldLabel("Age")
+                        FieldLabel(stringResource(R.string.label_age_field))
                         OutlinedTextField(
                             value = age, onValueChange = { age = it.filter { c -> c.isDigit() }.take(3) },
                             modifier = Modifier.fillMaxWidth(), singleLine = true,
@@ -476,7 +476,7 @@ private fun EditProfileDialog(
                         )
                     }
                     Column(Modifier.weight(2f)) {
-                        FieldLabel("Gender")
+                        FieldLabel(stringResource(R.string.label_gender_field))
                         androidx.compose.foundation.layout.FlowRow(
                             horizontalArrangement = Arrangement.spacedBy(6.dp),
                             verticalArrangement = Arrangement.spacedBy(6.dp)
@@ -502,7 +502,7 @@ private fun EditProfileDialog(
 
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     Column(Modifier.weight(1f)) {
-                        FieldLabel("Height (cm)")
+                        FieldLabel(stringResource(R.string.label_height_cm))
                         OutlinedTextField(
                             value = heightCm,
                             onValueChange = { heightCm = it.filter { c -> c.isDigit() || c == '.' } },
@@ -513,7 +513,7 @@ private fun EditProfileDialog(
                         )
                     }
                     Column(Modifier.weight(1f)) {
-                        FieldLabel("Weight (kg)")
+                        FieldLabel(stringResource(R.string.label_weight_kg))
                         OutlinedTextField(
                             value = weightKg,
                             onValueChange = { weightKg = it.filter { c -> c.isDigit() || c == '.' } },
@@ -526,11 +526,11 @@ private fun EditProfileDialog(
                 }
 
                 Spacer(Modifier.height(4.dp))
-                Text("Daily goals", style = MaterialTheme.typography.labelSmall, color = Green)
+                Text(stringResource(R.string.section_daily_goals_edit), style = MaterialTheme.typography.labelSmall, color = Green)
 
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     Column(Modifier.weight(1f)) {
-                        FieldLabel("Steps")
+                        FieldLabel(stringResource(R.string.label_steps_field))
                         OutlinedTextField(
                             value = stepGoal,
                             onValueChange = { stepGoal = it.filter { c -> c.isDigit() }.take(6) },
@@ -541,7 +541,7 @@ private fun EditProfileDialog(
                         )
                     }
                     Column(Modifier.weight(1f)) {
-                        FieldLabel("Water (gl)")
+                        FieldLabel(stringResource(R.string.label_water_gl))
                         OutlinedTextField(
                             value = waterGoal,
                             onValueChange = { waterGoal = it.filter { c -> c.isDigit() }.take(2) },
@@ -552,7 +552,7 @@ private fun EditProfileDialog(
                         )
                     }
                     Column(Modifier.weight(1f)) {
-                        FieldLabel("Sleep (h)")
+                        FieldLabel(stringResource(R.string.label_sleep_h))
                         OutlinedTextField(
                             value = sleepGoal,
                             onValueChange = { sleepGoal = it.filter { c -> c.isDigit() || c == '.' } },
@@ -571,7 +571,7 @@ private fun EditProfileDialog(
                         modifier = Modifier.weight(1f).height(48.dp),
                         shape = RoundedCornerShape(13.dp),
                         border = androidx.compose.foundation.BorderStroke(1.dp, Divider)
-                    ) { Text("Cancel", color = TextMuted) }
+                    ) { Text(stringResource(R.string.btn_cancel), color = TextMuted) }
                     Button(
                         onClick = {
                             val updated = user.copy(
@@ -593,7 +593,7 @@ private fun EditProfileDialog(
                         shape = RoundedCornerShape(13.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = Green)
                     ) {
-                        Text("Save", color = MaterialTheme.colorScheme.onPrimary,
+                        Text(stringResource(R.string.btn_save), color = MaterialTheme.colorScheme.onPrimary,
                             style = MaterialTheme.typography.titleMedium)
                     }
                 }
@@ -628,6 +628,81 @@ private fun InfoRow(label: String, value: String) {
 }
 
 @Composable
+private fun LanguageRow() {
+    val ctx = LocalContext.current
+    var showDialog by remember { mutableStateOf(false) }
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { showDialog = true },
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            "🌐 ${stringResource(R.string.label_language)}",
+            style    = MaterialTheme.typography.bodyMedium,
+            modifier = Modifier.weight(1f),
+            color    = TextPrimary
+        )
+        Text(
+            LocaleManager.NATIVE_NAME[LocaleManager.currentLanguage] ?: "English",
+            style = MaterialTheme.typography.titleMedium,
+            color = Green
+        )
+        Spacer(Modifier.width(4.dp))
+        Icon(Icons.Default.ChevronRight, null, tint = TextMuted,
+            modifier = Modifier.size(16.dp))
+    }
+
+    if (showDialog) {
+        AlertDialog(
+            onDismissRequest = { showDialog = false },
+            title = {
+                Text(stringResource(R.string.lang_dialog_title), color = TextPrimary)
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    LocaleManager.SUPPORTED.forEach { lang ->
+                        val sel = LocaleManager.currentLanguage == lang
+                        Row(
+                            Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(10.dp))
+                                .background(if (sel) GreenDim else SurfaceCard2)
+                                .border(1.dp, if (sel) Green else Divider,
+                                    RoundedCornerShape(10.dp))
+                                .clickable {
+                                    LocaleManager.setLanguage(ctx, lang)
+                                    showDialog = false
+                                }
+                                .padding(horizontal = 14.dp, vertical = 12.dp),
+                            verticalAlignment     = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            Text(LocaleManager.FLAG[lang] ?: "", fontSize = 22.sp)
+                            Text(
+                                LocaleManager.NATIVE_NAME[lang] ?: lang,
+                                style    = MaterialTheme.typography.titleMedium,
+                                color    = if (sel) Green else TextPrimary,
+                                modifier = Modifier.weight(1f)
+                            )
+                            if (sel) Text("✓", color = Green)
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showDialog = false }) {
+                    Text(stringResource(R.string.btn_cancel), color = TextMuted)
+                }
+            },
+            containerColor = SurfaceCard,
+            shape = RoundedCornerShape(20.dp)
+        )
+    }
+}
+
+@Composable
 private fun CloudSyncRow() {
     val ctx = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -651,6 +726,13 @@ private fun CloudSyncRow() {
         // it reads as "something is wrong, not just slow".
         CloudSyncState.ERROR      -> Coral
     }
+    val stateLabel = when (state) {
+        CloudSyncState.ACTIVE     -> stringResource(R.string.cloud_sync_active)
+        CloudSyncState.CONNECTING -> stringResource(R.string.cloud_sync_connecting)
+        CloudSyncState.OFFLINE    -> stringResource(R.string.cloud_sync_offline)
+        CloudSyncState.ERROR      -> stringResource(R.string.cloud_sync_error)
+    }
+    val unknownErrStr = stringResource(R.string.cloud_unknown_error)
     // Tapping the row in ERROR state retries sign-in. CONNECTING / ACTIVE
     // are passive — no action — and tapping wouldn't help. OFFLINE is also
     // passive because we can't fix the network from here.
@@ -672,12 +754,12 @@ private fun CloudSyncRow() {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text("☁️ Cloud sync", style = MaterialTheme.typography.bodyMedium,
                 modifier = Modifier.weight(1f), color = TextPrimary)
-            Text(state.label, style = MaterialTheme.typography.titleMedium, color = valueColor)
+            Text(stateLabel, style = MaterialTheme.typography.titleMedium, color = valueColor)
         }
         if (state == CloudSyncState.ERROR) {
             Spacer(Modifier.height(4.dp))
             Text(
-                "Tap to retry",
+                stringResource(R.string.cloud_tap_retry),
                 style = MaterialTheme.typography.bodySmall,
                 color = Coral
             )
@@ -685,7 +767,7 @@ private fun CloudSyncRow() {
             // (e.g. "An internal error has occurred. [INVALID_REFRESH_TOKEN]")
             // without exploding the card on long traces.
             Text(
-                errorReason ?: "Unknown error",
+                errorReason ?: unknownErrStr,
                 style = MaterialTheme.typography.bodySmall,
                 color = TextMuted,
                 maxLines = 3,
@@ -728,11 +810,15 @@ private fun AccountIdRow() {
             delay(2000)
         }
     }
+    val signInFailed = stringResource(R.string.cloud_sign_in_failed)
+    val offline      = stringResource(R.string.cloud_offline_status)
+    val signingIn    = stringResource(R.string.cloud_signing_in)
+    val copiedMsg    = stringResource(R.string.toast_account_id_copied)
     val display = when {
         uid != null                           -> "${uid!!.take(8)}…"
-        authState == CloudSyncState.ERROR     -> "Sign-in failed"
-        authState == CloudSyncState.OFFLINE   -> "Offline"
-        else                                  -> "Signing in…"
+        authState == CloudSyncState.ERROR     -> signInFailed
+        authState == CloudSyncState.OFFLINE   -> offline
+        else                                  -> signingIn
     }
     val displayColor = when {
         uid != null                           -> Sky
@@ -745,7 +831,7 @@ private fun AccountIdRow() {
             .let { mod ->
                 if (uid != null) mod.clickable {
                     clipboard.setText(AnnotatedString(uid!!))
-                    Toast.makeText(ctx, "Account ID copied", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(ctx, copiedMsg, Toast.LENGTH_SHORT).show()
                 } else mod
             },
         verticalAlignment = Alignment.CenterVertically
@@ -788,6 +874,7 @@ private fun DeleteDataRow() {
         Firebase.auth.addAuthStateListener(listener)
         awaitDispose { Firebase.auth.removeAuthStateListener(listener) }
     }
+    val noEmailMsg = stringResource(R.string.toast_no_email_app)
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -807,11 +894,7 @@ private fun DeleteDataRow() {
                 try {
                     ctx.startActivity(intent)
                 } catch (_: android.content.ActivityNotFoundException) {
-                    Toast.makeText(
-                        ctx,
-                        "No email app found — visit deltapkr.github.io/Healthify/delete-data/",
-                        Toast.LENGTH_LONG
-                    ).show()
+                    Toast.makeText(ctx, noEmailMsg, Toast.LENGTH_LONG).show()
                 }
             },
         verticalAlignment = Alignment.CenterVertically
@@ -880,4 +963,3 @@ private fun dialogTextFieldColors() = TextFieldDefaults.colors(
     focusedTextColor = TextPrimary,
     unfocusedTextColor = TextPrimary
 )
-

@@ -43,6 +43,7 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.platform.LocalViewConfiguration
 import androidx.compose.ui.platform.ViewConfiguration
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -51,12 +52,14 @@ import kotlinx.coroutines.launch
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.*
+import com.healthify.app.R
 import com.healthify.app.ui.checkin.CheckInScreen
 import com.healthify.app.ui.dashboard.DashBottomNav
 import com.healthify.app.ui.dashboard.DashboardScreen
 import com.healthify.app.ui.dashboard.DashboardViewModel
 import com.healthify.app.ui.insights.InsightsScreen
 import com.healthify.app.ui.notifications.NotificationsScreen
+import com.healthify.app.ui.language.LanguagePickerScreen
 import com.healthify.app.ui.onboarding.OnboardingScreen
 import com.healthify.app.ui.onboarding.OnboardingViewModel
 import com.healthify.app.ui.profile.ProfileScreen
@@ -77,9 +80,10 @@ private const val KEY_NOTIF_PERM_ASKED = "notif_perm_asked"
 
 // ── Navigation routes ────────────────────────────────────────────────────────
 object Routes {
-    const val ONBOARDING = "onboarding"
-    const val MAIN       = "main"
-    const val CHECK_IN   = "checkin"
+    const val LANGUAGE_PICKER = "language_picker"
+    const val ONBOARDING      = "onboarding"
+    const val MAIN            = "main"
+    const val CHECK_IN        = "checkin"
 }
 
 // Tab order for the swipeable pager. Index here == HorizontalPager page index.
@@ -104,8 +108,20 @@ class MainActivity : ComponentActivity() {
         // screen's root padding to consume the system-bar insets exactly
         // once (e.g. via `Modifier.systemBarsPadding()` at the screen root).
         setContent {
-            HealthifyTheme {
-                HealthifyNavGraph()
+            // Override LocalContext with a locale-aware configuration wrapper.
+            // Because LocaleManager.currentLanguage is mutableStateOf, this
+            // remember block re-runs whenever the user switches language, and
+            // CompositionLocalProvider propagates the new context to every
+            // child composable — all stringResource() calls immediately resolve
+            // in the new locale with no Activity restart.
+            val baseCtx = LocalContext.current
+            val localizedCtx = remember(LocaleManager.currentLanguage) {
+                LocaleManager.localized(baseCtx)
+            }
+            CompositionLocalProvider(LocalContext provides localizedCtx) {
+                HealthifyTheme {
+                    HealthifyNavGraph()
+                }
             }
         }
     }
@@ -123,7 +139,11 @@ fun HealthifyNavGraph() {
 
     LaunchedEffect(Unit) {
         val user = repo.getUserOnce()
-        resolvedRoute = if (user?.onboardingComplete == true) Routes.MAIN else Routes.ONBOARDING
+        resolvedRoute = when {
+            !LocaleManager.hasBeenSelected(app) -> Routes.LANGUAGE_PICKER
+            user?.onboardingComplete == true    -> Routes.MAIN
+            else                               -> Routes.ONBOARDING
+        }
     }
     LaunchedEffect(Unit) {
         delay(SPLASH_MIN_DURATION_MS)
@@ -142,6 +162,27 @@ fun HealthifyNavGraph() {
         navController    = navController,
         startDestination = startRoute
     ) {
+        composable(Routes.LANGUAGE_PICKER) {
+            // After picking a language, check if the user has already completed
+            // onboarding (e.g. after clearing app cache) to land on the right screen.
+            var navigating by remember { mutableStateOf(false) }
+            val scope = rememberCoroutineScope()
+            LanguagePickerScreen(
+                onComplete = {
+                    if (!navigating) {
+                        navigating = true
+                        scope.launch {
+                            val user = repo.getUserOnce()
+                            val dest = if (user?.onboardingComplete == true) Routes.MAIN else Routes.ONBOARDING
+                            navController.navigate(dest) {
+                                popUpTo(Routes.LANGUAGE_PICKER) { inclusive = true }
+                            }
+                        }
+                    }
+                }
+            )
+        }
+
         composable(Routes.ONBOARDING) {
             val vm: OnboardingViewModel = viewModel(
                 factory = OnboardingViewModel.Factory(repo)
@@ -286,6 +327,7 @@ private fun DashboardPage(
 
     val vm: DashboardViewModel = viewModel(
         factory = DashboardViewModel.Factory(
+            app                  = app,
             repo                 = repo,
             healthConnectManager = app.healthConnectManager
         )
@@ -404,7 +446,7 @@ private fun SplashScreen() {
                     .scale(scale.value * pulseScale)
             )
             Text(
-                text = "Healthify",
+                text = stringResource(R.string.app_name),
                 color = TextPrimary,
                 fontSize = 32.sp,
                 fontWeight = FontWeight.Bold,
@@ -413,7 +455,7 @@ private fun SplashScreen() {
                     .scale(scale.value)
             )
             Text(
-                text = "Your daily wellness companion",
+                text = stringResource(R.string.splash_tagline),
                 color = TextPrimary,
                 fontSize = 14.sp,
                 modifier = Modifier.alpha(alpha.value * 0.7f)

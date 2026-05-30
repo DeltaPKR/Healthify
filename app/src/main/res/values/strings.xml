@@ -2,12 +2,251 @@
 <resources>
     <!-- App identity -->
     <string name="app_name">Healthify</string>
+    <string name="splash_tagline">Your daily wellness companion</string>
 
-    <!-- Notification channels (shown in system settings → Apps → Healthify → Notifications) -->
+    <!-- Notification channels -->
     <string name="channel_reminders_name">Health reminders</string>
     <string name="channel_reminders_desc">Water, movement, and other scheduled nudges.</string>
     <string name="channel_checkin_name">Daily check-in</string>
     <string name="channel_checkin_desc">Reminder to log how your day went.</string>
     <string name="channel_streak_name">Streak updates</string>
     <string name="channel_streak_desc">Milestones and streak protection alerts.</string>
+
+    <!-- Greetings -->
+    <string name="greeting_morning">Good morning</string>
+    <string name="greeting_afternoon">Good afternoon</string>
+    <string name="greeting_evening">Good evening</string>
+    <string name="default_name">Friend</string>
+
+    <!-- Dashboard -->
+    <string name="health_score_high">You\'re crushing it today! 💪</string>
+    <string name="health_score_mid">Good progress — keep going! 🌱</string>
+    <string name="health_score_low">Every step counts. You\'ve got this 💙</string>
+    <string name="metrics_title">Today\'s Metrics</string>
+    <string name="metric_water">Water</string>
+    <string name="metric_steps">Steps</string>
+    <string name="metric_sleep">Sleep</string>
+    <string name="unit_glasses">glasses</string>
+    <string name="unit_steps">steps</string>
+    <string name="unit_hrs">hrs</string>
+    <string name="ai_tip_label">AI HEALTH TIP</string>
+    <string name="checkin_card_locked_title">Already checked in</string>
+    <string name="checkin_card_title">Daily Check-in</string>
+    <string name="checkin_card_next_in">Next check-in in %1$s</string>
+    <string name="checkin_card_updated">Updated today ✓</string>
+    <string name="checkin_card_prompt">How are you feeling today?</string>
+    <string name="heart_rate_label">Heart Rate</string>
+    <string name="health_score_label">HEALTH\nSCORE</string>
+    <string name="streak_longest">Longest: %1$d days</string>
+    <string name="streak_unit">streak</string>
+
+    <!-- Bottom nav -->
+    <string name="nav_home">Home</string>
+    <string name="nav_insights">Insights</string>
+    <string name="nav_checkin">Check-in</string>
+    <string name="nav_reminders">Reminders</string>
+    <string name="nav_profile">Profile</string>
+
+    <!-- AI Tips -->
+    <string name="tip_sleep_low">🌙 You slept under 6 hours. Even a 20-min nap can help recovery.</string>
+    <string name="tip_steps_low">🚶 You\'ve only hit %1$d%% of your step goal. A 10-min walk after each meal adds up fast.</string>
+    <string name="tip_steps_high">🏆 Amazing! You\'re at %1$d%% of your step goal. Finish strong today!</string>
+    <string name="tip_food_skip">🥗 You mentioned skipping a meal. Try a light snack — your body needs fuel.</string>
+    <string name="tip_mood_low">💙 Mood seems low today. A short walk outside can genuinely lift your spirits.</string>
+    <string name="tip_default">💡 You\'re doing well! Consistency is the key to lasting health. Keep it up.</string>
+
+    <!-- Streak messages -->
+    <string name="streak_msg_0">Start your streak today! 🌱</string>
+    <string name="streak_msg_1">Day 1 – great start! 🌿</string>
+    <string name="streak_msg_building">Building momentum! Keep it up 💪</string>
+    <string name="streak_msg_days">%1$d days strong – you\'re on fire! 🔥</string>
+    <string name="streak_msg_week">One week streak! You\'re unstoppable 🌟</string>
+    <string name="streak_msg_weeks">%1$d days – incredible consistency 🏆</string>
+    <string name="streak_msg_champion">%1$d days – you\'re a wellness champion 👑</string>
+
+    <!-- Notifications -->
+    <string name="notif_body_checkin">How\'s your day going? Open Healthify for your check-in ❤️</string>
+    <string name="notif_body_water">Time to hydrate! Have you had water recently? 💧</string>
+    <string name="notif_body_movement">Get moving! A short walk can boost your mood and energy 🏃</string>
+    <string name="notif_body_meds">Medication reminder: time for %1$s 💊</string>
+    <string name="notif_body_streak">🔥 %1$d day streak! %2$s</string>
+    <string name="streak_milestone_3">3 days in a row. You\'re building something real!</string>
+    <string name="streak_milestone_7">One full week! Keep the fire burning! 🔥</string>
+    <string name="streak_milestone_14">Two weeks! You\'re a habit-building machine! 💪</string>
+    <string name="streak_milestone_30">30 DAYS! You\'re a wellness champion! 👑</string>
+    <string name="streak_milestone_default">Keep the momentum going!</string>
+
+    <!-- Check-in screen -->
+    <string name="btn_finish">Finish ✨</string>
+    <string name="btn_next">Next →</string>
+    <string name="btn_save_checkin">Save check-in 🌟</string>
+    <string name="ci_already_checked_in">Already checked in</string>
+    <string name="ci_cooldown_desc">Daily check-ins reset at 6 PM. We use today\'s data to update your stats and streak in the meantime.</string>
+    <string name="ci_next_checkin_label">NEXT CHECK-IN</string>
+    <string name="btn_back_to_dashboard">Back to dashboard</string>
+    <string name="ci_question_label">QUESTION %1$d</string>
+    <string name="ci_mood_question">How are you feeling\nright now?</string>
+    <string name="mood_terrible">Terrible</string>
+    <string name="mood_not_great">Not great</string>
+    <string name="mood_okay">Okay</string>
+    <string name="mood_good">Good</string>
+    <string name="mood_amazing">Amazing</string>
+    <string name="ci_water_question">How much water today?</string>
+    <string name="ci_water_unit">glasses</string>
+    <string name="ci_water_goal">Your goal: %1$d glasses per day</string>
+    <string name="ci_food_question">How was your nutrition?</string>
+    <string name="food_ate_well">Ate well</string>
+    <string name="food_decent">Decent</string>
+    <string name="food_not_great">Not great</string>
+    <string name="food_skipped">Skipped</string>
+    <string name="ci_food_skip_warning">⚠️ Skipping meals can disrupt your energy and mood. Even a small snack helps.</string>
+    <string name="ci_sleep_question">How long did you sleep?</string>
+    <string name="ci_sleep_hrs">hrs</string>
+    <string name="sleep_great">Great 🌟</string>
+    <string name="sleep_fair">Fair ⚡</string>
+    <string name="sleep_poor">Poor 😴</string>
+    <string name="ci_sleep_ideal">✓ 8h ideal</string>
+    <string name="ci_rating_question">Rate your day so far</string>
+    <string name="ci_rating_desc">Overall, how has today been?</string>
+    <string name="rating_msg_1">Rough day. Tomorrow is a fresh start 🌱</string>
+    <string name="rating_msg_2">Tough but you showed up 💙</string>
+    <string name="rating_msg_3">Solid day! Small wins add up 💪</string>
+    <string name="rating_msg_4">Really good! Keep shining ✨</string>
+    <string name="rating_msg_5">Incredible day! 🌟</string>
+    <string name="ci_steps_question">How many steps today?</string>
+    <string name="ci_steps_desc">We couldn\'t read your step count automatically. Enter it manually, or leave it at 0.</string>
+    <string name="ci_steps_unit">steps</string>
+    <string name="ci_steps_goal">Goal: 10,000 steps</string>
+    <string name="ci_summary_title">Check-in complete!</string>
+    <string name="ci_wellness_score_label">WELLNESS SCORE</string>
+    <string name="ci_streak_longest">Longest: %1$d days</string>
+    <string name="summary_mood">Mood</string>
+    <string name="summary_hydration">Hydration</string>
+    <string name="summary_sleep">Sleep</string>
+    <string name="summary_steps">Steps</string>
+    <string name="summary_day_rating">Day rating</string>
+
+    <!-- Reminders screen -->
+    <string name="reminders_title">Reminders</string>
+    <string name="add_reminder_cd">Add reminder</string>
+    <string name="no_reminders_title">No reminders yet</string>
+    <string name="no_reminders_desc">Tap + above to create your first reminder. We\'ll nudge you at the time you choose.</string>
+    <string name="btn_add_reminder">+ Add reminder</string>
+    <string name="your_reminders_label">YOUR REMINDERS</string>
+    <string name="delete_reminder_title">Delete reminder?</string>
+    <string name="delete_reminder_desc">\"%1$s\" will be removed and won\'t notify you anymore.</string>
+    <string name="btn_delete">Delete</string>
+    <string name="btn_cancel">Cancel</string>
+    <string name="dialog_edit_reminder">Edit reminder</string>
+    <string name="dialog_new_reminder">New reminder</string>
+    <string name="label_name">NAME</string>
+    <string name="placeholder_reminder_name">e.g. Take vitamin D</string>
+    <string name="label_category">CATEGORY</string>
+    <string name="label_icon">ICON</string>
+    <string name="label_time">TIME</string>
+    <string name="label_repeats">REPEATS</string>
+    <string name="btn_delete_reminder_action">Delete reminder</string>
+    <string name="btn_save">Save</string>
+    <string name="btn_add">Add</string>
+    <string name="label_hour">HOUR</string>
+    <string name="label_min">MIN</string>
+    <string name="badge_default">DEFAULT</string>
+
+    <!-- Onboarding -->
+    <string name="onboard_welcome">Welcome to\nHealthify!</string>
+    <string name="onboard_welcome_desc">Your personal companion for daily health, habits, and wellness.</string>
+    <string name="onboard_name_label">What should we call you?</string>
+    <string name="onboard_name_placeholder">Your name</string>
+    <string name="onboard_about">About you 👋</string>
+    <string name="onboard_about_desc">This helps us personalise your health insights.</string>
+    <string name="label_age">Age</string>
+    <string name="placeholder_age">e.g. 28</string>
+    <string name="label_gender">Gender</string>
+    <string name="onboard_body">Body metrics 📏</string>
+    <string name="onboard_body_desc">Used to calculate your personalised health goals.</string>
+    <string name="unit_metric_display">Metric</string>
+    <string name="unit_imperial_display">Imperial</string>
+    <string name="label_height_cm">Height (cm)</string>
+    <string name="label_height_ft">Height (ft)</string>
+    <string name="placeholder_height_cm">e.g. 175</string>
+    <string name="placeholder_height_ft">e.g. 5.10</string>
+    <string name="label_weight_kg">Weight (kg)</string>
+    <string name="label_weight_lbs">Weight (lbs)</string>
+    <string name="placeholder_weight_kg">e.g. 70</string>
+    <string name="placeholder_weight_lbs">e.g. 154</string>
+    <string name="onboard_health">Health profile 🏥</string>
+    <string name="onboard_health_desc">We\'ll tailor reminders and advice just for you.</string>
+    <string name="label_conditions">Any health conditions?</string>
+    <string name="label_goals">Your wellness goals</string>
+    <string name="btn_lets_go">Let\'s Go 🚀</string>
+    <string name="btn_continue_nav">Continue →</string>
+    <string name="btn_back_nav">← Back</string>
+
+    <!-- Profile -->
+    <string name="profile_title">Profile</string>
+    <string name="btn_edit_profile">Edit profile</string>
+    <string name="stat_current_streak">Current\nstreak</string>
+    <string name="stat_best_streak">Best\nstreak</string>
+    <string name="stat_total_checkins">Total\ncheck-ins</string>
+    <string name="stat_avg_score">Avg\nscore</string>
+    <string name="section_body_metrics">Body metrics</string>
+    <string name="bmi_underweight">Underweight</string>
+    <string name="bmi_healthy">Healthy</string>
+    <string name="bmi_overweight">Overweight</string>
+    <string name="bmi_obese">Obese</string>
+    <string name="section_daily_goals">Daily goals</string>
+    <string name="section_conditions">Health conditions</string>
+    <string name="section_goals">Wellness goals</string>
+    <string name="section_about">About</string>
+    <string name="card_redo_onboarding">Re-do onboarding</string>
+    <string name="card_redo_onboarding_desc">Update your name, body metrics, conditions and goals</string>
+    <string name="dialog_redo_title">Re-do onboarding?</string>
+    <string name="dialog_redo_desc">You\'ll go through the welcome flow again. Your check-ins and streak are kept.</string>
+    <string name="btn_continue_action">Continue</string>
+    <string name="dialog_edit_profile_title">Edit profile</string>
+    <string name="label_name_field">Name</string>
+    <string name="label_age_field">Age</string>
+    <string name="label_gender_field">Gender</string>
+    <string name="section_daily_goals_edit">Daily goals</string>
+    <string name="label_steps_field">Steps</string>
+    <string name="label_water_gl">Water (gl)</string>
+    <string name="label_sleep_h">Sleep (h)</string>
+    <string name="toast_account_id_copied">Account ID copied</string>
+    <string name="cloud_sync_active">Active</string>
+    <string name="cloud_sync_connecting">Connecting…</string>
+    <string name="cloud_sync_offline">Offline</string>
+    <string name="cloud_sync_error">Sign-in failed</string>
+    <string name="cloud_tap_retry">Tap to retry</string>
+    <string name="cloud_unknown_error">Unknown error</string>
+    <string name="cloud_signing_in">Signing in…</string>
+    <string name="cloud_sign_in_failed">Sign-in failed</string>
+    <string name="cloud_offline_status">Offline</string>
+    <string name="toast_no_email_app">No email app found — visit deltapkr.github.io/Healthify/delete-data/</string>
+
+    <!-- Insights -->
+    <string name="insights_title">Insights</string>
+    <string name="insights_past_7">Past 7 Days</string>
+    <string name="insights_avg_score">Avg Score</string>
+    <string name="insights_avg_steps">Avg Steps</string>
+    <string name="insights_avg_water">Avg Water</string>
+    <string name="insights_avg_sleep">Avg Sleep</string>
+    <string name="insights_day_streak">day streak</string>
+    <string name="insights_streak_info">Longest: %1$d days  •  %2$d total check-ins</string>
+    <string name="insights_goal_progress">GOAL PROGRESS (7-day avg)</string>
+    <string name="insights_mood_title">MOOD OVER THE WEEK</string>
+    <string name="insights_best_day">BEST DAY THIS WEEK</string>
+    <string name="insights_best_day_score">Wellness score %1$d · %2$s</string>
+    <string name="insights_recent">Recent Check-ins</string>
+    <string name="insights_empty_title">No check-ins yet</string>
+    <string name="insights_empty_desc">Log a daily check-in to start seeing insights — averages, streak, mood and goal progress will appear here.</string>
+    <string name="insights_steps_label">Steps</string>
+    <string name="insights_water_label">Water</string>
+    <string name="insights_sleep_label">Sleep</string>
+
+    <!-- Language picker -->
+    <string name="lang_picker_title">Choose your language</string>
+    <string name="lang_picker_desc">You can change this anytime in your Profile</string>
+    <string name="lang_picker_btn">Continue →</string>
+    <string name="label_language">Language</string>
+    <string name="lang_dialog_title">App language</string>
 </resources>

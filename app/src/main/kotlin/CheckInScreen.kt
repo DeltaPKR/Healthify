@@ -15,11 +15,13 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.healthify.app.R
 import com.healthify.app.data.db.CheckInEntity
 import com.healthify.app.data.repository.AppRepository
 import com.healthify.app.firebase.FirebaseSync
@@ -225,9 +227,13 @@ fun CheckInScreen(
                     colors = ButtonDefaults.buttonColors(containerColor = Green,
                         disabledContainerColor = Green.copy(alpha = 0.3f)),
                     shape  = RoundedCornerShape(16.dp)
-                ) { Text(if (step == total - 1) "Finish ✨" else "Next →",
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.onPrimary) }
+                ) {
+                    Text(
+                        if (step == total - 1) stringResource(R.string.btn_finish) else stringResource(R.string.btn_next),
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onPrimary
+                    )
+                }
             } else {
                 if (isSaving) {
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
@@ -239,9 +245,13 @@ fun CheckInScreen(
                         modifier = Modifier.fillMaxWidth().height(54.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = Green),
                         shape  = RoundedCornerShape(16.dp)
-                    ) { Text("Save check-in 🌟",
-                        style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.onPrimary) }
+                    ) {
+                        Text(
+                            stringResource(R.string.btn_save_checkin),
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.onPrimary
+                        )
+                    }
                 }
             }
         }
@@ -276,14 +286,14 @@ private fun CooldownScreen(msRemaining: Long, onBack: () -> Unit) {
             Text("⏳", fontSize = 64.sp)
             Spacer(Modifier.height(18.dp))
             Text(
-                "Already checked in",
+                stringResource(R.string.ci_already_checked_in),
                 style = MaterialTheme.typography.headlineLarge,
                 color = TextPrimary,
                 textAlign = TextAlign.Center
             )
             Spacer(Modifier.height(10.dp))
             Text(
-                "Daily check-ins reset at 6 PM. We use today's data to update your stats and streak in the meantime.",
+                stringResource(R.string.ci_cooldown_desc),
                 style = MaterialTheme.typography.bodyMedium,
                 color = TextMuted,
                 textAlign = TextAlign.Center
@@ -299,8 +309,10 @@ private fun CooldownScreen(msRemaining: Long, onBack: () -> Unit) {
                     Modifier.padding(20.dp).fillMaxWidth(),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Text("NEXT CHECK-IN",
-                        style = MaterialTheme.typography.labelSmall, color = Lavender)
+                    Text(
+                        stringResource(R.string.ci_next_checkin_label),
+                        style = MaterialTheme.typography.labelSmall, color = Lavender
+                    )
                     Spacer(Modifier.height(6.dp))
                     // Countdown is 8 chars max ("99:59:59") — clamp to one
                     // line and disable soft-wrap so a 200% font scale shows
@@ -323,9 +335,11 @@ private fun CooldownScreen(msRemaining: Long, onBack: () -> Unit) {
                 colors = ButtonDefaults.buttonColors(containerColor = Green),
                 shape = RoundedCornerShape(16.dp)
             ) {
-                Text("Back to dashboard",
+                Text(
+                    stringResource(R.string.btn_back_to_dashboard),
                     style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.onPrimary)
+                    color = MaterialTheme.colorScheme.onPrimary
+                )
             }
         }
     }
@@ -344,17 +358,22 @@ private fun formatCountdown(ms: Long): String {
 
 @Composable
 private fun CILabel(n: Int, color: Color) {
-    Text("QUESTION $n", style = MaterialTheme.typography.labelSmall, color = color)
+    Text(stringResource(R.string.ci_question_label, n), style = MaterialTheme.typography.labelSmall, color = color)
     Spacer(Modifier.height(8.dp))
 }
 
 @Composable
 private fun QMood(selected: Int, onSelect: (Int) -> Unit) {
-    val moods = listOf("😢" to "Terrible", "😕" to "Not great",
-        "😐" to "Okay", "🙂" to "Good", "😄" to "Amazing")
+    val moods = listOf(
+        "😢" to stringResource(R.string.mood_terrible),
+        "😕" to stringResource(R.string.mood_not_great),
+        "😐" to stringResource(R.string.mood_okay),
+        "🙂" to stringResource(R.string.mood_good),
+        "😄" to stringResource(R.string.mood_amazing)
+    )
     Column(verticalArrangement = Arrangement.spacedBy(20.dp)) {
         CILabel(1, Green)
-        Text("How are you feeling\nright now?", style = MaterialTheme.typography.headlineLarge)
+        Text(stringResource(R.string.ci_mood_question), style = MaterialTheme.typography.headlineLarge)
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             moods.forEachIndexed { i, (em, lbl) ->
                 val sel = selected == i
@@ -387,7 +406,7 @@ private fun QWater(value: Int, goal: Int, onValue: (Int) -> Unit) {
     val maxValue = maxOf(goal + 4, 12)
     Column(verticalArrangement = Arrangement.spacedBy(20.dp), horizontalAlignment = Alignment.CenterHorizontally) {
         CILabel(2, Sky)
-        Text("How much water today?", style = MaterialTheme.typography.headlineLarge)
+        Text(stringResource(R.string.ci_water_question), style = MaterialTheme.typography.headlineLarge)
         Box(
             Modifier.size(128.dp).clip(RoundedCornerShape(64.dp))
                 .border(3.dp, Sky, RoundedCornerShape(64.dp))
@@ -397,7 +416,7 @@ private fun QWater(value: Int, goal: Int, onValue: (Int) -> Unit) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Text("💧", fontSize = 28.sp)
                 Text("$value/$goal", style = MaterialTheme.typography.headlineLarge, color = Sky)
-                Text("glasses", style = MaterialTheme.typography.bodySmall)
+                Text(stringResource(R.string.ci_water_unit), style = MaterialTheme.typography.bodySmall)
             }
         }
         Row(
@@ -419,17 +438,21 @@ private fun QWater(value: Int, goal: Int, onValue: (Int) -> Unit) {
                 border = BorderStroke(1.dp, Divider), contentPadding = PaddingValues(0.dp)
             ) { Text("+", fontSize = 22.sp, color = TextPrimary) }
         }
-        Text("Your goal: $goal glasses per day", style = MaterialTheme.typography.bodySmall)
+        Text(stringResource(R.string.ci_water_goal, goal), style = MaterialTheme.typography.bodySmall)
     }
 }
 
 @Composable
 private fun QFood(selected: String, onSelect: (String) -> Unit) {
-    val opts = listOf("well" to ("🥗" to "Ate well"), "ok" to ("🍽️" to "Decent"),
-        "poor" to ("🍕" to "Not great"), "skip" to ("😕" to "Skipped"))
+    val opts = listOf(
+        "well" to ("🥗" to stringResource(R.string.food_ate_well)),
+        "ok"   to ("🍽️" to stringResource(R.string.food_decent)),
+        "poor" to ("🍕" to stringResource(R.string.food_not_great)),
+        "skip" to ("😕" to stringResource(R.string.food_skipped))
+    )
     Column(verticalArrangement = Arrangement.spacedBy(20.dp)) {
         CILabel(3, Gold)
-        Text("How was your nutrition?", style = MaterialTheme.typography.headlineLarge)
+        Text(stringResource(R.string.ci_food_question), style = MaterialTheme.typography.headlineLarge)
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             opts.forEach { (v, p) ->
                 val (em, lbl) = p; val sel = selected == v
@@ -456,8 +479,12 @@ private fun QFood(selected: String, onSelect: (String) -> Unit) {
             Card(colors = CardDefaults.cardColors(containerColor = CoralDim),
                 shape = RoundedCornerShape(14.dp),
                 border = BorderStroke(1.dp, Color(0x30FF7B6E))) {
-                Text("⚠️ Skipping meals can disrupt your energy and mood. Even a small snack helps.",
-                    Modifier.padding(14.dp), style = MaterialTheme.typography.bodyMedium, color = Coral)
+                Text(
+                    stringResource(R.string.ci_food_skip_warning),
+                    Modifier.padding(14.dp),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = Coral
+                )
             }
         }
     }
@@ -465,13 +492,20 @@ private fun QFood(selected: String, onSelect: (String) -> Unit) {
 
 @Composable
 private fun QSleep(value: Float, onValue: (Float) -> Unit) {
-    val quality = when { value >= 7f -> "Great 🌟" to Green; value >= 5f -> "Fair ⚡" to Gold; else -> "Poor 😴" to Coral }
+    val sleepGreat = stringResource(R.string.sleep_great)
+    val sleepFair  = stringResource(R.string.sleep_fair)
+    val sleepPoor  = stringResource(R.string.sleep_poor)
+    val quality = when {
+        value >= 7f -> sleepGreat to Green
+        value >= 5f -> sleepFair  to Gold
+        else        -> sleepPoor  to Coral
+    }
     Column(verticalArrangement = Arrangement.spacedBy(20.dp), horizontalAlignment = Alignment.CenterHorizontally) {
         CILabel(4, Lavender)
-        Text("How long did you sleep?", style = MaterialTheme.typography.headlineLarge)
+        Text(stringResource(R.string.ci_sleep_question), style = MaterialTheme.typography.headlineLarge)
         Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Text("%.1f".format(value), style = MaterialTheme.typography.displayLarge, color = Lavender)
-            Text("hrs", style = MaterialTheme.typography.headlineSmall, color = TextMuted)
+            Text(stringResource(R.string.ci_sleep_hrs), style = MaterialTheme.typography.headlineSmall, color = TextMuted)
         }
         Box(Modifier.clip(RoundedCornerShape(100.dp)).background(
             if (value >= 7f) GreenDim else if (value >= 5f) GoldDim else CoralDim
@@ -482,7 +516,7 @@ private fun QSleep(value: Float, onValue: (Float) -> Unit) {
             colors = SliderDefaults.colors(thumbColor = Lavender, activeTrackColor = Lavender))
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             Text("0h", style = MaterialTheme.typography.bodySmall)
-            Text("✓ 8h ideal", style = MaterialTheme.typography.bodySmall, color = Green)
+            Text(stringResource(R.string.ci_sleep_ideal), style = MaterialTheme.typography.bodySmall, color = Green)
             Text("12h", style = MaterialTheme.typography.bodySmall)
         }
     }
@@ -490,12 +524,18 @@ private fun QSleep(value: Float, onValue: (Float) -> Unit) {
 
 @Composable
 private fun QRating(selected: Int, onSelect: (Int) -> Unit) {
-    val msgs = listOf("","Rough day. Tomorrow is a fresh start 🌱","Tough but you showed up 💙",
-        "Solid day! Small wins add up 💪","Really good! Keep shining ✨","Incredible day! 🌟")
+    val msgs = listOf(
+        "",
+        stringResource(R.string.rating_msg_1),
+        stringResource(R.string.rating_msg_2),
+        stringResource(R.string.rating_msg_3),
+        stringResource(R.string.rating_msg_4),
+        stringResource(R.string.rating_msg_5)
+    )
     Column(verticalArrangement = Arrangement.spacedBy(20.dp), horizontalAlignment = Alignment.CenterHorizontally) {
         CILabel(5, Gold)
-        Text("Rate your day so far", style = MaterialTheme.typography.headlineLarge)
-        Text("Overall, how has today been?", style = MaterialTheme.typography.bodyMedium)
+        Text(stringResource(R.string.ci_rating_question), style = MaterialTheme.typography.headlineLarge)
+        Text(stringResource(R.string.ci_rating_desc), style = MaterialTheme.typography.bodyMedium)
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             (1..5).forEach { n ->
                 val sel = selected >= n
@@ -518,14 +558,14 @@ private fun QRating(selected: Int, onSelect: (Int) -> Unit) {
 private fun QSteps(value: Int, onValue: (Int) -> Unit) {
     Column(verticalArrangement = Arrangement.spacedBy(20.dp), horizontalAlignment = Alignment.CenterHorizontally) {
         CILabel(6, Green)
-        Text("How many steps today?", style = MaterialTheme.typography.headlineLarge)
+        Text(stringResource(R.string.ci_steps_question), style = MaterialTheme.typography.headlineLarge)
         Text(
-            "We couldn't read your step count automatically. Enter it manually, or leave it at 0.",
+            stringResource(R.string.ci_steps_desc),
             style = MaterialTheme.typography.bodyMedium, color = TextMuted, textAlign = TextAlign.Center
         )
         Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Text("%,d".format(value), style = MaterialTheme.typography.displayLarge, color = Green)
-            Text("steps", style = MaterialTheme.typography.headlineSmall, color = TextMuted)
+            Text(stringResource(R.string.ci_steps_unit), style = MaterialTheme.typography.headlineSmall, color = TextMuted)
         }
         OutlinedTextField(
             value = if (value == 0) "" else value.toString(),
@@ -545,7 +585,7 @@ private fun QSteps(value: Int, onValue: (Int) -> Unit) {
                 cursorColor = Green
             )
         )
-        Text("Goal: 10,000 steps", style = MaterialTheme.typography.bodySmall, color = TextDim)
+        Text(stringResource(R.string.ci_steps_goal), style = MaterialTheme.typography.bodySmall, color = TextDim)
     }
 }
 
@@ -559,11 +599,23 @@ private fun QSummary(
             minOf(20, water * 2) + minOf(15, (sleep / 8 * 15).toInt()) +
             minOf(15, (steps.toFloat() / 10_000 * 15).toInt()) + rating * 4)
 
+    val ctx = LocalContext.current
+    val moodNames = listOf(
+        stringResource(R.string.mood_terrible),
+        stringResource(R.string.mood_not_great),
+        stringResource(R.string.mood_okay),
+        stringResource(R.string.mood_good),
+        stringResource(R.string.mood_amazing)
+    )
+
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
         Text(if (score >= 70) "🌟" else if (score >= 50) "💪" else "🌱",
             fontSize = 52.sp, modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center)
-        Text("Check-in complete!", style = MaterialTheme.typography.headlineLarge,
-            modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center)
+        Text(
+            stringResource(R.string.ci_summary_title),
+            style = MaterialTheme.typography.headlineLarge,
+            modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center
+        )
 
         Card(colors = CardDefaults.cardColors(containerColor = Color(0xFF0B2520)),
             shape = RoundedCornerShape(18.dp),
@@ -572,7 +624,7 @@ private fun QSummary(
                 horizontalAlignment = Alignment.CenterHorizontally) {
                 Text(score.toString(),
                     style = MaterialTheme.typography.displayLarge, color = Green)
-                Text("WELLNESS SCORE", style = MaterialTheme.typography.labelSmall, color = TextMuted)
+                Text(stringResource(R.string.ci_wellness_score_label), style = MaterialTheme.typography.labelSmall, color = TextMuted)
             }
         }
 
@@ -587,11 +639,13 @@ private fun QSummary(
                         verticalAlignment = Alignment.CenterVertically) {
                         Text(StreakManager.badge(sr.current), fontSize = 28.sp)
                         Column(Modifier.weight(1f)) {
-                            Text(StreakManager.message(sr.current),
+                            Text(StreakManager.message(ctx, sr.current),
                                 color = if (sr.current >= 7) Gold else Green,
                                 style = MaterialTheme.typography.titleMedium)
-                            Text("Longest: ${sr.longest} days",
-                                style = MaterialTheme.typography.bodySmall)
+                            Text(
+                                stringResource(R.string.ci_streak_longest, sr.longest),
+                                style = MaterialTheme.typography.bodySmall
+                            )
                         }
                         Text("${sr.current}🔥",
                             style = MaterialTheme.typography.headlineMedium,
@@ -602,11 +656,12 @@ private fun QSummary(
         }
 
         listOf(
-            Triple("😊", "Mood", if (mood >= 0) listOf("Terrible","Not great","Okay","Good","Amazing")[mood] else "—"),
-            Triple("💧", "Hydration", "$water glasses"),
-            Triple("🌙", "Sleep", "%.1fh".format(sleep)),
-            Triple("🚶", "Steps", if (steps > 0) "%,d".format(steps) else "—"),
-            Triple("⭐", "Day rating", if (rating > 0) "$rating/5" else "—"),
+            Triple("😊", stringResource(R.string.summary_mood),
+                if (mood >= 0 && mood < moodNames.size) moodNames[mood] else "—"),
+            Triple("💧", stringResource(R.string.summary_hydration), "$water ${stringResource(R.string.ci_water_unit)}"),
+            Triple("🌙", stringResource(R.string.summary_sleep), "%.1fh".format(sleep)),
+            Triple("🚶", stringResource(R.string.summary_steps), if (steps > 0) "%,d".format(steps) else "—"),
+            Triple("⭐", stringResource(R.string.summary_day_rating), if (rating > 0) "$rating/5" else "—"),
         ).forEach { (icon, label, value) ->
             Card(colors = CardDefaults.cardColors(containerColor = SurfaceCard),
                 shape = RoundedCornerShape(13.dp)) {

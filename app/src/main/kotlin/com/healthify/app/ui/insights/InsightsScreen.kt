@@ -12,9 +12,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.healthify.app.R
 import com.healthify.app.data.db.CheckInEntity
 import com.healthify.app.data.db.UserEntity
 import com.healthify.app.data.repository.AppRepository
@@ -65,7 +67,7 @@ fun InsightsScreen(repo: AppRepository, onBack: () -> Unit) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Insights", style = MaterialTheme.typography.headlineMedium) },
+                title = { Text(stringResource(R.string.insights_title), style = MaterialTheme.typography.headlineMedium) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.Default.ArrowBack, null, tint = TextMuted)
@@ -90,12 +92,12 @@ fun InsightsScreen(repo: AppRepository, onBack: () -> Unit) {
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             // Past 7 days at-a-glance ────────────────────────────────────
-            Text("Past 7 Days", style = MaterialTheme.typography.labelSmall)
+            Text(stringResource(R.string.insights_past_7), style = MaterialTheme.typography.labelSmall)
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                StatCard(Modifier.weight(1f), "⭐", "Avg Score", "%.0f".format(avgScore))
-                StatCard(Modifier.weight(1f), "🚶", "Avg Steps", "%,d".format(avgSteps))
-                StatCard(Modifier.weight(1f), "💧", "Avg Water", "%.1f gl".format(avgWater))
-                StatCard(Modifier.weight(1f), "🌙", "Avg Sleep", "%.1fh".format(avgSleep))
+                StatCard(Modifier.weight(1f), "⭐", stringResource(R.string.insights_avg_score), "%.0f".format(avgScore))
+                StatCard(Modifier.weight(1f), "🚶", stringResource(R.string.insights_avg_steps), "%,d".format(avgSteps))
+                StatCard(Modifier.weight(1f), "💧", stringResource(R.string.insights_avg_water), "%.1f gl".format(avgWater))
+                StatCard(Modifier.weight(1f), "🌙", stringResource(R.string.insights_avg_sleep), "%.1fh".format(avgSleep))
             }
 
             // Streak ──────────────────────────────────────────────────────
@@ -112,12 +114,12 @@ fun InsightsScreen(repo: AppRepository, onBack: () -> Unit) {
                         Spacer(Modifier.width(14.dp))
                         Column(Modifier.weight(1f)) {
                             Text(
-                                "${u.currentStreak} day streak",
+                                "${u.currentStreak} ${stringResource(R.string.insights_day_streak)}",
                                 style = MaterialTheme.typography.titleLarge,
                                 color = Green
                             )
                             Text(
-                                "Longest: ${u.longestStreak} days  •  $totalCheckIns total check-ins",
+                                stringResource(R.string.insights_streak_info, u.longestStreak, totalCheckIns),
                                 style = MaterialTheme.typography.bodySmall
                             )
                         }
@@ -132,10 +134,10 @@ fun InsightsScreen(repo: AppRepository, onBack: () -> Unit) {
                     shape  = RoundedCornerShape(20.dp)
                 ) {
                     Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                        Text("GOAL PROGRESS (7-day avg)", style = MaterialTheme.typography.labelSmall)
+                        Text(stringResource(R.string.insights_goal_progress), style = MaterialTheme.typography.labelSmall)
                         GoalRow(
                             emoji   = "🚶",
-                            label   = "Steps",
+                            label   = stringResource(R.string.insights_steps_label),
                             current = avgSteps.toDouble(),
                             goal    = u.stepGoal.toDouble(),
                             display = "%,d / %,d".format(avgSteps, u.stepGoal),
@@ -143,7 +145,7 @@ fun InsightsScreen(repo: AppRepository, onBack: () -> Unit) {
                         )
                         GoalRow(
                             emoji   = "💧",
-                            label   = "Water",
+                            label   = stringResource(R.string.insights_water_label),
                             current = avgWater,
                             goal    = u.waterGoalGlasses.toDouble(),
                             display = "%.1f / %d gl".format(avgWater, u.waterGoalGlasses),
@@ -151,7 +153,7 @@ fun InsightsScreen(repo: AppRepository, onBack: () -> Unit) {
                         )
                         GoalRow(
                             emoji   = "🌙",
-                            label   = "Sleep",
+                            label   = stringResource(R.string.insights_sleep_label),
                             current = avgSleep,
                             goal    = u.sleepGoalHours.toDouble(),
                             display = "%.1f / %.1fh".format(avgSleep, u.sleepGoalHours),
@@ -167,7 +169,7 @@ fun InsightsScreen(repo: AppRepository, onBack: () -> Unit) {
                 shape  = RoundedCornerShape(20.dp)
             ) {
                 Column(Modifier.padding(20.dp)) {
-                    Text("MOOD OVER THE WEEK", style = MaterialTheme.typography.labelSmall)
+                    Text(stringResource(R.string.insights_mood_title), style = MaterialTheme.typography.labelSmall)
                     Spacer(Modifier.height(12.dp))
                     WeekMoodStrip(weekCheckIns)
                 }
@@ -194,10 +196,10 @@ fun InsightsScreen(repo: AppRepository, onBack: () -> Unit) {
                         ) { Text("🏆", fontSize = 28.sp) }
                         Spacer(Modifier.width(14.dp))
                         Column(Modifier.weight(1f)) {
-                            Text("BEST DAY THIS WEEK", style = MaterialTheme.typography.labelSmall)
+                            Text(stringResource(R.string.insights_best_day), style = MaterialTheme.typography.labelSmall)
                             Text(best.date, style = MaterialTheme.typography.titleMedium)
                             Text(
-                                "Wellness score ${best.wellnessScore} · ${moodEmoji(best.moodScore)}",
+                                stringResource(R.string.insights_best_day_score, best.wellnessScore, moodEmoji(best.moodScore)),
                                 style = MaterialTheme.typography.bodySmall
                             )
                         }
@@ -206,7 +208,7 @@ fun InsightsScreen(repo: AppRepository, onBack: () -> Unit) {
             }
 
             // Recent check-ins ────────────────────────────────────────────
-            Text("Recent Check-ins", style = MaterialTheme.typography.labelSmall)
+            Text(stringResource(R.string.insights_recent), style = MaterialTheme.typography.labelSmall)
             checkIns.take(7).forEach { ci ->
                 Card(
                     colors = CardDefaults.cardColors(containerColor = SurfaceCard),
@@ -308,10 +310,10 @@ private fun EmptyInsights(pad: PaddingValues) {
     ) {
         Text("📊", fontSize = 56.sp)
         Spacer(Modifier.height(12.dp))
-        Text("No check-ins yet", style = MaterialTheme.typography.titleLarge)
+        Text(stringResource(R.string.insights_empty_title), style = MaterialTheme.typography.titleLarge)
         Spacer(Modifier.height(6.dp))
         Text(
-            "Log a daily check-in to start seeing insights — averages, streak, mood and goal progress will appear here.",
+            stringResource(R.string.insights_empty_desc),
             style = MaterialTheme.typography.bodyMedium,
             color = TextMuted
         )

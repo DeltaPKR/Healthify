@@ -15,6 +15,7 @@ import com.healthify.app.HealthifyApp
 import com.healthify.app.MainActivity
 import com.healthify.app.R
 import com.healthify.app.data.db.ReminderEntity
+import com.healthify.app.data.db.ReminderEntity
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -180,7 +181,7 @@ object NotificationScheduler {
         val notification = NotificationCompat.Builder(context, NotificationChannels.STREAK)
             .setSmallIcon(android.R.drawable.ic_dialog_info)
             .setContentTitle("🏆 Healthify")
-            .setContentText("🔥 $streak day streak! ${streakMsg(streak)}")
+            .setContentText(context.getString(R.string.notif_body_streak, streak, streakMsg(context, streak)))
             .setAutoCancel(true)
             .setContentIntent(pi)
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)
@@ -217,14 +218,12 @@ object NotificationScheduler {
      * to the user's own label, which matches the body the user
      * configured in the editor.
      */
-    fun getNotifText(reminder: ReminderEntity, isCheckInReminder: Boolean): String {
-        if (isCheckInReminder) {
-            return "How's your day going? Open Healthify for your check-in ❤️"
-        }
+    fun getNotifText(context: Context, reminder: ReminderEntity, isCheckInReminder: Boolean): String {
+        if (isCheckInReminder) return context.getString(R.string.notif_body_checkin)
         return when (reminder.category) {
-            "water"    -> "Time to hydrate! Have you had water recently? 💧"
-            "movement" -> "Get moving! A short walk can boost your mood and energy 🏃"
-            "meds"     -> "Medication reminder: time for ${reminder.label} 💊"
+            "water"    -> context.getString(R.string.notif_body_water)
+            "movement" -> context.getString(R.string.notif_body_movement)
+            "meds"     -> context.getString(R.string.notif_body_meds, reminder.label)
             else       -> reminder.label
         }
     }
@@ -267,12 +266,12 @@ object NotificationScheduler {
         return cand
     }
 
-    private fun streakMsg(streak: Int) = when {
-        streak == 3   -> "3 days in a row. You're building something real!"
-        streak == 7   -> "One full week! Keep the fire burning! 🔥"
-        streak == 14  -> "Two weeks! You're a habit-building machine! 💪"
-        streak == 30  -> "30 DAYS! You're a wellness champion! 👑"
-        else          -> "Keep the momentum going!"
+    private fun streakMsg(context: Context, streak: Int) = when {
+        streak == 3   -> context.getString(R.string.streak_milestone_3)
+        streak == 7   -> context.getString(R.string.streak_milestone_7)
+        streak == 14  -> context.getString(R.string.streak_milestone_14)
+        streak == 30  -> context.getString(R.string.streak_milestone_30)
+        else          -> context.getString(R.string.streak_milestone_default)
     }
 
     private val MILESTONE_STREAKS = setOf(3, 7, 14, 21, 30, 60, 90, 100, 365)
@@ -348,7 +347,7 @@ class ReminderReceiver : BroadcastReceiver() {
         val notification = NotificationCompat.Builder(context, channel)
             .setSmallIcon(android.R.drawable.ic_dialog_info)
             .setContentTitle("${reminder.emoji} Healthify")
-            .setContentText(NotificationScheduler.getNotifText(reminder, isCheckInReminder))
+            .setContentText(NotificationScheduler.getNotifText(context, reminder, isCheckInReminder))
             .setAutoCancel(true)
             .setContentIntent(pi)
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)
