@@ -23,7 +23,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -31,7 +30,6 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.healthify.app.HealthifyApp
-import com.healthify.app.R
 import com.healthify.app.data.db.ReminderEntity
 import com.healthify.app.data.repository.AppRepository
 import com.healthify.app.notifications.NotificationScheduler
@@ -98,7 +96,7 @@ fun NotificationsScreen(repo: AppRepository, context: Context, onBack: () -> Uni
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(stringResource(R.string.reminders_title), style = MaterialTheme.typography.headlineMedium) },
+                title = { Text("Reminders", style = MaterialTheme.typography.headlineMedium) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.Default.ArrowBack, null, tint = TextMuted)
@@ -108,7 +106,7 @@ fun NotificationsScreen(repo: AppRepository, context: Context, onBack: () -> Uni
                     IconButton(onClick = {
                         editing = null
                         showEditor = true
-                    }) { Icon(Icons.Default.Add, stringResource(R.string.add_reminder_cd), tint = Green) }
+                    }) { Icon(Icons.Default.Add, "Add reminder", tint = Green) }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = BgDark)
             )
@@ -167,12 +165,10 @@ fun NotificationsScreen(repo: AppRepository, context: Context, onBack: () -> Uni
                         verticalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
                         Text("🔕", fontSize = 38.sp)
+                        Text("No reminders yet",
+                            style = MaterialTheme.typography.titleLarge, color = TextPrimary)
                         Text(
-                            stringResource(R.string.no_reminders_title),
-                            style = MaterialTheme.typography.titleLarge, color = TextPrimary
-                        )
-                        Text(
-                            stringResource(R.string.no_reminders_desc),
+                            "Tap + above to create your first reminder. We'll nudge you at the time you choose.",
                             style = MaterialTheme.typography.bodyMedium,
                             color = TextMuted,
                             textAlign = TextAlign.Center
@@ -186,20 +182,16 @@ fun NotificationsScreen(repo: AppRepository, context: Context, onBack: () -> Uni
                             colors = ButtonDefaults.buttonColors(containerColor = Green),
                             shape = RoundedCornerShape(14.dp)
                         ) {
-                            Text(
-                                stringResource(R.string.btn_add_reminder),
+                            Text("+ Add reminder",
                                 color = MaterialTheme.colorScheme.onPrimary,
-                                style = MaterialTheme.typography.titleMedium
-                            )
+                                style = MaterialTheme.typography.titleMedium)
                         }
                     }
                 }
             } else {
-                Text(
-                    stringResource(R.string.your_reminders_label),
+                Text("YOUR REMINDERS",
                     style = MaterialTheme.typography.labelSmall, color = TextMuted,
-                    modifier = Modifier.padding(start = 4.dp, top = 4.dp)
-                )
+                    modifier = Modifier.padding(start = 4.dp, top = 4.dp))
 
                 reminders.forEach { reminder ->
                     val isProtected = reminder.id == checkInReminderId
@@ -217,6 +209,11 @@ fun NotificationsScreen(repo: AppRepository, context: Context, onBack: () -> Uni
                             }
                         },
                         onEdit = {
+                            // Locked rows don't open the editor — the
+                            // launcher is wired to a no-op above when
+                            // isProtected is true, so this lambda is
+                            // unreachable for them. Kept here only so
+                            // the parameter shape stays uniform.
                             editing = reminder
                             showEditor = true
                         },
@@ -343,7 +340,7 @@ private fun ReminderCard(
                         .padding(horizontal = 10.dp, vertical = 6.dp)
                 ) {
                     Text(
-                        stringResource(R.string.badge_default),
+                        "DEFAULT",
                         style = MaterialTheme.typography.labelSmall,
                         color = Green
                     )
@@ -356,7 +353,7 @@ private fun ReminderCard(
                         .clip(RoundedCornerShape(12.dp))
                         .background(CoralDim)
                 ) {
-                    Icon(Icons.Default.Delete, stringResource(R.string.delete_reminder_title), tint = Coral,
+                    Icon(Icons.Default.Delete, "Delete reminder", tint = Coral,
                         modifier = Modifier.size(22.dp))
                 }
             }
@@ -377,17 +374,18 @@ private fun ReminderCard(
     if (showConfirmDelete) {
         AlertDialog(
             onDismissRequest = { showConfirmDelete = false },
-            title = { Text(stringResource(R.string.delete_reminder_title), color = TextPrimary) },
-            text  = { Text(stringResource(R.string.delete_reminder_desc, reminder.label), color = TextMuted) },
+            title = { Text("Delete reminder?", color = TextPrimary) },
+            text = { Text("\"${reminder.label}\" will be removed and won't notify you anymore.",
+                color = TextMuted) },
             confirmButton = {
                 TextButton(onClick = {
                     showConfirmDelete = false
                     onDelete()
-                }) { Text(stringResource(R.string.btn_delete), color = Coral) }
+                }) { Text("Delete", color = Coral) }
             },
             dismissButton = {
                 TextButton(onClick = { showConfirmDelete = false }) {
-                    Text(stringResource(R.string.btn_cancel), color = TextMuted)
+                    Text("Cancel", color = TextMuted)
                 }
             },
             containerColor = SurfaceCard,
@@ -440,7 +438,7 @@ private fun ReminderEditorDialog(
                     // Header
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
-                            if (isEdit) stringResource(R.string.dialog_edit_reminder) else stringResource(R.string.dialog_new_reminder),
+                            if (isEdit) "Edit reminder" else "New reminder",
                             style = MaterialTheme.typography.headlineMedium, color = TextPrimary,
                             modifier = Modifier.weight(1f)
                         )
@@ -449,13 +447,13 @@ private fun ReminderEditorDialog(
 
                     // Name
                     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                        Text(stringResource(R.string.label_name), style = MaterialTheme.typography.labelSmall, color = TextMuted)
+                        Text("NAME", style = MaterialTheme.typography.labelSmall, color = TextMuted)
                         OutlinedTextField(
                             value = label,
                             onValueChange = { if (it.length <= 40) label = it },
                             modifier = Modifier.fillMaxWidth(),
                             singleLine = true,
-                            placeholder = { Text(stringResource(R.string.placeholder_reminder_name), color = TextDim) },
+                            placeholder = { Text("e.g. Take vitamin D", color = TextDim) },
                             shape = RoundedCornerShape(12.dp),
                             colors = dialogTextFieldColors()
                         )
@@ -463,7 +461,7 @@ private fun ReminderEditorDialog(
 
                     // Category chips (explicit type selection)
                     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                        Text(stringResource(R.string.label_category),
+                        Text("CATEGORY",
                             style = MaterialTheme.typography.labelSmall, color = TextMuted)
                         CategoryChips(
                             selected = category,
@@ -479,7 +477,7 @@ private fun ReminderEditorDialog(
 
                     // Icon picker grid (filtered by selected category)
                     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                        Text(stringResource(R.string.label_icon), style = MaterialTheme.typography.labelSmall, color = TextMuted)
+                        Text("ICON", style = MaterialTheme.typography.labelSmall, color = TextMuted)
                         IconGrid(
                             category = category,
                             selected = emoji,
@@ -489,7 +487,7 @@ private fun ReminderEditorDialog(
 
                     // Time
                     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                        Text(stringResource(R.string.label_time), style = MaterialTheme.typography.labelSmall, color = TextMuted)
+                        Text("TIME", style = MaterialTheme.typography.labelSmall, color = TextMuted)
                         TimeStepper(
                             hour = hour,
                             minute = minute,
@@ -500,7 +498,7 @@ private fun ReminderEditorDialog(
 
                     // Days of week
                     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                        Text(stringResource(R.string.label_repeats), style = MaterialTheme.typography.labelSmall, color = TextMuted)
+                        Text("REPEATS", style = MaterialTheme.typography.labelSmall, color = TextMuted)
                         DayChips(
                             selected = days,
                             onToggle = { d ->
@@ -523,29 +521,25 @@ private fun ReminderEditorDialog(
                             Icon(Icons.Default.Delete, null, tint = Coral,
                                 modifier = Modifier.size(18.dp))
                             Spacer(Modifier.width(8.dp))
-                            Text(stringResource(R.string.btn_delete_reminder_action), color = Coral,
+                            Text("Delete reminder", color = Coral,
                                 style = MaterialTheme.typography.titleMedium)
                         }
                         if (confirmDelete) {
                             AlertDialog(
                                 onDismissRequest = { confirmDelete = false },
-                                title = { Text(stringResource(R.string.delete_reminder_title), color = TextPrimary) },
-                                text  = {
-                                    Text(
-                                        stringResource(R.string.delete_reminder_desc,
-                                            label.ifBlank { initial?.label ?: "Reminder" }),
-                                        color = TextMuted
-                                    )
-                                },
+                                title = { Text("Delete reminder?", color = TextPrimary) },
+                                text = { Text(
+                                    "\"${label.ifBlank { initial?.label ?: "Reminder" }}\" will be removed and won't notify you anymore.",
+                                    color = TextMuted) },
                                 confirmButton = {
                                     TextButton(onClick = {
                                         confirmDelete = false
                                         onDelete()
-                                    }) { Text(stringResource(R.string.btn_delete), color = Coral) }
+                                    }) { Text("Delete", color = Coral) }
                                 },
                                 dismissButton = {
                                     TextButton(onClick = { confirmDelete = false }) {
-                                        Text(stringResource(R.string.btn_cancel), color = TextMuted)
+                                        Text("Cancel", color = TextMuted)
                                     }
                                 },
                                 containerColor = SurfaceCard,
@@ -561,7 +555,7 @@ private fun ReminderEditorDialog(
                             modifier = Modifier.weight(1f).height(48.dp),
                             shape = RoundedCornerShape(13.dp),
                             border = BorderStroke(1.dp, Divider)
-                        ) { Text(stringResource(R.string.btn_cancel), color = TextMuted) }
+                        ) { Text("Cancel", color = TextMuted) }
                         Button(
                             onClick = {
                                 val result = (initial ?: ReminderEntity()).copy(
@@ -580,11 +574,9 @@ private fun ReminderEditorDialog(
                             colors = ButtonDefaults.buttonColors(containerColor = Green),
                             enabled = days.isNotEmpty()
                         ) {
-                            Text(
-                                if (isEdit) stringResource(R.string.btn_save) else stringResource(R.string.btn_add),
+                            Text(if (isEdit) "Save" else "Add",
                                 color = MaterialTheme.colorScheme.onPrimary,
-                                style = MaterialTheme.typography.titleMedium
-                            )
+                                style = MaterialTheme.typography.titleMedium)
                         }
                     }
                 }
@@ -725,7 +717,7 @@ private fun TimeStepper(
             horizontalArrangement = Arrangement.Center
         ) {
             WheelPicker(
-                label = stringResource(R.string.label_hour),
+                label = "HOUR",
                 range = 0..23,
                 value = hour,
                 onValueChange = onHourChange,
@@ -739,7 +731,7 @@ private fun TimeStepper(
                 modifier = Modifier.padding(horizontal = 4.dp)
             )
             WheelPicker(
-                label = stringResource(R.string.label_min),
+                label = "MIN",
                 range = 0..59,
                 value = minute,
                 onValueChange = onMinuteChange,

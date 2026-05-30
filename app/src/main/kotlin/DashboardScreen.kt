@@ -1,6 +1,5 @@
 package com.healthify.app.ui.dashboard
 
-import android.app.Application
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
@@ -15,20 +14,16 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.*
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
-import com.healthify.app.LocaleManager
-import com.healthify.app.R
 import com.healthify.app.data.db.CheckInEntity
 import com.healthify.app.data.db.UserEntity
 import com.healthify.app.data.repository.AppRepository
@@ -65,10 +60,9 @@ data class DashboardUiState(
 )
 
 class DashboardViewModel(
-    application: Application,
     private val repo: AppRepository,
     private val healthConnectManager: HealthConnectManager
-) : AndroidViewModel(application) {
+) : ViewModel() {
 
     var uiState by mutableStateOf(DashboardUiState())
         private set
@@ -101,14 +95,6 @@ class DashboardViewModel(
             ) { ci, u -> ci to u }
                 .distinctUntilChanged()
                 .collectLatest { _ -> load() }
-        }
-        // Re-generate localized strings (AI tips, etc.) when the user
-        // switches language mid-session.  snapshotFlow turns the Compose
-        // mutableStateOf into a regular Flow so the ViewModel can observe it.
-        viewModelScope.launch {
-            snapshotFlow { LocaleManager.currentLanguage }
-                .distinctUntilChanged()
-                .collectLatest { load() }
         }
     }
 
@@ -163,29 +149,23 @@ class DashboardViewModel(
     }
 
     private fun generateTip(steps: Int, sleep: Float, ci: CheckInEntity?, user: UserEntity?): String {
-        // Resolve strings via locale-aware context so tips switch language
-        // immediately without restarting the Activity.
-        val ctx  = LocaleManager.localized(getApplication())
         val goal = user?.stepGoal ?: 10_000
         val pct  = if (goal > 0) steps.toFloat() / goal else 0f
         return when {
-            sleep < 6   -> ctx.getString(R.string.tip_sleep_low)
-            pct < 0.3   -> ctx.getString(R.string.tip_steps_low, (pct * 100).toInt())
-            pct > 0.8   -> ctx.getString(R.string.tip_steps_high, (pct * 100).toInt())
-            ci?.foodQuality == "skip" -> ctx.getString(R.string.tip_food_skip)
-            ci?.moodScore != null && ci.moodScore <= 1 -> ctx.getString(R.string.tip_mood_low)
-            else        -> ctx.getString(R.string.tip_default)
+            sleep < 6   -> "🌙 You slept under 6 hours. Even a 20-min nap can help recovery."
+            pct < 0.3   -> "🚶 You've only hit ${(pct * 100).toInt()}% of your step goal. A 10-min walk after each meal adds up fast."
+            pct > 0.8   -> "🏆 Amazing! You're at ${(pct * 100).toInt()}% of your step goal. Finish strong today!"
+            ci?.foodQuality == "skip" -> "🥗 You mentioned skipping a meal. Try a light snack — your body needs fuel."
+            ci?.moodScore != null && ci.moodScore <= 1 -> "💙 Mood seems low today. A short walk outside can genuinely lift your spirits."
+            else        -> "💡 You're doing well! Consistency is the key to lasting health. Keep it up."
         }
     }
 
-    class Factory(
-        private val app: Application,
-        val repo: AppRepository,
-        val healthConnectManager: HealthConnectManager
-    ) : ViewModelProvider.Factory {
+    class Factory(val repo: AppRepository, val healthConnectManager: HealthConnectManager) :
+        ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
-        override fun <T : androidx.lifecycle.ViewModel> create(c: Class<T>) =
-            DashboardViewModel(app, repo, healthConnectManager) as T
+        override fun <T : ViewModel> create(c: Class<T>) =
+            DashboardViewModel(repo, healthConnectManager) as T
     }
 }
 
@@ -203,13 +183,8 @@ fun DashboardScreen(
 ) {
     val s = viewModel.uiState
     val hour = remember { java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY) }
-    val greeting = when {
-        hour < 12 -> stringResource(R.string.greeting_morning)
-        hour < 18 -> stringResource(R.string.greeting_afternoon)
-        else      -> stringResource(R.string.greeting_evening)
-    }
-    val greetEmoji  = when { hour < 12 -> "☀️"; hour < 18 -> "🌤️"; else -> "🌙" }
-    val defaultName = stringResource(R.string.default_name)
+    val greeting = when { hour < 12 -> "Good morning"; hour < 18 -> "Good afternoon"; else -> "Good evening" }
+    val greetEmoji = when { hour < 12 -> "☀️"; hour < 18 -> "🌤️"; else -> "🌙" }
 
     // Refresh on resume — picks up changes from CheckIn, Profile, Notifications
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -265,7 +240,7 @@ fun DashboardScreen(
                         overflow = TextOverflow.Ellipsis
                     )
                     Text(
-                        s.user?.name ?: defaultName,
+                        s.user?.name ?: "Friend",
                         style = MaterialTheme.typography.headlineMedium, color = Green,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
@@ -307,9 +282,9 @@ fun DashboardScreen(
                     Spacer(Modifier.height(12.dp))
                     Text(
                         when {
-                            s.healthScore >= 80 -> stringResource(R.string.health_score_high)
-                            s.healthScore >= 60 -> stringResource(R.string.health_score_mid)
-                            else                -> stringResource(R.string.health_score_low)
+                            s.healthScore >= 80 -> "You're crushing it today! 💪"
+                            s.healthScore >= 60 -> "Good progress — keep going! 🌱"
+                            else                -> "Every step counts. You've got this 💙"
                         },
                         style = MaterialTheme.typography.bodyMedium,
                         color = TextMuted
@@ -320,11 +295,9 @@ fun DashboardScreen(
             Spacer(Modifier.height(20.dp))
 
             // ── Metrics Row ─────────────────────────────────────────────────
-            Text(
-                stringResource(R.string.metrics_title),
+            Text("Today's Metrics",
                 Modifier.padding(horizontal = 24.dp),
-                style = MaterialTheme.typography.labelSmall
-            )
+                style = MaterialTheme.typography.labelSmall)
             Spacer(Modifier.height(10.dp))
             Row(
                 Modifier.padding(horizontal = 24.dp),
@@ -332,21 +305,11 @@ fun DashboardScreen(
             ) {
                 val water = s.todayCheckIn?.waterGlasses ?: 0
                 val goal  = s.user?.waterGoalGlasses ?: 8
-                MetricCard(
-                    "💧", stringResource(R.string.metric_water),
-                    "$water/$goal", stringResource(R.string.unit_glasses),
-                    Sky, SkyDim, water.toFloat() / goal
-                )
-                MetricCard(
-                    "🚶", stringResource(R.string.metric_steps),
-                    "%,d".format(s.stepsToday), stringResource(R.string.unit_steps),
-                    Green, GreenDim, s.stepsToday.toFloat() / (s.user?.stepGoal ?: 10_000)
-                )
-                MetricCard(
-                    "🌙", stringResource(R.string.metric_sleep),
-                    "%.1fh".format(s.sleepHours), stringResource(R.string.unit_hrs),
-                    Lavender, LavenderDim, s.sleepHours / (s.user?.sleepGoalHours ?: 8f)
-                )
+                MetricCard("💧", "Water", "$water/$goal", "glasses", Sky, SkyDim, water.toFloat() / goal)
+                MetricCard("🚶", "Steps", "%,d".format(s.stepsToday), "steps", Green, GreenDim,
+                    s.stepsToday.toFloat() / (s.user?.stepGoal ?: 10_000))
+                MetricCard("🌙", "Sleep", "%.1fh".format(s.sleepHours), "hrs", Lavender, LavenderDim,
+                    s.sleepHours / (s.user?.sleepGoalHours ?: 8f))
             }
 
             Spacer(Modifier.height(20.dp))
@@ -362,10 +325,7 @@ fun DashboardScreen(
                     Row(Modifier.padding(18.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         Text("💡", fontSize = 22.sp)
                         Column {
-                            Text(
-                                stringResource(R.string.ai_tip_label),
-                                style = MaterialTheme.typography.labelSmall, color = Green
-                            )
+                            Text("AI HEALTH TIP", style = MaterialTheme.typography.labelSmall, color = Green)
                             Spacer(Modifier.height(4.dp))
                             Text(s.aiTip, style = MaterialTheme.typography.bodyMedium,
                                 color = Color(0xCCEDF5FF))
@@ -399,10 +359,7 @@ fun DashboardScreen(
                     ) {
                         Text("❤️‍🔥", fontSize = 26.sp)
                         Column {
-                            Text(
-                                stringResource(R.string.heart_rate_label),
-                                style = MaterialTheme.typography.bodySmall, color = TextMuted
-                            )
+                            Text("Heart Rate", style = MaterialTheme.typography.bodySmall, color = TextMuted)
                             Text("${s.heartRate} BPM", style = MaterialTheme.typography.titleLarge, color = Coral)
                         }
                     }
@@ -428,12 +385,6 @@ private fun CheckInCard(
         .fillMaxWidth()
         .padding(horizontal = 24.dp)
 
-    val lockedTitle   = stringResource(R.string.checkin_card_locked_title)
-    val activeTitle   = stringResource(R.string.checkin_card_title)
-    val nextInText    = stringResource(R.string.checkin_card_next_in, formatRemaining(msRemaining))
-    val updatedText   = stringResource(R.string.checkin_card_updated)
-    val promptText    = stringResource(R.string.checkin_card_prompt)
-
     val content: @Composable () -> Unit = {
         Row(
             Modifier.padding(18.dp),
@@ -448,14 +399,14 @@ private fun CheckInCard(
 
             Column(Modifier.weight(1f)) {
                 Text(
-                    if (locked) lockedTitle else activeTitle,
+                    if (locked) "Already checked in" else "Daily Check-in",
                     style = MaterialTheme.typography.titleMedium, color = TextPrimary
                 )
                 Text(
                     when {
-                        locked       -> nextInText
-                        hasCheckedIn -> updatedText
-                        else         -> promptText
+                        locked         -> "Next check-in in ${formatRemaining(msRemaining)}"
+                        hasCheckedIn   -> "Updated today ✓"
+                        else           -> "How are you feeling today?"
                     },
                     style = MaterialTheme.typography.bodySmall,
                     color = when {
@@ -508,9 +459,8 @@ private fun formatRemaining(ms: Long): String {
 // ── Streak Banner ─────────────────────────────────────────────────────────────
 @Composable
 fun StreakBanner(streak: Int, longest: Int, isHealthy: Boolean) {
-    val ctx    = LocalContext.current
     val badge  = StreakManager.badge(streak)
-    val msg    = StreakManager.message(ctx, streak)
+    val msg    = StreakManager.message(streak)
     val bgFrom = if (streak >= 7) Color(0xFF2D1A00) else Color(0xFF1A2D00)
     val border = if (streak >= 7) Color(0x40FFD166) else Color(0x401AD9A0)
 
@@ -529,19 +479,13 @@ fun StreakBanner(streak: Int, longest: Int, isHealthy: Boolean) {
             Column(Modifier.weight(1f)) {
                 Text(msg, style = MaterialTheme.typography.titleMedium,
                     color = if (streak >= 7) Gold else Green)
-                Text(
-                    stringResource(R.string.streak_longest, longest),
-                    style = MaterialTheme.typography.bodySmall
-                )
+                Text("Longest: $longest days", style = MaterialTheme.typography.bodySmall)
             }
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Text(streak.toString(),
                     style = MaterialTheme.typography.headlineLarge,
                     color = if (streak >= 7) Gold else Green)
-                Text(
-                    stringResource(R.string.streak_unit),
-                    style = MaterialTheme.typography.labelSmall
-                )
+                Text("streak", style = MaterialTheme.typography.labelSmall)
             }
         }
     }
@@ -573,12 +517,8 @@ fun HealthScoreRing(score: Int) {
                 maxLines = 1,
                 softWrap = false
             )
-            Text(
-                stringResource(R.string.health_score_label),
-                style = MaterialTheme.typography.labelSmall,
-                color = TextMuted,
-                textAlign = androidx.compose.ui.text.style.TextAlign.Center
-            )
+            Text("HEALTH\nSCORE", style = MaterialTheme.typography.labelSmall,
+                color = TextMuted, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
         }
     }
 }
@@ -661,14 +601,14 @@ fun DashBottomNav(
             selected = selectedTab == "home",
             onClick  = onHome,
             icon     = { Text("🏠", fontSize = 20.sp) },
-            label    = { navLabel(stringResource(R.string.nav_home), null) },
+            label    = { navLabel("Home", null) },
             colors   = navColors()
         )
         NavigationBarItem(
             selected = selectedTab == "insights",
             onClick  = onInsights,
             icon     = { Text("📊", fontSize = 20.sp) },
-            label    = { navLabel(stringResource(R.string.nav_insights), null) },
+            label    = { navLabel("Insights", null) },
             colors   = navColors()
         )
         NavigationBarItem(
@@ -681,21 +621,21 @@ fun DashBottomNav(
                     contentAlignment = Alignment.Center
                 ) { Text("❤️", fontSize = 22.sp) }
             },
-            label  = { navLabel(stringResource(R.string.nav_checkin), Green) },
+            label  = { navLabel("Check-in", Green) },
             colors = navColors()
         )
         NavigationBarItem(
             selected = selectedTab == "reminders",
             onClick  = onNotifications,
             icon     = { Text("🔔", fontSize = 20.sp) },
-            label    = { navLabel(stringResource(R.string.nav_reminders), null) },
+            label    = { navLabel("Reminders", null) },
             colors   = navColors()
         )
         NavigationBarItem(
             selected = selectedTab == "profile",
             onClick  = onProfile,
             icon     = { Text("👤", fontSize = 20.sp) },
-            label    = { navLabel(stringResource(R.string.nav_profile), null) },
+            label    = { navLabel("Profile", null) },
             colors   = navColors()
         )
     }

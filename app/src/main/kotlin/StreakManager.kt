@@ -1,7 +1,5 @@
 package com.healthify.app.streak
 
-import android.content.Context
-import com.healthify.app.R
 import com.healthify.app.data.db.CheckInEntity
 import com.healthify.app.data.db.UserEntity
 import com.healthify.app.data.repository.AppRepository
@@ -131,17 +129,6 @@ object StreakManager {
         streak < 14  -> "One week streak! You're unstoppable 🌟"
         streak < 30  -> "$streak days – incredible consistency 🏆"
         else         -> "$streak days – you're a wellness champion 👑"
-    }
-
-    /** Localised variant — use this from any Context-aware call site. */
-    fun message(context: Context, streak: Int): String = when {
-        streak == 0  -> context.getString(R.string.streak_msg_0)
-        streak == 1  -> context.getString(R.string.streak_msg_1)
-        streak < 3   -> context.getString(R.string.streak_msg_building)
-        streak < 7   -> context.getString(R.string.streak_msg_days, streak)
-        streak < 14  -> context.getString(R.string.streak_msg_week)
-        streak < 30  -> context.getString(R.string.streak_msg_weeks, streak)
-        else         -> context.getString(R.string.streak_msg_champion, streak)
     }
 
     /** Emoji for streak milestone badges */

@@ -12,13 +12,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
-import com.healthify.app.R
 import com.healthify.app.data.db.UserEntity
 import com.healthify.app.data.repository.AppRepository
 import com.healthify.app.ui.theme.*
@@ -164,17 +162,14 @@ fun OnboardingScreen(viewModel: OnboardingViewModel, onComplete: () -> Unit) {
                 colors = ButtonDefaults.buttonColors(containerColor = Green),
                 shape = RoundedCornerShape(16.dp)
             ) {
-                Text(
-                    if (viewModel.step == 3) stringResource(R.string.btn_lets_go)
-                    else stringResource(R.string.btn_continue_nav),
+                Text(if (viewModel.step == 3) "Let's Go 🚀" else "Continue →",
                     style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.onPrimary
-                )
+                    color = MaterialTheme.colorScheme.onPrimary)
             }
 
             if (viewModel.step > 0) {
                 TextButton(onClick = { viewModel.back() }, modifier = Modifier.fillMaxWidth()) {
-                    Text(stringResource(R.string.btn_back_nav), color = TextMuted)
+                    Text("← Back", color = TextMuted)
                 }
             }
             Spacer(Modifier.height(24.dp))
@@ -186,12 +181,12 @@ fun OnboardingScreen(viewModel: OnboardingViewModel, onComplete: () -> Unit) {
 private fun StepName(vm: OnboardingViewModel) {
     Column(verticalArrangement = Arrangement.spacedBy(24.dp)) {
         Text("🌿", style = MaterialTheme.typography.displayLarge)
-        Text(stringResource(R.string.onboard_welcome), style = MaterialTheme.typography.headlineLarge)
-        Text(stringResource(R.string.onboard_welcome_desc), color = TextMuted)
-        OBLabel(stringResource(R.string.onboard_name_label))
+        Text("Welcome to\nHealthify!", style = MaterialTheme.typography.headlineLarge)
+        Text("Your personal companion for daily health, habits, and wellness.", color = TextMuted)
+        OBLabel("What should we call you?")
         OutlinedTextField(
             value = vm.name, onValueChange = { vm.name = it },
-            placeholder = { Text(stringResource(R.string.onboard_name_placeholder), color = TextDim) },
+            placeholder = { Text("Your name", color = TextDim) },
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(14.dp),
             colors = textFieldColors()
@@ -202,9 +197,9 @@ private fun StepName(vm: OnboardingViewModel) {
 @Composable
 private fun StepDemographics(vm: OnboardingViewModel) {
     Column(verticalArrangement = Arrangement.spacedBy(24.dp)) {
-        Text(stringResource(R.string.onboard_about), style = MaterialTheme.typography.headlineLarge)
-        Text(stringResource(R.string.onboard_about_desc), color = TextMuted)
-        OBLabel(stringResource(R.string.label_age))
+        Text("About you 👋", style = MaterialTheme.typography.headlineLarge)
+        Text("This helps us personalise your health insights.", color = TextMuted)
+        OBLabel("Age")
         // Replaced the previous Slider with a numeric text field. The
         // slider was lossy (drag granularity ≈ 1yr but felt unprecise) and
         // forced a min of 13 — testers asked for direct entry. Digits-only
@@ -215,16 +210,15 @@ private fun StepDemographics(vm: OnboardingViewModel) {
             onValueChange = { input ->
                 vm.age = input.filter { it.isDigit() }.take(3)
             },
-            placeholder = { Text(stringResource(R.string.placeholder_age), color = TextDim) },
+            placeholder = { Text("e.g. 28", color = TextDim) },
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
             singleLine = true,
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(14.dp),
             colors = textFieldColors()
         )
-        OBLabel(stringResource(R.string.label_gender))
+        OBLabel("Gender")
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            // Gender values kept as English — stored as DB keys.
             listOf("Male", "Female", "Non-binary", "Skip").forEach { g ->
                 val sel = vm.gender == g
                 Box(
@@ -245,15 +239,12 @@ private fun StepDemographics(vm: OnboardingViewModel) {
 @Composable
 private fun StepBody(vm: OnboardingViewModel) {
     val isMetric = vm.unit == "metric"
-    val metricLabel   = stringResource(R.string.unit_metric_display)
-    val imperialLabel = stringResource(R.string.unit_imperial_display)
     Column(verticalArrangement = Arrangement.spacedBy(20.dp)) {
-        Text(stringResource(R.string.onboard_body), style = MaterialTheme.typography.headlineLarge)
-        Text(stringResource(R.string.onboard_body_desc), color = TextMuted)
+        Text("Body metrics 📏", style = MaterialTheme.typography.headlineLarge)
+        Text("Used to calculate your personalised health goals.", color = TextMuted)
         Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
             listOf("metric", "imperial").forEach { u ->
                 val sel = vm.unit == u
-                val label = if (u == "metric") metricLabel else imperialLabel
                 Box(
                     Modifier
                         .weight(1f).clip(RoundedCornerShape(10.dp))
@@ -262,33 +253,21 @@ private fun StepBody(vm: OnboardingViewModel) {
                         .clickable { vm.unit = u }
                         .padding(vertical = 11.dp),
                     contentAlignment = Alignment.Center
-                ) { Text(label, color = if (sel) Green else TextMuted) }
+                ) { Text(u.replaceFirstChar { it.uppercase() }, color = if (sel) Green else TextMuted) }
             }
         }
-        OBLabel(if (isMetric) stringResource(R.string.label_height_cm) else stringResource(R.string.label_height_ft))
+        OBLabel("Height (${if (isMetric) "cm" else "ft"})")
         OutlinedTextField(
             value = vm.heightCm, onValueChange = { vm.heightCm = it },
-            placeholder = {
-                Text(
-                    if (isMetric) stringResource(R.string.placeholder_height_cm)
-                    else stringResource(R.string.placeholder_height_ft),
-                    color = TextDim
-                )
-            },
+            placeholder = { Text(if (isMetric) "e.g. 175" else "e.g. 5.10", color = TextDim) },
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
             modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(14.dp),
             colors = textFieldColors()
         )
-        OBLabel(if (isMetric) stringResource(R.string.label_weight_kg) else stringResource(R.string.label_weight_lbs))
+        OBLabel("Weight (${if (isMetric) "kg" else "lbs"})")
         OutlinedTextField(
             value = vm.weightKg, onValueChange = { vm.weightKg = it },
-            placeholder = {
-                Text(
-                    if (isMetric) stringResource(R.string.placeholder_weight_kg)
-                    else stringResource(R.string.placeholder_weight_lbs),
-                    color = TextDim
-                )
-            },
+            placeholder = { Text(if (isMetric) "e.g. 70" else "e.g. 154", color = TextDim) },
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
             modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(14.dp),
             colors = textFieldColors()
@@ -298,18 +277,17 @@ private fun StepBody(vm: OnboardingViewModel) {
 
 @Composable
 private fun StepProfile(vm: OnboardingViewModel) {
-    // conds / goalList kept hardcoded — values stored as DB keys; must not change.
     val conds = listOf("✅ None","🩸 Diabetes","❤️ Hypertension","🧠 Anxiety",
         "💙 Depression","💔 Heart","🌬 Asthma","🦴 Arthritis")
     val goalList = listOf("💧 Drink more water","😴 Better sleep","🏃 More movement",
         "🧘 Manage stress","💊 Medication reminders","🥗 Eat healthier",
         "❤️ Heart health","🧠 Mental wellness")
     Column(verticalArrangement = Arrangement.spacedBy(20.dp)) {
-        Text(stringResource(R.string.onboard_health), style = MaterialTheme.typography.headlineLarge)
-        Text(stringResource(R.string.onboard_health_desc), color = TextMuted)
-        OBLabel(stringResource(R.string.label_conditions))
+        Text("Health profile 🏥", style = MaterialTheme.typography.headlineLarge)
+        Text("We'll tailor reminders and advice just for you.", color = TextMuted)
+        OBLabel("Any health conditions?")
         FlowRow(conds, vm.conditions) { vm.toggleCondition(it) }
-        OBLabel(stringResource(R.string.label_goals))
+        OBLabel("Your wellness goals")
         FlowRow(goalList, vm.goals) { vm.toggleGoal(it) }
     }
 }

@@ -44,9 +44,6 @@ class HealthifyApp : Application() {
         super.onCreate()
         _instance = this
 
-        // Restore persisted in-app language before any UI is drawn.
-        LocaleManager.init(this)
-
         // Crashlytics — disabled on debug builds so local crashes (which we'd
         // see in logcat anyway) don't pollute the production crash dashboard.
         // Toggling at runtime beats duplicating manifest entries per build type.
