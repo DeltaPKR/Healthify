@@ -35,7 +35,6 @@ import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -66,14 +65,15 @@ import com.healthify.app.ui.theme.Green
 import com.healthify.app.ui.theme.HealthifyTheme
 import com.healthify.app.ui.theme.TextPrimary
 
-// Notification perm flag stays persisted: it's a one-shot native system
-// dialog and re-prompting every cold start would be spammy.
-// Health Connect perm is NOT persisted — see DashboardPage. We re-prompt
-// on every cold launch when the perms aren't granted, because the HC
-// permission UI is a full-screen activity (not a tiny system dialog) and
-// repeat-asking is the standard pattern (user can deny inside HC itself
-// to permanently opt out; that's a separate system-level state).
+// Both perm flags are persisted across launches. We ask exactly once
+// per install for each. If the user dismisses or denies the prompt, we
+// respect that and never ask again from within the app — they can
+// always grant later from system settings or the Health Connect app.
+// Re-prompting on every cold launch (the previous behaviour) was
+// reported as intrusive by testers, and the standard pattern for
+// optional integrations is one ask at first launch.
 private const val KEY_NOTIF_PERM_ASKED = "notif_perm_asked"
+private const val KEY_HC_PERMS_ASKED   = "hc_perms_asked"
 
 // ── Navigation routes ────────────────────────────────────────────────────────
 object Routes {
@@ -292,16 +292,15 @@ private fun DashboardPage(
     )
 
     // ── Health Connect & notification permission flow ─────────────────────
-    // Notifications: once per install (persisted via SharedPreferences).
-    // Health Connect: once per app session (in-memory flag below) — if
-    // the user dismissed the HC consent screen on the previous launch
-    // and reopens the app, we ask again. Skipping the persisted flag is
-    // the actual fix for testers reporting "the app never asks for
-    // Health Connect access". Once the perms ARE granted,
-    // hc.hasAllPermissions() short-circuits and the launcher never fires.
+    // Both permissions are requested exactly once per install, on the
+    // first launch where they are missing. SharedPreferences flags
+    // (KEY_NOTIF_PERM_ASKED, KEY_HC_PERMS_ASKED) persist the "we have
+    // asked" state across cold restarts so a user who dismissed either
+    // prompt is not re-prompted on every launch. Once the perms ARE
+    // granted, the launcher's gate (`hasAllPermissions()` / runtime
+    // perm check) short-circuits and nothing fires regardless.
     val hc = app.healthConnectManager
     val ctx = LocalContext.current
-    var hcAskedThisSession by rememberSaveable { mutableStateOf(false) }
     val permLauncher = rememberLauncherForActivityResult(
         contract = PermissionController.createRequestPermissionResultContract()
     ) {
@@ -325,11 +324,13 @@ private fun DashboardPage(
             }
         }
 
-        // Health Connect: re-prompt every cold launch when missing perms.
-        // Session flag prevents firing twice if DashboardPage recomposes
-        // (e.g. user swipes away to Insights and back to Home).
-        if (!hcAskedThisSession && hc.isAvailable && !hc.hasAllPermissions()) {
-            hcAskedThisSession = true
+        // Health Connect: ask once per install. The flag is flipped to
+        // true BEFORE launch so that a launch failure (e.g. HC module
+        // changes state mid-flight) can't loop into re-asking on every
+        // subsequent recomposition or cold start.
+        val hcAsked = prefs.getBoolean(KEY_HC_PERMS_ASKED, false)
+        if (!hcAsked && hc.isAvailable && !hc.hasAllPermissions()) {
+            prefs.edit().putBoolean(KEY_HC_PERMS_ASKED, true).apply()
             permLauncher.launch(hc.requiredPermissions)
         }
     }
