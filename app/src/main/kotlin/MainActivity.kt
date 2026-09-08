@@ -26,9 +26,17 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.TextButton
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
@@ -60,9 +68,12 @@ import com.healthify.app.ui.onboarding.OnboardingScreen
 import com.healthify.app.ui.onboarding.OnboardingViewModel
 import com.healthify.app.ui.profile.ProfileScreen
 import com.healthify.app.ui.profile.ProfileViewModel
+import com.healthify.app.health.HealthPermissionRationale
 import com.healthify.app.ui.theme.BgDark
 import com.healthify.app.ui.theme.Green
 import com.healthify.app.ui.theme.HealthifyTheme
+import com.healthify.app.ui.theme.SurfaceCard
+import com.healthify.app.ui.theme.TextMuted
 import com.healthify.app.ui.theme.TextPrimary
 
 // Both perm flags are persisted across launches. We ask exactly once
@@ -309,6 +320,12 @@ private fun DashboardPage(
     val notifLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
     ) { /* nothing extra to do; channels are already created */ }
+
+    // Health Connect policy requires the user to understand WHY each data
+    // type is read before the system permission sheet appears. We show our
+    // own rationale first; the sheet is only launched if they tap Continue.
+    var showHcRationale by remember { mutableStateOf(false) }
+
     LaunchedEffect(Unit) {
         val prefs = ctx.getSharedPreferences("healthify_prefs", Context.MODE_PRIVATE)
 
@@ -325,14 +342,25 @@ private fun DashboardPage(
         }
 
         // Health Connect: ask once per install. The flag is flipped to
-        // true BEFORE launch so that a launch failure (e.g. HC module
-        // changes state mid-flight) can't loop into re-asking on every
-        // subsequent recomposition or cold start.
+        // true BEFORE the rationale is shown so that a failure mid-flight
+        // (e.g. the HC module changing state) can't loop into re-asking on
+        // every subsequent recomposition or cold start.
         val hcAsked = prefs.getBoolean(KEY_HC_PERMS_ASKED, false)
         if (!hcAsked && hc.isAvailable && !hc.hasAllPermissions()) {
             prefs.edit().putBoolean(KEY_HC_PERMS_ASKED, true).apply()
-            permLauncher.launch(hc.requiredPermissions)
+            showHcRationale = true
         }
+    }
+
+    if (showHcRationale) {
+        HealthConnectRationaleDialog(
+            rationales = hc.permissionRationales,
+            onDismiss  = { showHcRationale = false },
+            onContinue = {
+                showHcRationale = false
+                permLauncher.launch(hc.requiredPermissions)
+            }
+        )
     }
 
     DashboardScreen(
@@ -340,7 +368,93 @@ private fun DashboardPage(
         onNavigateCheckIn       = onNavigateCheckIn,
         onNavigateInsights      = onNavigateInsights,
         onNavigateNotifications = onNavigateNotifications,
-        onNavigateProfile       = onNavigateProfile
+        onNavigateProfile       = onNavigateProfile,
+        // Re-opens the same rationale the first-launch flow shows, so a user
+        // who tapped "Not now" (or never saw it) can still connect later.
+        onConnectHealthConnect  = { showHcRationale = true }
+    )
+}
+
+/**
+ * Pre-permission rationale for Health Connect.
+ *
+ * Shown before the system permission sheet so the user (and a Play
+ * reviewer) can see exactly which data types the app reads and what each
+ * one is used for. The list is [HealthConnectManager.permissionRationales],
+ * which is also the source the manifest declaration and the Play Console
+ * Health Apps Declaration are kept in sync with — so this dialog can never
+ * silently drift from the permissions actually requested.
+ */
+@Composable
+private fun HealthConnectRationaleDialog(
+    rationales: List<HealthPermissionRationale>,
+    onDismiss: () -> Unit,
+    onContinue: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor   = SurfaceCard,
+        shape            = RoundedCornerShape(20.dp),
+        title = {
+            Text(
+                "Connect your health data",
+                style = MaterialTheme.typography.titleLarge,
+                color = TextPrimary,
+                fontWeight = FontWeight.SemiBold
+            )
+        },
+        text = {
+            Column(Modifier.fillMaxWidth()) {
+                Text(
+                    "Healthify reads two things from Health Connect, so your " +
+                    "dashboard and wellness score reflect what you actually did " +
+                    "today instead of what you had to type in:",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = TextMuted
+                )
+                Spacer(Modifier.height(16.dp))
+                rationales.forEach { r ->
+                    Row(
+                        Modifier.fillMaxWidth().padding(bottom = 14.dp),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Text(r.emoji, fontSize = 22.sp)
+                        Column {
+                            Text(
+                                r.dataType,
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = TextPrimary,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                            Text(
+                                r.purpose,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = TextMuted
+                            )
+                        }
+                    }
+                }
+                Text(
+                    "Read-only — Healthify never writes to Health Connect. Your " +
+                    "readings stay on this device; only the daily totals you " +
+                    "check in with are synced. You grant each type separately on " +
+                    "the next screen, and you can revoke them any time in Health " +
+                    "Connect.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = TextMuted
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onContinue) {
+                Text("Continue", color = Green, fontWeight = FontWeight.SemiBold)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Not now", color = TextMuted)
+            }
+        }
     )
 }
 

@@ -1,7 +1,7 @@
 # Healthify — Privacy Policy
 
 **Effective date:** 2026-05-18
-**Last updated:** 2026-05-18
+**Last updated:** 2026-09-08
 **App:** Healthify (`com.DeltaPKR.Healthify`)
 **Publisher:** DeltaPKR
 **Contact:** deltapkr.developer@gmail.com
@@ -31,13 +31,21 @@ identifier so the same account can be used across devices.
 With your explicit per-data-type permission, Healthify reads the following
 record types from Android Health Connect:
 
-| Health Connect record  | Used for                                                    |
-|------------------------|-------------------------------------------------------------|
-| Steps                  | Step-goal progress on the home dashboard                    |
-| Heart rate             | Resting-rate display on the home dashboard                  |
-| Sleep sessions         | "Sleep last night" metric + wellness-score calculation      |
-| Distance               | Optional movement metric                                    |
-| Active calories burned | Optional movement metric                                    |
+| Health Connect record | Used for                                                                 |
+|-----------------------|--------------------------------------------------------------------------|
+| Steps                 | Today's step count on the home dashboard, measured against your step goal, and one of the two automatic inputs to your daily wellness score |
+| Sleep sessions        | Last night's total sleep hours on the home dashboard, and the second automatic input to your daily wellness score |
+
+These are the only two Health Connect record types Healthify requests. It
+does **not** request heart rate, distance, active calories, weight,
+height, blood glucose, oxygen saturation, menstruation, nutrition,
+exercise sessions, or any other record type. Heart rate, distance and
+active calories were requested by versions up to 1.0.14 and were removed
+in 1.0.15.
+
+Granting Health Connect access is optional. If you decline, or revoke it
+later in the Health Connect app, Healthify keeps working — you enter
+steps and sleep manually on the check-in screen instead.
 
 Health Connect data is read **on demand**, summarised, and the summary is
 stored alongside your check-in record. **The app does not write data back

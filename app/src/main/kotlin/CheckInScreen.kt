@@ -127,7 +127,6 @@ fun CheckInScreen(
                 sleepHours    = sleepH,
                 dayRating     = rating,
                 steps         = effectiveSteps,
-                heartRateAvg  = healthData.heartRateAvg,
                 wellnessScore = score,
                 timestamp     = System.currentTimeMillis()
             )

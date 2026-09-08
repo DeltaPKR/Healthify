@@ -47,7 +47,6 @@ data class DashboardUiState(
     val todayCheckIn: CheckInEntity? = null,
     val stepsToday: Int     = 0,
     val sleepHours: Float   = 0f,
-    val heartRate: Int      = 0,
     val streak: Int         = 0,
     val longestStreak: Int  = 0,
     val isStreakHealthy: Boolean = false,
@@ -55,6 +54,13 @@ data class DashboardUiState(
     val healthScore: Int    = 0,
     val isLoading: Boolean  = true,
     val healthConnectAvailable: Boolean = false,
+    /**
+     * Health Connect is installed AND the user has granted the two read
+     * permissions. When it is available but not connected the dashboard
+     * shows a card offering to connect, so the feature is always reachable
+     * even for a user who dismissed the first-launch prompt.
+     */
+    val healthConnectConnected: Boolean = false,
     val canCheckIn: Boolean = true,
     val cooldownMsRemaining: Long = 0L
 )
@@ -103,7 +109,11 @@ class DashboardViewModel(
         val user    = repo.getUserOnce()
         val checkIn = repo.getCheckInForCurrentWindow()
 
-        val healthData = healthConnectManager.readAll()
+        val healthData  = healthConnectManager.readAll()
+        // Installed AND granted. Drives the "Connect Health Connect" card —
+        // without it a user who dismissed the first-launch prompt would have
+        // no way back to the feature short of system settings.
+        val hcConnected = healthData.isAvailable && healthConnectManager.hasAllPermissions()
         // Prefer Health Connect when it actually has data; otherwise use whatever
         // the user entered during check-in. This way a 0-reading from HC doesn't
         // wipe out the user's manually-entered sleep/steps.
@@ -111,7 +121,6 @@ class DashboardViewModel(
         val hcSleep = if (healthData.isAvailable) healthData.sleepLastNightHours else 0f
         val steps   = if (hcSteps > 0) hcSteps else (checkIn?.steps ?: 0)
         val sleep   = if (hcSleep > 0f) hcSleep else (checkIn?.sleepHours ?: 0f)
-        val hr      = healthData.heartRateAvg
 
         val streakResult = StreakManager.evaluate(repo)
         val score = computeScore(checkIn, steps, sleep, user)
@@ -124,7 +133,6 @@ class DashboardViewModel(
             todayCheckIn           = checkIn,
             stepsToday             = steps,
             sleepHours             = sleep,
-            heartRate              = hr,
             streak                 = streakResult.current,
             longestStreak          = streakResult.longest,
             isStreakHealthy        = streakResult.isHealthyToday,
@@ -132,6 +140,7 @@ class DashboardViewModel(
             healthScore            = score,
             isLoading              = false,
             healthConnectAvailable = healthData.isAvailable,
+            healthConnectConnected = hcConnected,
             canCheckIn             = canCheckIn,
             cooldownMsRemaining    = msRemaining
         )
@@ -179,7 +188,8 @@ fun DashboardScreen(
     onNavigateCheckIn: () -> Unit,
     onNavigateInsights: () -> Unit,
     onNavigateNotifications: () -> Unit,
-    onNavigateProfile: () -> Unit
+    onNavigateProfile: () -> Unit,
+    onConnectHealthConnect: () -> Unit = {}
 ) {
     val s = viewModel.uiState
     val hour = remember { java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY) }
@@ -343,28 +353,54 @@ fun DashboardScreen(
                 onClick             = onNavigateCheckIn
             )
 
-            Spacer(Modifier.height(16.dp))
-
-            // ── Heart Rate (if available) ───────────────────────────────────
-            if (s.heartRate > 0) {
-                Card(
-                    Modifier.fillMaxWidth().padding(horizontal = 24.dp),
-                    colors = CardDefaults.cardColors(containerColor = SurfaceCard),
-                    shape  = RoundedCornerShape(16.dp)
-                ) {
-                    Row(
-                        Modifier.padding(16.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        Text("❤️‍🔥", fontSize = 26.sp)
-                        Column {
-                            Text("Heart Rate", style = MaterialTheme.typography.bodySmall, color = TextMuted)
-                            Text("${s.heartRate} BPM", style = MaterialTheme.typography.titleLarge, color = Coral)
-                        }
-                    }
-                }
+            // ── Health Connect connect prompt ───────────────────────────────
+            // Shown whenever Health Connect is installed but the two read
+            // permissions are not granted — including for a user who
+            // dismissed the first-launch rationale. Tapping it re-opens that
+            // same rationale, so there is always an in-app route to the
+            // feature and the steps/sleep cards are never silently empty.
+            if (s.healthConnectAvailable && !s.healthConnectConnected) {
+                Spacer(Modifier.height(16.dp))
+                ConnectHealthConnectCard(onClick = onConnectHealthConnect)
             }
+
+            Spacer(Modifier.height(16.dp))
+        }
+    }
+}
+
+// ── Health Connect connect card ──────────────────────────────────────────────
+@Composable
+private fun ConnectHealthConnectCard(onClick: () -> Unit) {
+    Card(
+        Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 24.dp)
+            .clickable(onClick = onClick),
+        colors = CardDefaults.cardColors(containerColor = SurfaceCard),
+        shape  = RoundedCornerShape(16.dp)
+    ) {
+        Row(
+            Modifier.padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Text("🔗", fontSize = 26.sp)
+            Column(Modifier.weight(1f)) {
+                Text(
+                    "Fill in steps and sleep automatically",
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = TextPrimary,
+                    fontWeight = FontWeight.SemiBold
+                )
+                Text(
+                    "Connect Health Connect and your daily check-in picks up " +
+                    "today's steps and last night's sleep on its own.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = TextMuted
+                )
+            }
+            Icon(Icons.Default.ChevronRight, null, tint = Green)
         }
     }
 }

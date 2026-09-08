@@ -4,7 +4,6 @@ import android.content.Context
 import android.util.Log
 import androidx.health.connect.client.HealthConnectClient
 import androidx.health.connect.client.permission.HealthPermission
-import androidx.health.connect.client.records.HeartRateRecord
 import androidx.health.connect.client.records.SleepSessionRecord
 import androidx.health.connect.client.records.StepsRecord
 import androidx.health.connect.client.request.ReadRecordsRequest
@@ -17,8 +16,23 @@ import java.time.temporal.ChronoUnit
 data class HealthData(
     val stepsToday: Int = 0,
     val sleepLastNightHours: Float = 0f,
-    val heartRateAvg: Int = 0,
     val isAvailable: Boolean = false
+)
+
+/**
+ * One read-only metric per Health Connect permission the app declares.
+ *
+ * This is the single source of truth for the permission rationale: the
+ * pre-permission screen renders it, and the Play Console Health Apps
+ * Declaration copy in `docs/PLAY_CONSOLE.md` is kept in sync with it.
+ * Adding an entry here without a screen that renders the value is what
+ * gets an app rejected for "Excessive data access for declared feature".
+ */
+data class HealthPermissionRationale(
+    val emoji: String,
+    val dataType: String,
+    /** Where the value is shown, and what it is used for. */
+    val purpose: String
 )
 
 class HealthConnectManager(private val context: Context) {
@@ -33,10 +47,35 @@ class HealthConnectManager(private val context: Context) {
 
     val isAvailable: Boolean get() = client != null
 
+    /**
+     * MINIMUM SCOPE — read-only, exactly the two data types the dashboard
+     * renders. Every entry here has a matching read function below, a
+     * matching card on the dashboard, and a matching entry in
+     * [permissionRationales]. Keep those four in lockstep.
+     *
+     * Heart rate, distance and active calories were declared in the
+     * manifest up to 1.0.14 without ever being read; they were removed in
+     * 1.0.15 to satisfy the Health Connect "Minimum Scope" requirement.
+     */
     val requiredPermissions = setOf(
         HealthPermission.getReadPermission(StepsRecord::class),
         HealthPermission.getReadPermission(SleepSessionRecord::class),
-        HealthPermission.getReadPermission(HeartRateRecord::class),
+    )
+
+    /** User-facing explanation shown before the system permission sheet. */
+    val permissionRationales = listOf(
+        HealthPermissionRationale(
+            emoji    = "👟",
+            dataType = "Steps",
+            purpose  = "Shows today's step count on your dashboard against your " +
+                       "daily step goal, and feeds your daily wellness score."
+        ),
+        HealthPermissionRationale(
+            emoji    = "😴",
+            dataType = "Sleep",
+            purpose  = "Shows how long you slept last night on your dashboard, " +
+                       "and feeds the same daily wellness score."
+        ),
     )
 
     suspend fun hasAllPermissions(): Boolean {
@@ -106,31 +145,17 @@ class HealthConnectManager(private val context: Context) {
         }
     }
 
-    /** Read average resting heart rate from the last hour. */
-    suspend fun readHeartRateAvg(): Int {
-        val c = client ?: return 0
-        return try {
-            val endTime   = Instant.now()
-            val startTime = endTime.minusSeconds(3600)
-            val request = ReadRecordsRequest(
-                recordType      = HeartRateRecord::class,
-                timeRangeFilter = TimeRangeFilter.between(startTime, endTime)
-            )
-            val samples = c.readRecords(request).records.flatMap { it.samples }
-            if (samples.isEmpty()) 0
-            else samples.map { it.beatsPerMinute }.average().toInt()
-        } catch (e: Exception) { 0 }
-    }
-
-    /** Fetch all health data in one call. */
+    /**
+     * Fetch all health data in one call. On-demand only — the app never
+     * polls Health Connect in the background.
+     */
     suspend fun readAll(): HealthData {
         if (!isAvailable) return HealthData(isAvailable = false)
         return try {
             HealthData(
-                stepsToday        = readStepsToday(),
+                stepsToday          = readStepsToday(),
                 sleepLastNightHours = readSleepLastNight(),
-                heartRateAvg      = readHeartRateAvg(),
-                isAvailable       = true
+                isAvailable         = true
             )
         } catch (e: Exception) {
             HealthData(isAvailable = true) // available but read failed

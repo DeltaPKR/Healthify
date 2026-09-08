@@ -13,11 +13,25 @@
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
 
     <!-- ── Health Connect ──────────────────────────────────────────────── -->
+    <!--
+      MINIMUM SCOPE. Exactly two read permissions, one per dashboard metric:
+
+        READ_STEPS  → today's step count on the dashboard, compared against
+                      the user's daily step goal, and one of the two Health
+                      Connect inputs to the wellness score stored with each
+                      daily check-in.
+        READ_SLEEP  → last night's total sleep hours on the dashboard, and
+                      the second input to that same wellness score.
+
+      No write permissions. No background reads. Do NOT add a data type here
+      unless a shipped screen actually renders it — Play rejects
+      declared-but-unused Health Connect permissions under the "Excessive
+      data access for declared feature" rule. READ_HEART_RATE, READ_DISTANCE
+      and READ_ACTIVE_CALORIES_BURNED were declared but never read by any
+      code path; they were removed in 1.0.15 for exactly that reason.
+    -->
     <uses-permission android:name="android.permission.health.READ_STEPS" />
     <uses-permission android:name="android.permission.health.READ_SLEEP" />
-    <uses-permission android:name="android.permission.health.READ_HEART_RATE" />
-    <uses-permission android:name="android.permission.health.READ_DISTANCE" />
-    <uses-permission android:name="android.permission.health.READ_ACTIVE_CALORIES_BURNED" />
 
     <!-- ── Strip Firebase-injected advertising-ID + AdServices permissions ─
          Firebase Analytics's manifest declares com.google.android.gms.permission.AD_ID

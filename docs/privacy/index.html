@@ -117,7 +117,7 @@
 <h1 style="font-size:28px;margin:0 0 6px;letter-spacing:-0.4px;">Privacy Policy</h1>
 <p class="meta">
   <strong>Effective date:</strong> 2026-05-18 &nbsp;·&nbsp;
-  <strong>Last updated:</strong> 2026-05-18<br>
+  <strong>Last updated:</strong> 2026-09-08<br>
   <strong>App:</strong> Healthify (<code>com.DeltaPKR.Healthify</code>) &nbsp;·&nbsp;
   <strong>Publisher:</strong> DeltaPKR<br>
   <strong>Contact:</strong> <a href="mailto:deltapkr.developer@gmail.com">deltapkr.developer@gmail.com</a>
@@ -147,13 +147,18 @@ record types from Android Health Connect:</p>
 <table>
   <thead><tr><th>Health Connect record</th><th>Used for</th></tr></thead>
   <tbody>
-    <tr><td>Steps</td>                  <td>Step-goal progress on the home dashboard</td></tr>
-    <tr><td>Heart rate</td>             <td>Resting-rate display on the home dashboard</td></tr>
-    <tr><td>Sleep sessions</td>         <td>"Sleep last night" metric + wellness-score calculation</td></tr>
-    <tr><td>Distance</td>               <td>Optional movement metric</td></tr>
-    <tr><td>Active calories burned</td> <td>Optional movement metric</td></tr>
+    <tr><td>Steps</td>          <td>Today's step count on the home dashboard, measured against your step goal, and one of the two automatic inputs to your daily wellness score</td></tr>
+    <tr><td>Sleep sessions</td> <td>Last night's total sleep hours on the home dashboard, and the second automatic input to your daily wellness score</td></tr>
   </tbody>
 </table>
+<p>These are the only two Health Connect record types Healthify requests. It
+does <strong>not</strong> request heart rate, distance, active calories, weight,
+height, blood glucose, oxygen saturation, menstruation, nutrition, exercise
+sessions, or any other record type. Heart rate, distance and active calories
+were requested by versions up to 1.0.14 and were removed in 1.0.15.</p>
+<p>Granting Health Connect access is optional. If you decline, or revoke it
+later in the Health Connect app, Healthify keeps working — you enter steps
+and sleep manually on the check-in screen instead.</p>
 <p>Health Connect data is read <strong>on demand</strong>, summarised, and the
 summary is stored alongside your check-in record. <strong>The app does not
 write data back to Health Connect</strong> and does not export raw Health

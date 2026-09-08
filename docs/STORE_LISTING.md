@@ -35,9 +35,13 @@ WHAT YOU GET
   trends over time.
 
 • Smart dashboard
-  Today's metrics — steps, sleep last night, average resting heart rate,
-  water — all pulled live from Android Health Connect (read-only, with your
-  per-data-type permission). Nothing is invented or estimated.
+  Today's steps and last night's sleep, pulled live from Android Health
+  Connect (read-only, and you grant each one separately), shown next to
+  the water and mood you logged yourself. Steps and sleep are also the
+  two automatic inputs to your wellness score, so a check-in takes under
+  a minute — you don't retype numbers your phone already recorded.
+  Nothing is invented or estimated. Health Connect is optional: skip it
+  and you can type steps and sleep in by hand.
 
 • Reliable reminders
   Schedule water, movement, check-in, and wind-down nudges. Reminders use
@@ -81,8 +85,10 @@ PERMISSIONS WE ASK FOR
 • Notifications — to deliver your reminders.
 • Exact alarms — so reminders fire at the precise minute you set.
 • Boot completed — to re-arm reminders after a reboot.
-• Health Connect (Steps, Sleep, Heart Rate, Distance, Active Calories) —
-  read-only, and you grant each one separately.
+• Health Connect — Steps and Sleep only. Read-only, granted separately,
+  revocable any time, and used solely to fill in the dashboard and your
+  wellness score. We ask for nothing else: no heart rate, no distance,
+  no calories, no location.
 
 PERMISSIONS WE WILL NEVER ASK FOR
 
@@ -94,8 +100,9 @@ PERMISSIONS WE WILL NEVER ASK FOR
 REQUIREMENTS
 
 • Android 8.0 (API 26) or higher.
-• Health Connect installed (free, by Google) for the dashboard to show
-  steps / heart rate / sleep / distance / calories.
+• Health Connect installed (free, by Google) if you want the dashboard to
+  fill in steps and sleep automatically. Optional — everything else in the
+  app works without it.
 
 Healthify is not a medical device. It does not diagnose, treat, or prevent
 any condition. If you have a health concern, see a clinician.
@@ -103,7 +110,7 @@ any condition. If you have a health concern, see a clinician.
 — Built by DeltaPKR. Feedback: deltapkr.developer@gmail.com
 ```
 
-(~2950 chars)
+(~3490 / 4000 chars)
 
 ---
 
@@ -160,7 +167,7 @@ adb shell am start -n com.DeltaPKR.Healthify/.MainActivity
 adb exec-out screencap -p > screenshots/01_dashboard.png
 
 # repeat after navigating to each tab:
-#   01_dashboard.png         home with steps/sleep/HR
+#   01_dashboard.png         home with steps + sleep from Health Connect
 #   02_check_in.png          mid check-in (mood + water + food)
 #   03_insights.png          weekly mood strip + wellness average
 #   04_reminders.png         reminders list with the time-wheel open

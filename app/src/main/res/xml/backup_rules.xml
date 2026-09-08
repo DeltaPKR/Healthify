@@ -3,7 +3,7 @@
   Pre-Android-12 Auto Backup rules.
   We exclude:
     - The Room database (`healthify.db`) — contains health PII (mood, sleep,
-      heart rate). Backups would replicate this to Google servers.
+      steps). Backups would replicate this to Google servers.
     - Firebase Installations + Auth state — anonymous UIDs should regenerate
       on a new device install, not roam across devices via backup.
 -->

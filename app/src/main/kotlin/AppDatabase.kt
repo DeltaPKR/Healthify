@@ -36,6 +36,11 @@ data class CheckInEntity(
     val sleepHours: Float = 0f,
     val dayRating: Int = 0,               // 1–5
     val steps: Int = 0,                   // synced from Health Connect
+    // LEGACY, always 0. Populated up to 1.0.14 from Health Connect heart
+    // rate; that permission was dropped in 1.0.15 (Play "Minimum Scope").
+    // The column stays because the DB is `version = 1` with no migrations —
+    // removing it would need a migration or would wipe existing check-ins.
+    // Nothing writes a non-zero value and no screen reads it.
     val heartRateAvg: Int = 0,
     val wellnessScore: Int = 0,           // computed 0–100
     val aiInsight: String = "",

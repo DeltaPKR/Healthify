@@ -10,7 +10,7 @@
 |---|---|
 | UI | Jetpack Compose + Material 3 |
 | Local database | Room (users, check-ins, reminders) |
-| Health data | Health Connect API (steps, sleep, heart rate) |
+| Health data | Health Connect API (steps, sleep — read-only, minimum scope) |
 | Background notifications | WorkManager (daily reminders, check-in nudge) |
 | Cloud sync | Firebase Firestore (anonymous auth, offline-safe) |
 | Streak system | Custom `StreakManager` with milestone notifications |
@@ -160,7 +160,7 @@ app/src/main/java/com/healthify/app/
 │   └── repository/AppRepository.kt
 │
 ├── health/
-│   └── HealthConnectManager.kt  ← Steps, sleep, heart rate
+│   └── HealthConnectManager.kt  ← Steps + sleep reads, permission rationale
 │
 ├── notifications/
 │   └── NotificationWorker.kt    ← WorkManager + scheduler + BootReceiver
@@ -228,7 +228,6 @@ The streak badge changes as it grows:
 | `RECEIVE_BOOT_COMPLETED` | Reschedule reminders after reboot |
 | `health.READ_STEPS` | Step count from Health Connect |
 | `health.READ_SLEEP` | Sleep hours from Health Connect |
-| `health.READ_HEART_RATE` | Heart rate monitoring |
 | `INTERNET` | Firebase sync |
 
 ---
