@@ -1,249 +1,190 @@
-# 🌿 Healthify — Android App
+# 🌿 Healthify
 
-> **Hackathon project** · Jetpack Compose · Room · WorkManager · Health Connect · Firebase
+A calm daily wellness tracker for Android. One check-in a day — mood,
+water, food, sleep, and a rating of how the day went — turned into a
+wellness score, a streak, and a weekly trend.
 
----
+**Status:** production. Play production access granted; first public
+release (1.0.15, versionCode 16) pending review. The store listing is not
+public yet, so there is no Play link below on purpose.
 
-## 📱 What's Inside
-
-| Feature | Technology |
+| | |
 |---|---|
-| UI | Jetpack Compose + Material 3 |
-| Local database | Room (users, check-ins, reminders) |
-| Health data | Health Connect API (steps, sleep — read-only, minimum scope) |
-| Background notifications | WorkManager (daily reminders, check-in nudge) |
-| Cloud sync | Firebase Firestore (anonymous auth, offline-safe) |
-| Streak system | Custom `StreakManager` with milestone notifications |
+| Package | `com.DeltaPKR.Healthify` |
+| Current version | 1.0.15 (16) |
+| Min / target SDK | 26 (Android 8.0) / 36 |
+| Privacy policy | https://deltapkr.github.io/Healthify/privacy/ |
+| Publisher | DeltaPKR — deltapkr.developer@gmail.com |
 
 ---
 
-## 🛠 Prerequisites
+## What it does
 
-Install these **before** opening the project:
+- **Daily check-in.** Mood, water glasses, food quality, sleep hours, and
+  a 1–5 day rating, in under a minute. Produces a 0–100 wellness score.
+- **Dashboard.** Today's steps and last night's sleep read from Health
+  Connect, next to the water and mood you logged yourself.
+- **Reminders.** Water, movement, check-in and wind-down nudges on exact
+  alarms, surviving reboot and app update.
+- **Insights.** Weekly mood strip, wellness average, current and longest
+  streak.
+- **Streaks with a 6 PM day boundary**, so a late check-in still counts.
+- **Offline-first**, with anonymous Firestore sync for cross-device
+  history.
 
-1. **Android Studio Hedgehog (2023.1.1)** or newer
-   → https://developer.android.com/studio
-
-2. **JDK 17** (bundled with Android Studio – no separate install needed)
-
-3. **Android device** running Android 9.0+ (API 26+ for install; Health Connect needs API 28+)
-   OR **Android Emulator** with API 34 image
-
-4. **USB cable** (for device demo) OR **Wi-Fi ADB** (optional)
-
----
-
-## 🔥 Firebase Setup (15 minutes)
-
-### Step 1 – Create Firebase project
-
-1. Go to https://console.firebase.google.com
-2. Click **"Add project"** → name it **"Healthify"** → Continue
-3. Disable Google Analytics (not needed) → **Create project**
-
-### Step 2 – Add Android app
-
-1. Click the **Android icon** (➕ Add app)
-2. Package name: `com.healthify.app`
-3. App nickname: `Healthify`
-4. Click **Register app**
-
-### Step 3 – Download `google-services.json`
-
-1. Click **"Download google-services.json"**
-2. Move the file to: `healthify/app/google-services.json`
-   *(it must be in the `/app` folder, not the project root)*
-
-### Step 4 – Enable Firestore
-
-1. In Firebase Console → **Firestore Database** → **Create database**
-2. Choose **"Start in test mode"** (for hackathon – allows all reads/writes for 30 days)
-3. Select any region → **Enable**
-
-### Step 5 – Enable Authentication
-
-1. Firebase Console → **Authentication** → **Get started**
-2. Click **"Anonymous"** provider → Enable → **Save**
+No ads, no trackers, no account. Health Connect readings stay on the
+device; only the daily summary saved with a check-in is synced.
 
 ---
 
-## 📦 Health Connect Setup (5 minutes)
+## Health Connect — minimum scope
 
-Health Connect is a **separate app** on Android devices that acts as the health data hub.
+The app requests exactly two read permissions and no write permissions:
 
-### On a real device:
+| Permission | Rendered by | Also feeds |
+|---|---|---|
+| `health.READ_STEPS` | Dashboard step card vs. the user's step goal | Wellness score (≤15 pts) |
+| `health.READ_SLEEP` | Dashboard sleep card, last night's total | Wellness score (≤15 pts) |
 
-1. Open **Google Play Store**
-2. Search **"Health Connect"** by Google LLC → Install
-3. Open Health Connect → Grant it access to your fitness apps
-   (Samsung Health, Google Fit, etc. will appear here)
+**Do not add a third without shipping a screen that renders it.** Google
+rejected 1.0.14 for declaring `READ_HEART_RATE`, `READ_DISTANCE` and
+`READ_ACTIVE_CALORIES_BURNED` under *"Excessive data access for declared
+feature"*; distance and calories had no code behind them at all. The
+manifest, `HealthConnectManager.requiredPermissions`,
+`HealthConnectManager.permissionRationales`, the in-app rationale dialog
+and the Play declaration in `docs/PLAY_CONSOLE.md` §7 must all list the
+same set. See `docs/PLAY_CONSOLE.md` §12 for the full post-mortem.
 
-### On emulator:
-
-1. Use an **API 34 emulator** (Pixel 7 recommended)
-2. Health Connect comes pre-installed on API 34 system images
-
-> **Note:** During the hackathon demo, if Health Connect is not available, the app automatically falls back to the values entered in the check-in. The app always works.
-
----
-
-## 🚀 Running the App
-
-### Option A – Real Android Device (recommended for demo)
-
-1. On your Android phone, go to:
-   **Settings → About Phone → tap "Build Number" 7 times**
-   → This enables Developer Mode
-
-2. Go to **Settings → Developer Options → USB Debugging** → Turn ON
-
-3. Connect phone to laptop via USB cable
-
-4. On the phone, tap **"Allow"** when the USB debugging prompt appears
-
-5. In Android Studio:
-   - Open the project folder `healthify/`
-   - Wait for Gradle sync to complete (2–5 min first time)
-   - At the top toolbar, your device name should appear in the device selector
-   - Click the green **▶ Run** button (or press `Shift+F10`)
-
-6. The app installs and launches automatically on your phone 🎉
-
-### Option B – Android Emulator
-
-1. In Android Studio → **Device Manager** (right panel icon)
-2. Click **"Create Device"**
-3. Choose **Pixel 7** → Next
-4. Select **API 34** system image (download if needed ~1.5GB) → Next → Finish
-5. Click ▶ to start the emulator
-6. Click the green **▶ Run** button in Android Studio
+Granting is optional — decline it and the app still works, with steps and
+sleep entered by hand.
 
 ---
 
-## 🔧 Troubleshooting
-
-### ❌ "Gradle sync failed"
-```
-File → Invalidate Caches → Invalidate and Restart
-```
-Then wait for sync to complete.
-
-### ❌ "google-services.json not found"
-Make sure the file is at exactly: `app/google-services.json`
-Not in the root folder.
-
-### ❌ "No device connected"
-- Check USB cable (try a different port/cable)
-- Ensure USB Debugging is enabled
-- Run `adb devices` in terminal to verify connection
-
-### ❌ Health Connect permissions denied
-The app shows a permission request dialog. Tap **"Allow all"**.
-If it opens Health Connect app, grant access there, then return to Healthify.
-
-### ❌ App crashes on start
-Check **Logcat** in Android Studio (bottom panel) for the error.
-Most common cause: `google-services.json` missing or wrong package name.
-
----
-
-## 📂 Project Structure
-
-```
-app/src/main/java/com/healthify/app/
-│
-├── HealthifyApp.kt              ← Application class (DB, repo, init)
-├── MainActivity.kt              ← Nav graph entry point
-│
-├── data/
-│   ├── db/AppDatabase.kt        ← Room DB (Users, CheckIns, Reminders)
-│   └── repository/AppRepository.kt
-│
-├── health/
-│   └── HealthConnectManager.kt  ← Steps + sleep reads, permission rationale
-│
-├── notifications/
-│   └── NotificationWorker.kt    ← WorkManager + scheduler + BootReceiver
-│
-├── firebase/
-│   └── FirebaseSync.kt          ← Firestore sync (anonymous auth)
-│
-├── streak/
-│   └── StreakManager.kt         ← Daily streak calculation + milestones
-│
-└── ui/
-    ├── theme/Theme.kt            ← Dark teal design tokens
-    ├── onboarding/OnboardingScreen.kt
-    ├── dashboard/DashboardScreen.kt   ← Main screen + streak banner
-    ├── checkin/CheckInScreen.kt       ← 5-question daily check-in
-    └── NotificationsAndInsightsScreens.kt
-```
-
----
-
-## 🔥 Streak System
-
-The streak tracks consecutive **healthy days**. A day is healthy when:
-
-| Metric | Threshold |
-|---|---|
-| Water | ≥ 6 glasses |
-| Sleep | ≥ 6 hours |
-| Steps | ≥ 5,000 |
-| Mood | ≥ "Okay" (score 2+) |
-
-**Milestone notifications** fire at streaks: 3, 7, 14, 21, 30, 60, 90, 100, 365 days.
-
-The streak badge changes as it grows:
-- 🌱 0 days (starting out)
-- 🌿 1–2 days (building)
-- 🔥 3–6 days (on fire)
-- ⚡ 7–13 days (one week)
-- 🌟 14–29 days (two weeks)
-- 👑 30+ days (champion)
-
----
-
-## 🎯 Demo Script (Hackathon Presentation)
-
-1. **Cold launch** → Splash screen animates → Onboarding starts
-2. Fill in name **"Demo"**, age **25**, gender, height/weight
-3. Select conditions: **"🧠 Anxiety"** → goals: **"💧 Drink more water"**, **"😴 Better sleep"**
-4. Tap "Let's Go" → Dashboard loads with animated health score ring
-5. Show the **streak banner** (will be 0 on first run – that's fine, explain the system)
-6. Tap the green **❤️ Check-in** button → walk through 5 questions
-7. Select good answers → submit → show the **wellness score + streak update**
-8. Navigate to **📊 Insights** → show weekly charts
-9. Navigate to **🔔 Reminders** → toggle medication reminder → explain WorkManager
-10. Pull down notification shade → show a queued reminder notification
-11. Mention: **Firebase syncs every check-in** → show Firestore console live
-
----
-
-## 📋 Required Permissions Summary
+## Other permissions
 
 | Permission | Why |
 |---|---|
-| `POST_NOTIFICATIONS` | Show health reminders |
-| `RECEIVE_BOOT_COMPLETED` | Reschedule reminders after reboot |
-| `health.READ_STEPS` | Step count from Health Connect |
-| `health.READ_SLEEP` | Sleep hours from Health Connect |
-| `INTERNET` | Firebase sync |
+| `POST_NOTIFICATIONS` | Deliver reminders (Android 13+) |
+| `SCHEDULE_EXACT_ALARM` / `USE_EXACT_ALARM` | Fire a 6:00 PM reminder at 6:00 PM |
+| `RECEIVE_BOOT_COMPLETED` | Re-arm reminders after reboot or update |
+| `INTERNET` / `ACCESS_NETWORK_STATE` | Firestore sync, offline detection |
+
+Firebase's injected advertising-ID and AdServices permissions are stripped
+in the manifest with `tools:node="remove"` — the app declares no ad data.
 
 ---
 
-## 🧱 Dependencies at a Glance
+## Build
 
+Requires JDK 17+ (Android Studio's bundled JBR works) and the Android SDK.
+
+```bash
+./gradlew :app:assembleDebug
 ```
-Compose BOM 2024.06.00     UI framework
-Room 2.6.1                 Local SQLite database  
-WorkManager 2.9.0          Background task scheduling
-Health Connect 1.1.0-alpha07  Google health data API
-Firebase BOM 33.1.0        Cloud sync (Firestore + Auth)
-DataStore 1.1.1            User preferences
-Accompanist 0.34.0         Runtime permissions helper
+
+`app/google-services.json` is gitignored and required. Pull it from the
+Firebase console (project settings → your apps → Android) if it is
+missing.
+
+### Release builds
+
+`app/build.gradle.kts` reads signing config from `keystore.properties` at
+the repo root — gitignored, see `keystore.properties.template`. **If that
+file is absent the release build silently falls back to the debug key**,
+which Play rejects on upload with a signature mismatch.
+
+In practice releases are cut from Android Studio instead: Build →
+Generate Signed App Bundle / APK → **Android App Bundle** → the keystore
+at `~/.android/keystores/healthify-release.jks`, alias `healthify`.
+Studio remembers the password in its own password safe.
+
+Verify any bundle before uploading — the upload key fingerprint must be
+`93:BD:6E:36:50:3A:66:93:38:CD:74:79:67:D0:EA:2A:A2:5F:52:F2`:
+
+```bash
+keytool -printcert -jarfile app/release/app-release.aab | grep -E "Owner|SHA1"
 ```
+
+The `.jks` is backed up in three places, but **a keystore without its
+password is unrecoverable** and losing it means no further updates to this
+listing without a Play upload-key reset. Keep the password in a password
+manager, not only in Android Studio.
 
 ---
 
-*Built for hackathon · Package: com.healthify.app · minSdk 26 · targetSdk 34*
+## Releasing
+
+1. Bump `versionCode` and `versionName` in `app/build.gradle.kts`.
+2. Build the signed AAB (above) and verify signer, `versionCode` and the
+   Health Connect permission list inside it.
+3. Work through `docs/PLAY_CONSOLE.md` — data safety, permissions
+   declaration, and the **health apps declaration** at Policy → App
+   content → Health apps.
+4. Re-record the Health Connect demo video on a device that actually has
+   step and sleep data. An empty dashboard reads as a missing feature.
+5. Paste listing copy from `docs/STORE_LISTING.md`.
+6. Republish `docs/` to GitHub Pages if the privacy policy changed — the
+   manifest points reviewers at that URL, and a stale page is its own
+   policy mismatch.
+
+---
+
+## Layout
+
+Sources live flat under `app/src/main/kotlin/`; package names are declared
+in-file and do not mirror directories.
+
+```
+app/src/main/kotlin/
+├── HealthifyApp.kt          Application: DB, repository, Firebase init
+├── MainActivity.kt          Nav graph, permission flow, rationale dialog
+├── AppDatabase.kt           Room entities + DAOs (version 1, no migrations)
+├── AppRepository.kt         Single data access layer over Room + Firestore
+├── HealthConnectManager.kt  Steps + sleep reads, permission rationale copy
+├── FirebaseSync.kt          Anonymous auth + Firestore mirror
+├── StreakManager.kt         Streak evaluation, 6 PM day boundary
+├── NotificationWorker.kt    Alarm scheduling, ReminderReceiver, BootReceiver
+├── Theme.kt                 Dark design tokens
+├── OnboardingScreen.kt · DashboardScreen.kt · CheckInScreen.kt
+├── NotificationsScreen.kt · ProfileScreen.kt
+└── com/healthify/app/ui/insights/InsightsScreen.kt
+```
+
+`docs/` holds the Play submission material and the GitHub Pages site
+(privacy policy and data-deletion page) served at
+https://deltapkr.github.io/Healthify/.
+
+---
+
+## Stack
+
+```
+Compose BOM 2024.06.00      UI
+Navigation Compose 2.7.7    Screen routing
+Room 2.6.1 (KSP)            Local SQLite
+WorkManager 2.9.0           Background scheduling
+Health Connect 1.1.0        Steps + sleep
+Firebase BOM 33.1.0         Firestore, Auth, Crashlytics, Analytics
+DataStore 1.1.1             Preferences
+Accompanist 0.34.0          Runtime permissions
+```
+
+Release builds run R8 with `isMinifyEnabled` and resource shrinking; keep
+`app/proguard-rules.pro` in step when adding reflective or serialized
+types.
+
+---
+
+## Notes for contributors
+
+- The Room database is `version = 1` with **no migrations**. Changing an
+  entity's columns needs a migration or it destroys user data on upgrade.
+  `CheckInEntity.heartRateAvg` is kept and always `0` for exactly this
+  reason.
+- Health data is excluded from Android cloud backup and device transfer
+  via `res/xml/backup_rules.xml` and `res/xml/data_extraction_rules.xml`.
+- The app is not a medical device and must not present itself as one.
+
+---
+
+*Healthify · com.DeltaPKR.Healthify · minSdk 26 · targetSdk 36*

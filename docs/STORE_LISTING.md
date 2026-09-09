@@ -183,7 +183,9 @@ check-in, insights, reminders.
 
 - [ ] Privacy Policy published at `https://deltapkr.github.io/Healthify/privacy/` (or update manifest line 57 to the real URL).
 - [ ] AAB uploaded to **Internal testing** track and verified on a personal device.
-- [ ] Health Connect demo video recorded + uploaded (see `PLAY_CONSOLE.md` §7).
+- [ ] Health apps declaration completed and Health Connect demo video
+      uploaded — Policy → App content → **Health apps** (see
+      `PLAY_CONSOLE.md` §7).
 - [ ] Data Safety form submitted (see `PLAY_CONSOLE.md` §5).
 - [ ] Permissions Declaration submitted for `USE_EXACT_ALARM` (see `PLAY_CONSOLE.md` §6).
 - [ ] Content rating questionnaire completed.

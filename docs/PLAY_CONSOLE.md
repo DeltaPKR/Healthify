@@ -138,7 +138,7 @@ Firestore sync + offline state detection.
 
 ### Health Connect permissions
 
-`READ_STEPS` and `READ_SLEEP`. Nothing else. See Health Apps Declaration
+`READ_STEPS` and `READ_SLEEP`. Nothing else. See the health apps declaration
 below.
 
 > **History — do not regress.** Up to 1.0.14 the manifest also declared
@@ -154,11 +154,24 @@ below.
 
 ---
 
-## 7. Health Apps Declaration (per Health Connect policy)
+## 7. Health apps declaration (per Health Connect policy)
 
-> Required because the app reads Health Connect data. Submit through the
-> **Permissions Declaration** section in Play Console after uploading the
-> AAB.
+> **Where it lives:** Play Console → your app → **Policy** (left nav) →
+> **App content** → the **Health apps** card → **Start** (or **Manage**
+> once it has been submitted before). It is one card in the same list as
+> Data safety and Target audience — not a separate top-level page, and
+> not under "Permissions declarations", which is where `USE_EXACT_ALARM`
+> in §6 is declared. Google renamed this form; older notes calling it the
+> "Health Apps Declaration" under Permissions declarations are stale.
+>
+> The form has two pages: first declare which health features the app
+> offers, then fill the expandable sections, which is where the
+> per-data-type Health Connect justification below goes.
+>
+> Required because the app reads Health Connect data. A January 2026
+> policy update tightened the Health Connect justification requirements
+> and added medical-device labelling questions, so expect more fields
+> than the form had in mid-2025.
 
 ### Core app functionality (paste verbatim)
 
@@ -364,8 +377,9 @@ writes it and no screen reads it.
       data in Health Connect**. Show the in-app rationale dialog → the
       system grant sheet → the populated dashboard → a check-in being
       saved. An empty dashboard is what failed last time.
-- [ ] Update the Play Console **Health Apps Declaration** with the §7 copy
-      above, and delete the old heart-rate / distance / calories entries.
+- [ ] Update the **Health apps** declaration (Policy → App content →
+      Health apps → Manage) with the §7 copy above, and delete the old
+      heart-rate / distance / calories entries.
 - [ ] Update the **Data Safety** form per §5 — untick distance, heart rate
       and active calories under Fitness info.
 - [ ] Republish `docs/privacy/` to GitHub Pages so the live policy at
