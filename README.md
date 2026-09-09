@@ -74,34 +74,6 @@ in the manifest with `tools:node="remove"` — the app declares no ad data.
 
 ---
 
-## Releasing
-
-1. Bump `versionCode` and `versionName` in `app/build.gradle.kts`.
-2. Build the signed AAB from Android Studio — Build → Generate Signed App
-   Bundle → **Android App Bundle**, keystore
-   `~/.android/keystores/healthify-release.jks`, alias `healthify`.
-   A command-line `bundleRelease` needs `keystore.properties` at the repo
-   root or it **silently signs with the debug key**, which Play rejects.
-   Verify before uploading — the fingerprint must be
-   `93:BD:6E:36:50:3A:66:93:38:CD:74:79:67:D0:EA:2A:A2:5F:52:F2`, and
-   check `versionCode` and the Health Connect permission list inside the
-   bundle:
-
-   ```bash
-   keytool -printcert -jarfile app/release/app-release.aab | grep -E "Owner|SHA1"
-   ```
-3. Work through `docs/PLAY_CONSOLE.md` — data safety, permissions
-   declaration, and the **health apps declaration** at Policy → App
-   content → Health apps.
-4. Re-record the Health Connect demo video on a device that actually has
-   step and sleep data. An empty dashboard reads as a missing feature.
-5. Paste listing copy from `docs/STORE_LISTING.md`.
-6. Republish `docs/` to GitHub Pages if the privacy policy changed — the
-   manifest points reviewers at that URL, and a stale page is its own
-   policy mismatch.
-
----
-
 ## Stack
 
 ```
@@ -118,22 +90,6 @@ Accompanist 0.34.0          Runtime permissions
 Release builds run R8 with `isMinifyEnabled` and resource shrinking; keep
 `app/proguard-rules.pro` in step when adding reflective or serialized
 types.
-
----
-
-## Notes for contributors
-
-- The Room database is `version = 1` with **no migrations**. Changing an
-  entity's columns needs a migration or it destroys user data on upgrade.
-  `CheckInEntity.heartRateAvg` is kept and always `0` for exactly this
-  reason.
-- Health data is excluded from Android cloud backup and device transfer
-  via `res/xml/backup_rules.xml` and `res/xml/data_extraction_rules.xml`.
-- The upload keystore is backed up in three places, but **a keystore
-  without its password is unrecoverable** — losing it means no further
-  updates to this listing without a Play upload-key reset. Keep the
-  password in a password manager, not only in Android Studio's safe.
-- The app is not a medical device and must not present itself as one.
 
 ---
 
