@@ -74,49 +74,22 @@ in the manifest with `tools:node="remove"` — the app declares no ad data.
 
 ---
 
-## Build
-
-Requires JDK 17+ (Android Studio's bundled JBR works) and the Android SDK.
-
-```bash
-./gradlew :app:assembleDebug
-```
-
-`app/google-services.json` is gitignored and required. Pull it from the
-Firebase console (project settings → your apps → Android) if it is
-missing.
-
-### Release builds
-
-`app/build.gradle.kts` reads signing config from `keystore.properties` at
-the repo root — gitignored, see `keystore.properties.template`. **If that
-file is absent the release build silently falls back to the debug key**,
-which Play rejects on upload with a signature mismatch.
-
-In practice releases are cut from Android Studio instead: Build →
-Generate Signed App Bundle / APK → **Android App Bundle** → the keystore
-at `~/.android/keystores/healthify-release.jks`, alias `healthify`.
-Studio remembers the password in its own password safe.
-
-Verify any bundle before uploading — the upload key fingerprint must be
-`93:BD:6E:36:50:3A:66:93:38:CD:74:79:67:D0:EA:2A:A2:5F:52:F2`:
-
-```bash
-keytool -printcert -jarfile app/release/app-release.aab | grep -E "Owner|SHA1"
-```
-
-The `.jks` is backed up in three places, but **a keystore without its
-password is unrecoverable** and losing it means no further updates to this
-listing without a Play upload-key reset. Keep the password in a password
-manager, not only in Android Studio.
-
----
-
 ## Releasing
 
 1. Bump `versionCode` and `versionName` in `app/build.gradle.kts`.
-2. Build the signed AAB (above) and verify signer, `versionCode` and the
-   Health Connect permission list inside it.
+2. Build the signed AAB from Android Studio — Build → Generate Signed App
+   Bundle → **Android App Bundle**, keystore
+   `~/.android/keystores/healthify-release.jks`, alias `healthify`.
+   A command-line `bundleRelease` needs `keystore.properties` at the repo
+   root or it **silently signs with the debug key**, which Play rejects.
+   Verify before uploading — the fingerprint must be
+   `93:BD:6E:36:50:3A:66:93:38:CD:74:79:67:D0:EA:2A:A2:5F:52:F2`, and
+   check `versionCode` and the Health Connect permission list inside the
+   bundle:
+
+   ```bash
+   keytool -printcert -jarfile app/release/app-release.aab | grep -E "Owner|SHA1"
+   ```
 3. Work through `docs/PLAY_CONSOLE.md` — data safety, permissions
    declaration, and the **health apps declaration** at Policy → App
    content → Health apps.
@@ -126,33 +99,6 @@ manager, not only in Android Studio.
 6. Republish `docs/` to GitHub Pages if the privacy policy changed — the
    manifest points reviewers at that URL, and a stale page is its own
    policy mismatch.
-
----
-
-## Layout
-
-Sources live flat under `app/src/main/kotlin/`; package names are declared
-in-file and do not mirror directories.
-
-```
-app/src/main/kotlin/
-├── HealthifyApp.kt          Application: DB, repository, Firebase init
-├── MainActivity.kt          Nav graph, permission flow, rationale dialog
-├── AppDatabase.kt           Room entities + DAOs (version 1, no migrations)
-├── AppRepository.kt         Single data access layer over Room + Firestore
-├── HealthConnectManager.kt  Steps + sleep reads, permission rationale copy
-├── FirebaseSync.kt          Anonymous auth + Firestore mirror
-├── StreakManager.kt         Streak evaluation, 6 PM day boundary
-├── NotificationWorker.kt    Alarm scheduling, ReminderReceiver, BootReceiver
-├── Theme.kt                 Dark design tokens
-├── OnboardingScreen.kt · DashboardScreen.kt · CheckInScreen.kt
-├── NotificationsScreen.kt · ProfileScreen.kt
-└── com/healthify/app/ui/insights/InsightsScreen.kt
-```
-
-`docs/` holds the Play submission material and the GitHub Pages site
-(privacy policy and data-deletion page) served at
-https://deltapkr.github.io/Healthify/.
 
 ---
 
@@ -183,6 +129,10 @@ types.
   reason.
 - Health data is excluded from Android cloud backup and device transfer
   via `res/xml/backup_rules.xml` and `res/xml/data_extraction_rules.xml`.
+- The upload keystore is backed up in three places, but **a keystore
+  without its password is unrecoverable** — losing it means no further
+  updates to this listing without a Play upload-key reset. Keep the
+  password in a password manager, not only in Android Studio's safe.
 - The app is not a medical device and must not present itself as one.
 
 ---
