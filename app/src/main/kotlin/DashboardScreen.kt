@@ -146,6 +146,33 @@ class DashboardViewModel(
         uiState = uiState.copy(isLoading = true)
         val user    = repo.getUserOnce()
         val checkIn = repo.getCheckInForCurrentWindow()
+        val (canCheckIn, msRemaining) = repo.checkInCooldownStatus()
+        val monday = LocalDate.now().with(DayOfWeek.MONDAY)
+        val weekDates = repo.getCheckInsInRange(monday, monday.plusDays(6))
+            .mapNotNull { runCatching { LocalDate.parse(it.date) }.getOrNull() }
+            .toSet()
+
+        // First paint comes from the local DB alone. A cold Health Connect
+        // binder can take a second or two to answer; the rings then glide
+        // from the checked-in values to the live ones instead of the page
+        // sitting empty.
+        if (!uiState.loaded) {
+            val localSteps = checkIn?.steps ?: 0
+            val localSleep = checkIn?.sleepHours ?: 0f
+            uiState = uiState.copy(
+                user             = user,
+                todayCheckIn     = checkIn,
+                stepsToday       = localSteps,
+                sleepHours       = localSleep,
+                streak           = user?.currentStreak ?: 0,
+                longestStreak    = user?.longestStreak ?: 0,
+                healthScore      = HealthScore.compute(checkIn, localSteps, localSleep, user?.stepGoal ?: 10_000),
+                canCheckIn       = canCheckIn,
+                cooldownMsRemaining = msRemaining,
+                weekCheckInDates = weekDates,
+                loaded           = true
+            )
+        }
 
         val healthData  = healthConnectManager.readAll()
         // Installed AND granted. Drives the "Connect Health Connect" card —
@@ -163,13 +190,6 @@ class DashboardViewModel(
         val streakResult = StreakManager.evaluate(repo)
         val score = HealthScore.compute(checkIn, steps, sleep, user?.stepGoal ?: 10_000)
         val tip   = generateTip(steps, sleep, checkIn, user)
-
-        val (canCheckIn, msRemaining) = repo.checkInCooldownStatus()
-
-        val monday = LocalDate.now().with(DayOfWeek.MONDAY)
-        val weekDates = repo.getCheckInsInRange(monday, monday.plusDays(6))
-            .mapNotNull { runCatching { LocalDate.parse(it.date) }.getOrNull() }
-            .toSet()
 
         uiState = DashboardUiState(
             user                   = user,
