@@ -15,7 +15,11 @@ import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.LocalIndication
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.composed
 import androidx.compose.ui.draw.clip
@@ -70,6 +74,15 @@ fun rememberReducedMotion(): Boolean {
  * with a spacer this tall to keep the last item reachable.
  */
 val LocalBottomBarClearance = compositionLocalOf { 0.dp }
+
+/**
+ * App-wide aurora tint. The root AuroraBackground reads it; a full-screen
+ * flow (check-in) sets it while shown so the one shared backdrop shifts
+ * colour instead of a second aurora being drawn on top.
+ */
+object Aurora {
+    var tint by mutableStateOf<Color?>(null)
+}
 
 // ═══════════════════════════════════════════════════════════════════════════
 // AURORA BACKGROUND
@@ -477,6 +490,83 @@ fun TextUnit.capped(maxScale: Float = 1.25f): TextUnit {
 
 /** Brand gradient used for hero text and primary orbs. */
 val BrandGradient = Brush.linearGradient(listOf(Green, Sky))
+
+/**
+ * Primary pill button: accent gradient, dark ink, soft glow. Disabled it
+ * drops to plain glass. [loading] swaps the label for a spinner.
+ */
+@Composable
+fun GlowButton(
+    text: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    accent: Color = Green,
+    enabled: Boolean = true,
+    loading: Boolean = false
+) {
+    val shape = RoundedCornerShape(20.dp)
+    val ink = Color(0xFF06121C)
+    val interaction = remember { MutableInteractionSource() }
+    val pressed by interaction.collectIsPressedAsState()
+    val scale by animateFloatAsState(if (pressed) 0.96f else 1f, spring(dampingRatio = 0.55f, stiffness = 600f), label = "btnPress")
+    val on by animateFloatAsState(if (enabled) 1f else 0f, tween(250), label = "btnOn")
+    val end = lerp(accent, Color.White, 0.28f)
+    Box(
+        modifier
+            .fillMaxWidth()
+            .height(58.dp)
+            .graphicsLayer { scaleX = scale; scaleY = scale }
+            .glow(accent, 22.dp, shape) { 0.45f * on }
+            .clip(shape)
+            .background(Brush.verticalGradient(listOf(GlassFillTop, GlassFillBottom)))
+            .background(Brush.linearGradient(listOf(accent.copy(alpha = on), end.copy(alpha = on))))
+            .border(1.dp, Color.White.copy(alpha = 0.12f + 0.1f * on), shape)
+            .clickable(
+                interactionSource = interaction,
+                indication = LocalIndication.current,
+                enabled = enabled && !loading,
+                role = Role.Button,
+                onClick = onClick
+            ),
+        contentAlignment = Alignment.Center
+    ) {
+        if (loading) {
+            CircularProgressIndicator(color = ink, strokeWidth = 2.5.dp, modifier = Modifier.size(24.dp))
+        } else {
+            Text(
+                text,
+                style = MaterialTheme.typography.titleMedium,
+                color = lerp(TextMuted, ink, on)
+            )
+        }
+    }
+}
+
+/** Streak emoji on a soft light that flickers like a flame. */
+@Composable
+fun FlameBadge(emoji: String, color: Color, lively: Boolean, size: Dp = 54.dp) {
+    val breath = rememberBreath(1300, "flame")
+    Box(
+        Modifier
+            .size(size)
+            .radialGlow(color, alpha = 0.45f),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            emoji,
+            fontSize = (size.value * 0.56f).sp,
+            modifier = Modifier.graphicsLayer {
+                if (lively) {
+                    val b = breath.value
+                    scaleX = 1f + 0.07f * b
+                    scaleY = 1f + 0.10f * b
+                    rotationZ = (b - 0.5f) * 6f
+                    transformOrigin = TransformOrigin(0.5f, 0.9f)
+                }
+            }
+        )
+    }
+}
 
 /** Round icon "orb": tinted glass disc with a soft radial light. */
 @Composable

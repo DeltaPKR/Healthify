@@ -12,6 +12,7 @@ import com.healthify.app.firebase.FirebaseSync
 import com.healthify.app.health.HealthConnectManager
 import com.healthify.app.notifications.NotificationChannels
 import com.healthify.app.notifications.NotificationScheduler
+import com.healthify.app.score.HealthScore
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -99,7 +100,22 @@ class HealthifyApp : Application() {
         // Sign in to Firebase anonymously (offline-safe). Independent of
         // reminder scheduling above so a failure here cannot break alarms.
         appScope.launch {
+            // One-time re-score of stored check-ins when the HealthScore
+            // formula changed (v1 used two different formulas for home and
+            // history). Local first — it doesn't wait on auth — then the
+            // changed rows are pushed once sign-in is up. Firestore is
+            // push-only here, so nothing can pull the old scores back.
+            val prefs = getSharedPreferences(PREFS_FILE, Context.MODE_PRIVATE)
+            val rescored = if (prefs.getInt(KEY_SCORE_VERSION, 1) < HealthScore.VERSION) {
+                repository.recomputeAllScores().also {
+                    prefs.edit().putInt(KEY_SCORE_VERSION, HealthScore.VERSION).apply()
+                }
+            } else emptyList()
+
             FirebaseSync.ensureSignedIn()
+            // Fire-and-forget: each write's await() only returns once the
+            // server acks, so a sequential loop would stall offline.
+            rescored.forEach { ci -> launch { FirebaseSync.syncCheckIn(ci) } }
             // Tag crash reports with the anonymous Firebase UID so a single
             // user's crashes are de-duplicated server-side, without storing PII.
             Firebase.auth.currentUser?.uid?.let { Firebase.crashlytics.setUserId(it) }
@@ -121,6 +137,9 @@ class HealthifyApp : Application() {
         // Flag persisted in SharedPreferences so the default-reminders
         // seed runs exactly once per install (see onCreate).
         private const val KEY_DEFAULTS_SEEDED = "default_reminders_seeded"
+
+        // HealthScore formula version the stored check-ins were scored with.
+        private const val KEY_SCORE_VERSION = "health_score_version"
 
         // Label the Daily Check-in row is seeded with. Used ONLY at
         // bootstrap (HealthifyApp.onCreate) to locate the row and cache

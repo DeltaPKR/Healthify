@@ -42,7 +42,9 @@ import androidx.lifecycle.viewModelScope
 import com.healthify.app.data.db.CheckInEntity
 import com.healthify.app.data.db.UserEntity
 import com.healthify.app.data.repository.AppRepository
+import com.healthify.app.firebase.FirebaseSync
 import com.healthify.app.health.HealthConnectManager
+import com.healthify.app.score.HealthScore
 import com.healthify.app.streak.StreakManager
 import com.healthify.app.ui.theme.*
 import kotlinx.coroutines.flow.collectLatest
@@ -85,23 +87,6 @@ data class DashboardUiState(
     /** False until the first load() lands — the UI waits so defaults never flash. */
     val loaded: Boolean = false
 )
-
-/**
- * The 0–100 "health score" shown on the home rings. Shared so the
- * post-check-in celebration shows exactly the number home shows next.
- */
-object HealthScore {
-    fun compute(ci: CheckInEntity?, steps: Int, sleep: Float, stepGoal: Int): Int {
-        var s = 50
-        ci?.let {
-            if (it.moodScore >= 0) s += (it.moodScore + 1) * 4
-            s += minOf(20, it.waterGlasses * 2)
-            s += minOf(15, (sleep / 8 * 15).toInt())
-            s += minOf(15, (steps.toFloat() / stepGoal.coerceAtLeast(1) * 15).toInt())
-        }
-        return minOf(100, maxOf(0, s))
-    }
-}
 
 class DashboardViewModel(
     private val repo: AppRepository,
@@ -166,7 +151,7 @@ class DashboardViewModel(
                 sleepHours       = localSleep,
                 streak           = user?.currentStreak ?: 0,
                 longestStreak    = user?.longestStreak ?: 0,
-                healthScore      = HealthScore.compute(checkIn, localSteps, localSleep, user?.stepGoal ?: 10_000),
+                healthScore      = HealthScore.compute(checkIn, localSteps, localSleep, user),
                 canCheckIn       = canCheckIn,
                 cooldownMsRemaining = msRemaining,
                 weekCheckInDates = weekDates,
@@ -188,7 +173,18 @@ class DashboardViewModel(
         val sleep   = if (hcSleep > 0f) hcSleep else (checkIn?.sleepHours ?: 0f)
 
         val streakResult = StreakManager.evaluate(repo)
-        val score = HealthScore.compute(checkIn, steps, sleep, user?.stepGoal ?: 10_000)
+        val score = HealthScore.compute(checkIn, steps, sleep, user)
+
+        // Keep today's stored score in step with the live one (steps keep
+        // climbing after the check-in), so Insights and Profile match home.
+        // Only for a check-in dated today: the 6 PM window can still hold
+        // yesterday evening's check-in, whose day is already over.
+        if (checkIn != null && checkIn.wellnessScore != score &&
+            checkIn.date == LocalDate.now().toString()
+        ) {
+            repo.updateCheckInScore(checkIn.date, score)
+            launch { FirebaseSync.syncCheckIn(checkIn.copy(wellnessScore = score)) }
+        }
         val tip   = generateTip(steps, sleep, checkIn, user)
 
         uiState = DashboardUiState(
@@ -594,32 +590,6 @@ private fun StreakCard(
             Spacer(Modifier.height(18.dp))
             WeekChain(weekDates, accent, pulseToday = canCheckIn)
         }
-    }
-}
-
-/** Streak emoji on a soft light that flickers like a flame. */
-@Composable
-private fun FlameBadge(emoji: String, color: Color, lively: Boolean) {
-    val breath = rememberBreath(1300, "flame")
-    Box(
-        Modifier
-            .size(54.dp)
-            .radialGlow(color, alpha = 0.45f),
-        contentAlignment = Alignment.Center
-    ) {
-        Text(
-            emoji,
-            fontSize = 30.sp,
-            modifier = Modifier.graphicsLayer {
-                if (lively) {
-                    val b = breath.value
-                    scaleX = 1f + 0.07f * b
-                    scaleY = 1f + 0.10f * b
-                    rotationZ = (b - 0.5f) * 6f
-                    transformOrigin = TransformOrigin(0.5f, 0.9f)
-                }
-            }
-        )
     }
 }
 

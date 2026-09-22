@@ -104,6 +104,12 @@ interface CheckInDao {
 
     @Query("SELECT COUNT(*) FROM check_ins")
     suspend fun totalCount(): Int
+
+    @Query("SELECT * FROM check_ins")
+    suspend fun getAllOnce(): List<CheckInEntity>
+
+    @Query("UPDATE check_ins SET wellnessScore = :score WHERE date = :date")
+    suspend fun updateScore(date: String, score: Int)
 }
 
 @Dao

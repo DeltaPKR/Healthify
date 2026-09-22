@@ -79,6 +79,7 @@ import com.healthify.app.ui.onboarding.OnboardingViewModel
 import com.healthify.app.ui.profile.ProfileScreen
 import com.healthify.app.ui.profile.ProfileViewModel
 import com.healthify.app.health.HealthPermissionRationale
+import com.healthify.app.ui.theme.Aurora
 import com.healthify.app.ui.theme.AuroraBackground
 import com.healthify.app.ui.theme.BrandGradient
 import com.healthify.app.ui.theme.Green
@@ -134,7 +135,7 @@ class MainActivity : ComponentActivity() {
             HealthifyTheme {
                 CompositionLocalProvider(LocalReducedMotion provides rememberReducedMotion()) {
                     Box(Modifier.fillMaxSize()) {
-                        AuroraBackground()
+                        AuroraBackground(tint = Aurora.tint)
                         HealthifyNavGraph()
                     }
                 }

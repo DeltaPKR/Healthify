@@ -1,6 +1,7 @@
 package com.healthify.app.data.repository
 
 import com.healthify.app.data.db.*
+import com.healthify.app.score.HealthScore
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import java.time.Instant
@@ -72,6 +73,21 @@ class AppRepository(
         return checkInDao.avgScoreSince(from) ?: 0f
     }
     suspend fun totalCheckIns(): Int = checkInDao.totalCount()
+    suspend fun updateCheckInScore(date: String, score: Int) = checkInDao.updateScore(date, score)
+
+    /**
+     * Re-scores every stored check-in with the current [HealthScore] formula
+     * from the values recorded on the row. Returns the rows whose score
+     * changed (already updated locally) so the caller can re-sync them.
+     */
+    suspend fun recomputeAllScores(): List<CheckInEntity> {
+        val user = userDao.getUserOnce()
+        return checkInDao.getAllOnce().mapNotNull { ci ->
+            val score = HealthScore.of(ci, user)
+            if (score == ci.wellnessScore) null
+            else ci.copy(wellnessScore = score).also { checkInDao.updateScore(ci.date, score) }
+        }
+    }
 
     /** Most recent check-in, regardless of date. */
     suspend fun getMostRecentCheckIn(): CheckInEntity? =
