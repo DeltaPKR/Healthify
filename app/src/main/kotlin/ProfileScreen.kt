@@ -148,10 +148,12 @@ fun ProfileScreen(
                         Icon(Icons.Default.Edit, "Edit profile", tint = Green)
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = BgDark)
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent)
             )
         },
-        containerColor = BgDark
+        containerColor = Color.Transparent,
+        // The floating nav + LocalBottomBarClearance own the bottom inset.
+        contentWindowInsets = WindowInsets(0)
     ) { pad ->
         if (s.isLoading) {
             Box(Modifier.fillMaxSize().padding(pad), contentAlignment = Alignment.Center) {
@@ -371,6 +373,7 @@ fun ProfileScreen(
                 }
             }
             Spacer(Modifier.height(40.dp))
+            Spacer(Modifier.height(LocalBottomBarClearance.current))
         }
     }
 

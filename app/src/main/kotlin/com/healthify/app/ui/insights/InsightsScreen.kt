@@ -71,10 +71,12 @@ fun InsightsScreen(repo: AppRepository, onBack: () -> Unit) {
                         Icon(Icons.Default.ArrowBack, null, tint = TextMuted)
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = BgDark)
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent)
             )
         },
-        containerColor = BgDark
+        containerColor = Color.Transparent,
+        // The floating nav + LocalBottomBarClearance own the bottom inset.
+        contentWindowInsets = WindowInsets(0)
     ) { pad ->
         if (checkIns.isEmpty()) {
             EmptyInsights(pad)
@@ -234,6 +236,7 @@ fun InsightsScreen(repo: AppRepository, onBack: () -> Unit) {
                 }
             }
             Spacer(Modifier.height(32.dp))
+            Spacer(Modifier.height(LocalBottomBarClearance.current))
         }
     }
 }

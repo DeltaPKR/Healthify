@@ -167,6 +167,7 @@ fun CheckInScreen(
         Modifier
             .fillMaxSize()
             .background(Brush.radialGradient(listOf(SurfaceCard2, BgDark)))
+            .systemBarsPadding()
     ) {
         // ── Top bar ─────────────────────────────────────────────────────
         Row(
@@ -256,6 +257,7 @@ private fun CooldownScreen(msRemaining: Long, onBack: () -> Unit) {
         Modifier
             .fillMaxSize()
             .background(Brush.radialGradient(listOf(SurfaceCard2, BgDark)))
+            .systemBarsPadding()
     ) {
         Row(
             Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 16.dp),

@@ -1,3 +1,5 @@
+@file:OptIn(ExperimentalTextApi::class)
+
 package com.healthify.app
 
 import android.Manifest
@@ -6,23 +8,29 @@ import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.SystemBarStyle
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.content.ContextCompat
 import androidx.health.connect.client.PermissionController
 import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.EaseInOutCubic
-import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.EaseOutBack
+import androidx.compose.animation.core.EaseOutCubic
+import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
-import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -40,16 +48,18 @@ import androidx.compose.material3.TextButton
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalViewConfiguration
 import androidx.compose.ui.platform.ViewConfiguration
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.ExperimentalTextApi
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -69,12 +79,17 @@ import com.healthify.app.ui.onboarding.OnboardingViewModel
 import com.healthify.app.ui.profile.ProfileScreen
 import com.healthify.app.ui.profile.ProfileViewModel
 import com.healthify.app.health.HealthPermissionRationale
-import com.healthify.app.ui.theme.BgDark
+import com.healthify.app.ui.theme.AuroraBackground
+import com.healthify.app.ui.theme.BrandGradient
 import com.healthify.app.ui.theme.Green
 import com.healthify.app.ui.theme.HealthifyTheme
+import com.healthify.app.ui.theme.LocalBottomBarClearance
+import com.healthify.app.ui.theme.LocalReducedMotion
 import com.healthify.app.ui.theme.SurfaceCard
 import com.healthify.app.ui.theme.TextMuted
 import com.healthify.app.ui.theme.TextPrimary
+import com.healthify.app.ui.theme.radialGlow
+import com.healthify.app.ui.theme.rememberReducedMotion
 
 // Both perm flags are persisted across launches. We ask exactly once
 // per install for each. If the user dismisses or denies the prompt, we
@@ -105,18 +120,24 @@ class MainActivity : ComponentActivity() {
         // installSplashScreen() must run before super.onCreate() so the
         // framework keeps the splash drawn until our first Compose frame.
         installSplashScreen()
+        // Edge-to-edge on every API level (Android 15+ forces it for
+        // targetSdk 35+ anyway): the aurora backdrop runs behind both system
+        // bars. Each screen consumes the insets it needs exactly once —
+        // tab pages via statusBarsPadding()/TopAppBar, the bottom nav via
+        // navigationBarsPadding(), full-screen flows via systemBarsPadding().
+        enableEdgeToEdge(
+            statusBarStyle     = SystemBarStyle.dark(android.graphics.Color.TRANSPARENT),
+            navigationBarStyle = SystemBarStyle.dark(android.graphics.Color.TRANSPARENT)
+        )
         super.onCreate(savedInstanceState)
-        // NOTE: enableEdgeToEdge() intentionally NOT called. The existing
-        // screens were laid out before edge-to-edge was opt-in here and
-        // each one applies its own top padding; calling enableEdgeToEdge()
-        // adds the status-bar inset on top of that and produces a visible
-        // empty band. On API 35+ the OS forces edge-to-edge regardless,
-        // so re-enabling this should be done together with auditing each
-        // screen's root padding to consume the system-bar insets exactly
-        // once (e.g. via `Modifier.systemBarsPadding()` at the screen root).
         setContent {
             HealthifyTheme {
-                HealthifyNavGraph()
+                CompositionLocalProvider(LocalReducedMotion provides rememberReducedMotion()) {
+                    Box(Modifier.fillMaxSize()) {
+                        AuroraBackground()
+                        HealthifyNavGraph()
+                    }
+                }
             }
         }
     }
@@ -151,7 +172,9 @@ fun HealthifyNavGraph() {
 
     NavHost(
         navController    = navController,
-        startDestination = startRoute
+        startDestination = startRoute,
+        enterTransition  = { fadeIn(tween(320)) },
+        exitTransition   = { fadeOut(tween(220)) }
     ) {
         composable(Routes.ONBOARDING) {
             val vm: OnboardingViewModel = viewModel(
@@ -171,7 +194,12 @@ fun HealthifyNavGraph() {
             MainTabs(navController = navController)
         }
 
-        composable(Routes.CHECK_IN) {
+        // Check-in rises from the bottom like a sheet and sinks back on close.
+        composable(
+            Routes.CHECK_IN,
+            enterTransition  = { slideInVertically(tween(420, easing = EaseOutCubic)) { it / 5 } + fadeIn(tween(320)) },
+            popExitTransition = { slideOutVertically(tween(300)) { it / 5 } + fadeOut(tween(260)) }
+        ) {
             CheckInScreen(
                 repo          = repo,
                 healthConnect = app.healthConnectManager,
@@ -184,14 +212,23 @@ fun HealthifyNavGraph() {
 
 /**
  * Hosts the four tab screens in a HorizontalPager so the user can swipe
- * left/right to switch tabs (Instagram-style). The bottom nav drives the
- * pager and stays visually in sync with the current page.
+ * left/right to switch tabs (Instagram-style). The floating bottom nav
+ * drives the pager and its selection pill follows the swipe.
  */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun MainTabs(navController: NavHostController) {
     val app  = HealthifyApp.instance
     val repo = app.repository
+
+    // Same owner + factory as DashboardPage, so this is the same instance —
+    // the nav's check-in orb reads cooldown state from it.
+    val dashVm: DashboardViewModel = viewModel(
+        factory = DashboardViewModel.Factory(
+            repo                 = repo,
+            healthConnectManager = app.healthConnectManager
+        )
+    )
 
     val pagerState = rememberPagerState(pageCount = { TAB_COUNT })
     val scope = rememberCoroutineScope()
@@ -201,13 +238,6 @@ private fun MainTabs(navController: NavHostController) {
     // they drive the pager state via its own gesture handling.)
     fun goTo(page: Int) {
         scope.launch { pagerState.scrollToPage(page) }
-    }
-
-    val selectedTab = when (pagerState.currentPage) {
-        TAB_INSIGHTS  -> "insights"
-        TAB_REMINDERS -> "reminders"
-        TAB_PROFILE   -> "profile"
-        else          -> "home"
     }
 
     // Two-tier touch slop tuned for an Instagram-style direction lock.
@@ -229,33 +259,29 @@ private fun MainTabs(navController: NavHostController) {
         }
     }
 
-    Scaffold(
-        containerColor = BgDark,
-        bottomBar = {
-            DashBottomNav(
-                selectedTab     = selectedTab,
-                onHome          = { goTo(TAB_HOME) },
-                onInsights      = { goTo(TAB_INSIGHTS) },
-                onCheckIn       = { navController.navigate(Routes.CHECK_IN) },
-                onNotifications = { goTo(TAB_REMINDERS) },
-                onProfile       = { goTo(TAB_PROFILE) }
-            )
-        }
-    ) { innerPadding ->
+    // Tab content scrolls under the floating nav; pages end with a spacer
+    // of this height (LocalBottomBarClearance) so nothing is stuck behind it.
+    val density = LocalDensity.current
+    var navHeightPx by remember { mutableIntStateOf(0) }
+    val clearance = with(density) { navHeightPx.toDp() }
+
+    Box(Modifier.fillMaxSize()) {
         CompositionLocalProvider(LocalViewConfiguration provides pagerViewConfig) {
             HorizontalPager(
                 state    = pagerState,
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(innerPadding),
+                modifier = Modifier.fillMaxSize(),
                 // Keep the neighbouring page composed so swipes don't briefly
                 // flash an empty side while the next screen warms up.
                 beyondBoundsPageCount = 1,
                 key      = { it }
             ) { page ->
-                CompositionLocalProvider(LocalViewConfiguration provides childViewConfig) {
+                CompositionLocalProvider(
+                    LocalViewConfiguration provides childViewConfig,
+                    LocalBottomBarClearance provides clearance
+                ) {
                     when (page) {
                         TAB_HOME      -> DashboardPage(
+                            vm                      = dashVm,
                             onNavigateCheckIn       = { navController.navigate(Routes.CHECK_IN) },
                             onNavigateInsights      = { goTo(TAB_INSIGHTS) },
                             onNavigateNotifications = { goTo(TAB_REMINDERS) },
@@ -282,25 +308,33 @@ private fun MainTabs(navController: NavHostController) {
                 }
             }
         }
+
+        DashBottomNav(
+            selectedPage    = pagerState.currentPage,
+            pagePosition    = { pagerState.currentPage + pagerState.currentPageOffsetFraction },
+            canCheckIn      = dashVm.uiState.canCheckIn,
+            ready           = dashVm.uiState.loaded,
+            onHome          = { goTo(TAB_HOME) },
+            onInsights      = { goTo(TAB_INSIGHTS) },
+            onCheckIn       = { navController.navigate(Routes.CHECK_IN) },
+            onNotifications = { goTo(TAB_REMINDERS) },
+            onProfile       = { goTo(TAB_PROFILE) },
+            modifier        = Modifier
+                .align(Alignment.BottomCenter)
+                .onSizeChanged { navHeightPx = it.height }
+        )
     }
 }
 
 @Composable
 private fun DashboardPage(
+    vm: DashboardViewModel,
     onNavigateCheckIn: () -> Unit,
     onNavigateInsights: () -> Unit,
     onNavigateNotifications: () -> Unit,
     onNavigateProfile: () -> Unit
 ) {
     val app = HealthifyApp.instance
-    val repo = app.repository
-
-    val vm: DashboardViewModel = viewModel(
-        factory = DashboardViewModel.Factory(
-            repo                 = repo,
-            healthConnectManager = app.healthConnectManager
-        )
-    )
 
     // ── Health Connect & notification permission flow ─────────────────────
     // Both permissions are requested exactly once per install, on the
@@ -394,7 +428,7 @@ private fun HealthConnectRationaleDialog(
     AlertDialog(
         onDismissRequest = onDismiss,
         containerColor   = SurfaceCard,
-        shape            = RoundedCornerShape(20.dp),
+        shape            = RoundedCornerShape(24.dp),
         title = {
             Text(
                 "Connect your health data",
@@ -474,71 +508,68 @@ private fun ProfilePage(
     )
 }
 
-private const val SPLASH_MIN_DURATION_MS = 1800L
+// Long enough for the logo to land, short enough not to tax a daily open.
+private const val SPLASH_MIN_DURATION_MS = 700L
 
 @Composable
 private fun SplashScreen() {
-    // Intro: fade + scale-up from 0.6 → 1.0
-    val scale = remember { Animatable(0.6f) }
-    val alpha = remember { Animatable(0f) }
+    val reduced = LocalReducedMotion.current
+    val intro = remember { Animatable(if (reduced) 1f else 0f) }
     LaunchedEffect(Unit) {
-        alpha.animateTo(1f, animationSpec = tween(durationMillis = 600, easing = EaseInOutCubic))
+        intro.animateTo(1f, animationSpec = tween(durationMillis = 520, easing = EaseOutBack))
     }
-    LaunchedEffect(Unit) {
-        scale.animateTo(1f, animationSpec = tween(durationMillis = 700, easing = EaseInOutCubic))
-    }
-
-    // Subtle heartbeat pulse on the logo
-    val pulse = rememberInfiniteTransition(label = "pulse")
-    val pulseScale by pulse.animateFloat(
-        initialValue = 1f,
-        targetValue = 1.08f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 900, easing = EaseInOutCubic),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "pulseScale"
+    // Two heartbeat ripples expanding out of the logo, half a cycle apart.
+    val ripple = rememberInfiniteTransition(label = "splashRipple").animateFloat(
+        initialValue = 0f,
+        targetValue  = 1f,
+        animationSpec = infiniteRepeatable(tween(1400, easing = LinearEasing)),
+        label = "ripple"
     )
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(BgDark),
-        contentAlignment = Alignment.Center
-    ) {
+    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(20.dp)
+            verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
-            Image(
-                painter = painterResource(R.drawable.ic_heart),
-                contentDescription = null,
-                modifier = Modifier
-                    .size(120.dp)
-                    .alpha(alpha.value)
-                    .scale(scale.value * pulseScale)
-            )
+            Box(Modifier.size(170.dp), contentAlignment = Alignment.Center) {
+                if (!reduced) {
+                    Canvas(Modifier.fillMaxSize()) {
+                        for (k in 0..1) {
+                            val p = (ripple.value + k * 0.5f) % 1f
+                            drawCircle(
+                                Green.copy(alpha = (1f - p) * 0.4f * intro.value),
+                                radius = size.minDimension / 2f * (0.42f + 0.58f * p),
+                                style = Stroke(2.dp.toPx())
+                            )
+                        }
+                    }
+                }
+                Image(
+                    painter = painterResource(R.drawable.ic_heart),
+                    contentDescription = null,
+                    modifier = Modifier
+                        .size(92.dp)
+                        .radialGlow(Green, alpha = 0.35f, scale = 1.3f)
+                        .graphicsLayer {
+                            val s = 0.6f + 0.4f * intro.value
+                            scaleX = s; scaleY = s
+                            alpha = intro.value.coerceIn(0f, 1f)
+                        }
+                )
+            }
             Text(
                 text = "Healthify",
-                color = TextPrimary,
-                fontSize = 32.sp,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier
-                    .alpha(alpha.value)
-                    .scale(scale.value)
+                style = MaterialTheme.typography.headlineLarge.copy(brush = BrandGradient, fontSize = 36.sp),
+                modifier = Modifier.graphicsLayer {
+                    alpha = intro.value.coerceIn(0f, 1f)
+                    translationY = (1f - intro.value) * 12.dp.toPx()
+                }
             )
             Text(
                 text = "Your daily wellness companion",
-                color = TextPrimary,
-                fontSize = 14.sp,
-                modifier = Modifier.alpha(alpha.value * 0.7f)
-            )
-            CircularProgressIndicator(
-                color = Green,
-                modifier = Modifier
-                    .size(36.dp)
-                    .alpha(alpha.value),
-                strokeWidth = 3.dp
+                style = MaterialTheme.typography.bodyMedium,
+                color = TextMuted,
+                modifier = Modifier.graphicsLayer { alpha = intro.value.coerceIn(0f, 1f) * 0.9f }
             )
         }
     }

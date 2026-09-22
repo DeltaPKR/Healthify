@@ -108,10 +108,12 @@ fun NotificationsScreen(repo: AppRepository, context: Context, onBack: () -> Uni
                         showEditor = true
                     }) { Icon(Icons.Default.Add, "Add reminder", tint = Green) }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = BgDark)
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent)
             )
         },
-        containerColor = BgDark
+        containerColor = Color.Transparent,
+        // The floating nav + LocalBottomBarClearance own the bottom inset.
+        contentWindowInsets = WindowInsets(0)
     ) { pad ->
         Column(
             Modifier
@@ -228,6 +230,7 @@ fun NotificationsScreen(repo: AppRepository, context: Context, onBack: () -> Uni
             }
 
             Spacer(Modifier.height(32.dp))
+            Spacer(Modifier.height(LocalBottomBarClearance.current))
         }
     }
 

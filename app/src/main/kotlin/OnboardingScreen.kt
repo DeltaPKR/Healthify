@@ -113,6 +113,8 @@ fun OnboardingScreen(viewModel: OnboardingViewModel, onComplete: () -> Unit) {
         Column(
             Modifier
                 .fillMaxSize()
+                .systemBarsPadding()
+                .imePadding()
                 .padding(24.dp)
                 .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(0.dp)
