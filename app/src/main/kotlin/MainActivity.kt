@@ -86,6 +86,7 @@ import com.healthify.app.ui.theme.Green
 import com.healthify.app.ui.theme.HealthifyTheme
 import com.healthify.app.ui.theme.LocalBottomBarClearance
 import com.healthify.app.ui.theme.LocalReducedMotion
+import com.healthify.app.ui.theme.LocalTabVisible
 import com.healthify.app.ui.theme.SurfaceCard
 import com.healthify.app.ui.theme.TextMuted
 import com.healthify.app.ui.theme.TextPrimary
@@ -278,7 +279,8 @@ private fun MainTabs(navController: NavHostController) {
             ) { page ->
                 CompositionLocalProvider(
                     LocalViewConfiguration provides childViewConfig,
-                    LocalBottomBarClearance provides clearance
+                    LocalBottomBarClearance provides clearance,
+                    LocalTabVisible provides (pagerState.currentPage == page)
                 ) {
                     when (page) {
                         TAB_HOME      -> DashboardPage(

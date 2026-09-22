@@ -22,6 +22,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
@@ -136,20 +137,9 @@ fun ProfileScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text("Profile", style = MaterialTheme.typography.headlineMedium) },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.Default.ArrowBack, null, tint = TextMuted)
-                    }
-                },
-                actions = {
-                    IconButton(onClick = { showEdit = true }) {
-                        Icon(Icons.Default.Edit, "Edit profile", tint = Green)
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent)
-            )
+            TabHeader("Profile", kicker = "You", onBack = onBack) {
+                GlassIconButton(Icons.Default.Edit, "Edit profile", { showEdit = true }, tint = Green)
+            }
         },
         containerColor = Color.Transparent,
         // The floating nav + LocalBottomBarClearance own the bottom inset.
@@ -172,19 +162,19 @@ fun ProfileScreen(
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             // ── Avatar + Name header ──────────────────────────────────────
-            Card(
-                Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = SurfaceCard),
-                shape = RoundedCornerShape(20.dp)
-            ) {
+            GlassCard(Modifier.fillMaxWidth()) {
                 Column(
                     Modifier.fillMaxWidth().padding(24.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     Box(
-                        Modifier.size(86.dp).clip(CircleShape)
-                            .background(Brush.radialGradient(listOf(GreenDim, SkyDim))),
+                        Modifier
+                            .size(92.dp)
+                            .radialGlow(Green, alpha = 0.3f, scale = 1.2f)
+                            .clip(CircleShape)
+                            .background(Brush.linearGradient(listOf(Color(0xFF16263D), Color(0xFF0E1829))))
+                            .border(2.5.dp, Brush.sweepGradient(listOf(Green, Sky, Lavender, Green)), CircleShape),
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
@@ -231,40 +221,24 @@ fun ProfileScreen(
             }
 
             // ── Streak Stats ─────────────────────────────────────────────
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                StatTile(
-                    icon = "🔥",
-                    value = u.currentStreak.toString(),
-                    label = "Current\nstreak",
-                    color = Green
-                )
-                StatTile(
-                    icon = "👑",
-                    value = u.longestStreak.toString(),
-                    label = "Best\nstreak",
-                    color = Gold
-                )
-                StatTile(
-                    icon = "✓",
-                    value = s.totalCheckIns.toString(),
-                    label = "Total\ncheck-ins",
-                    color = Sky
-                )
-                StatTile(
-                    icon = "⭐",
-                    value = if (s.avgScore > 0) "%d".format(s.avgScore.toInt()) else "—",
-                    label = "Avg\nscore",
-                    color = Lavender
-                )
+            // Four across normally; 2 × 2 at large font scales so the
+            // labels don't break mid-word.
+            val stats = listOf(
+                StatSpec("🔥", u.currentStreak.toString(), "Current\nstreak", Green),
+                StatSpec("👑", u.longestStreak.toString(), "Best\nstreak", Gold),
+                StatSpec("✓", s.totalCheckIns.toString(), "Total\ncheck-ins", Sky),
+                StatSpec("⭐", if (s.avgScore > 0) "%d".format(s.avgScore.toInt()) else "—", "Avg\nscore", Lavender)
+            )
+            val perRow = if (LocalDensity.current.fontScale > 1.3f) 2 else 4
+            stats.chunked(perRow).forEach { row ->
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    row.forEach { st -> StatTile(icon = st.icon, value = st.value, label = st.label, color = st.color) }
+                }
             }
 
             // ── Body Metrics ─────────────────────────────────────────────
             SectionLabel("Body metrics")
-            Card(
-                Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = SurfaceCard),
-                shape = RoundedCornerShape(16.dp)
-            ) {
+            GlassCard(Modifier.fillMaxWidth(), shape = RoundedCornerShape(20.dp)) {
                 Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
                     InfoRow("📏 Height", if (u.heightCm > 0) "%.0f cm".format(u.heightCm) else "—")
                     HorizontalDivider(color = Divider)
@@ -301,11 +275,7 @@ fun ProfileScreen(
 
             // ── Goals ────────────────────────────────────────────────────
             SectionLabel("Daily goals")
-            Card(
-                Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = SurfaceCard),
-                shape = RoundedCornerShape(16.dp)
-            ) {
+            GlassCard(Modifier.fillMaxWidth(), shape = RoundedCornerShape(20.dp)) {
                 Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
                     InfoRow("🚶 Steps", "%,d".format(u.stepGoal))
                     HorizontalDivider(color = Divider)
@@ -333,11 +303,7 @@ fun ProfileScreen(
 
             // ── About ────────────────────────────────────────────────────
             SectionLabel("About")
-            Card(
-                Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = SurfaceCard),
-                shape = RoundedCornerShape(16.dp)
-            ) {
+            GlassCard(Modifier.fillMaxWidth(), shape = RoundedCornerShape(20.dp)) {
                 Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
                     InfoRow("🌿 App", "Healthify v${BuildConfig.VERSION_NAME}")
                     HorizontalDivider(color = Divider)
@@ -351,11 +317,11 @@ fun ProfileScreen(
 
             // ── Danger zone ──────────────────────────────────────────────
             Spacer(Modifier.height(8.dp))
-            Card(
-                Modifier.fillMaxWidth().clickable { showConfirmReset = true },
-                colors = CardDefaults.cardColors(containerColor = CoralDim),
-                shape = RoundedCornerShape(16.dp),
-                border = androidx.compose.foundation.BorderStroke(1.dp, Color(0x40FF7B6E))
+            GlassCard(
+                Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(20.dp),
+                tint = Coral,
+                onClick = { showConfirmReset = true }
             ) {
                 Row(
                     Modifier.padding(18.dp),
@@ -447,7 +413,8 @@ private fun EditProfileDialog(
                 .fillMaxWidth()
                 .padding(horizontal = 18.dp),
             colors = CardDefaults.cardColors(containerColor = SurfaceCard),
-            shape = RoundedCornerShape(22.dp)
+            shape = RoundedCornerShape(26.dp),
+            border = BorderStroke(1.dp, Brush.verticalGradient(listOf(GlassBorderTop, GlassBorderBottom)))
         ) {
             Column(
                 Modifier
@@ -829,13 +796,11 @@ private fun DeleteDataRow() {
     }
 }
 
+private data class StatSpec(val icon: String, val value: String, val label: String, val color: Color)
+
 @Composable
 private fun RowScope.StatTile(icon: String, value: String, label: String, color: Color) {
-    Card(
-        Modifier.weight(1f),
-        colors = CardDefaults.cardColors(containerColor = SurfaceCard),
-        shape = RoundedCornerShape(16.dp)
-    ) {
+    GlassCard(Modifier.weight(1f), shape = RoundedCornerShape(18.dp), tint = color) {
         Column(
             Modifier.padding(vertical = 14.dp, horizontal = 8.dp).fillMaxWidth(),
             horizontalAlignment = Alignment.CenterHorizontally,
@@ -844,8 +809,8 @@ private fun RowScope.StatTile(icon: String, value: String, label: String, color:
             Text(icon, fontSize = 20.sp)
             Text(value,
                 style = MaterialTheme.typography.headlineSmall, color = color)
-            Text(label, style = MaterialTheme.typography.labelSmall,
-                color = TextMuted, textAlign = TextAlign.Center, lineHeight = 12.sp)
+            Text(label, style = MaterialTheme.typography.labelMedium,
+                color = TextMuted, textAlign = TextAlign.Center, lineHeight = 14.sp)
         }
     }
 }

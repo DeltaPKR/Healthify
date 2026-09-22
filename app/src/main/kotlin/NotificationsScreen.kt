@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -22,6 +23,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -95,21 +97,12 @@ fun NotificationsScreen(repo: AppRepository, context: Context, onBack: () -> Uni
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text("Reminders", style = MaterialTheme.typography.headlineMedium) },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.Default.ArrowBack, null, tint = TextMuted)
-                    }
-                },
-                actions = {
-                    IconButton(onClick = {
-                        editing = null
-                        showEditor = true
-                    }) { Icon(Icons.Default.Add, "Add reminder", tint = Green) }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent)
-            )
+            TabHeader("Reminders", kicker = "Stay on track", onBack = onBack) {
+                GlassIconButton(Icons.Default.Add, "Add reminder", {
+                    editing = null
+                    showEditor = true
+                }, tint = Green)
+            }
         },
         containerColor = Color.Transparent,
         // The floating nav + LocalBottomBarClearance own the bottom inset.
@@ -133,11 +126,7 @@ fun NotificationsScreen(repo: AppRepository, context: Context, onBack: () -> Uni
                 ).forEach { (cat, pair) ->
                     val (color, icon) = pair
                     val count = cats[cat]?.count { it.enabled } ?: 0
-                    Card(
-                        Modifier.weight(1f),
-                        colors = CardDefaults.cardColors(containerColor = SurfaceCard),
-                        shape  = RoundedCornerShape(14.dp)
-                    ) {
+                    GlassCard(Modifier.weight(1f), shape = RoundedCornerShape(20.dp), tint = color) {
                         Column(
                             Modifier.padding(14.dp).fillMaxWidth(),
                             horizontalAlignment = Alignment.CenterHorizontally
@@ -146,7 +135,9 @@ fun NotificationsScreen(repo: AppRepository, context: Context, onBack: () -> Uni
                             Text(count.toString(),
                                 style = MaterialTheme.typography.headlineSmall, color = color)
                             Text(cat.replaceFirstChar { it.uppercase() },
-                                style = MaterialTheme.typography.bodySmall, color = TextMuted)
+                                style = MaterialTheme.typography.bodySmall, color = TextMuted,
+                                maxLines = 1, softWrap = false,
+                                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
                         }
                     }
                 }
@@ -156,11 +147,7 @@ fun NotificationsScreen(repo: AppRepository, context: Context, onBack: () -> Uni
 
             // ── Reminders list / empty state ──────────────────────────────
             if (reminders.isEmpty()) {
-                Card(
-                    Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(containerColor = SurfaceCard),
-                    shape  = RoundedCornerShape(18.dp)
-                ) {
+                GlassCard(Modifier.fillMaxWidth()) {
                     Column(
                         Modifier.padding(28.dp).fillMaxWidth(),
                         horizontalAlignment = Alignment.CenterHorizontally,
@@ -176,18 +163,10 @@ fun NotificationsScreen(repo: AppRepository, context: Context, onBack: () -> Uni
                             textAlign = TextAlign.Center
                         )
                         Spacer(Modifier.height(6.dp))
-                        Button(
-                            onClick = {
-                                editing = null
-                                showEditor = true
-                            },
-                            colors = ButtonDefaults.buttonColors(containerColor = Green),
-                            shape = RoundedCornerShape(14.dp)
-                        ) {
-                            Text("+ Add reminder",
-                                color = MaterialTheme.colorScheme.onPrimary,
-                                style = MaterialTheme.typography.titleMedium)
-                        }
+                        GlowButton("+ Add reminder", onClick = {
+                            editing = null
+                            showEditor = true
+                        })
                     }
                 }
             } else {
@@ -306,33 +285,52 @@ private fun ReminderCard(
     // Switch stays interactive so the user can still mute the nudge
     // without losing the suppression-rule anchor. See HealthifyApp and
     // ReminderReceiver for why the row id has to stay stable.
-    Card(
-        onClick  = if (isProtected) ({ /* no-op */ }) else onEdit,
+    // "Every day" / "Weekdays" / "Weekends", else the day initials.
+    val days = reminder.repeatDays.split(",").mapNotNull { it.trim().toIntOrNull() }.toSet()
+    val daysLabel = when (days) {
+        (1..7).toSet()       -> "Every day"
+        setOf(1, 2, 3, 4, 5) -> "Weekdays"
+        setOf(6, 7)          -> "Weekends"
+        else -> days.sorted().filter { it in 1..7 }.joinToString(" ") { "MTWTFSS"[it - 1].toString() }
+    }
+
+    GlassCard(
         modifier = Modifier.fillMaxWidth().then(
             if (!reminder.enabled) Modifier.alpha(0.55f) else Modifier
         ),
-        colors   = CardDefaults.cardColors(containerColor = SurfaceCard),
-        shape    = RoundedCornerShape(18.dp)
+        shape   = RoundedCornerShape(20.dp),
+        onClick = if (isProtected) null else onEdit
     ) {
         Row(
-            Modifier.padding(14.dp),
+            Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
             verticalAlignment     = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Box(
-                Modifier.size(44.dp).clip(RoundedCornerShape(14.dp)).background(catColorDim),
-                contentAlignment = Alignment.Center
-            ) { Text(reminder.emoji, fontSize = 20.sp) }
+            IconOrb(catColor) { Text(reminder.emoji, fontSize = 20.sp) }
 
             Column(Modifier.weight(1f)) {
-                Text(reminder.label,
-                    style = MaterialTheme.typography.titleMedium, color = TextPrimary)
                 Text(
-                    "%02d:%02d · ${reminder.repeatDays.split(",").size}x/week"
-                        .format(reminder.hourOfDay, reminder.minute),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = catColor
+                    reminder.label,
+                    style = MaterialTheme.typography.titleSmall,
+                    color = TextPrimary,
+                    maxLines = 1,
+                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
                 )
+                Row(verticalAlignment = Alignment.Bottom) {
+                    Text(
+                        "%02d:%02d".format(reminder.hourOfDay, reminder.minute),
+                        style = MaterialTheme.typography.titleLarge.copy(fontFeatureSettings = TABULAR),
+                        color = catColor
+                    )
+                    Text(
+                        "  ·  $daysLabel",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = TextMuted,
+                        maxLines = 1,
+                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                        modifier = Modifier.padding(bottom = 3.dp)
+                    )
+                }
             }
 
             if (isProtected) {
@@ -340,7 +338,8 @@ private fun ReminderCard(
                     Modifier
                         .clip(RoundedCornerShape(100.dp))
                         .background(GreenDim)
-                        .padding(horizontal = 10.dp, vertical = 6.dp)
+                        .border(1.dp, Green.copy(alpha = 0.35f), RoundedCornerShape(100.dp))
+                        .padding(horizontal = 10.dp, vertical = 5.dp)
                 ) {
                     Text(
                         "DEFAULT",
@@ -349,15 +348,17 @@ private fun ReminderCard(
                     )
                 }
             } else {
-                IconButton(
-                    onClick = { showConfirmDelete = true },
-                    modifier = Modifier
-                        .size(40.dp)
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(CoralDim)
+                Box(
+                    Modifier
+                        .size(38.dp)
+                        .clip(CircleShape)
+                        .background(Coral.copy(alpha = 0.12f))
+                        .border(1.dp, Coral.copy(alpha = 0.3f), CircleShape)
+                        .clickable(onClickLabel = "Delete reminder") { showConfirmDelete = true },
+                    contentAlignment = Alignment.Center
                 ) {
                     Icon(Icons.Default.Delete, "Delete reminder", tint = Coral,
-                        modifier = Modifier.size(22.dp))
+                        modifier = Modifier.size(18.dp))
                 }
             }
 
@@ -367,8 +368,10 @@ private fun ReminderCard(
                 colors = SwitchDefaults.colors(
                     checkedThumbColor      = Color.White,
                     checkedTrackColor      = Green,
-                    uncheckedThumbColor    = TextDim,
-                    uncheckedTrackColor    = SurfaceCard2
+                    checkedBorderColor     = Color.Transparent,
+                    uncheckedThumbColor    = TextMuted,
+                    uncheckedTrackColor    = Color.White.copy(alpha = 0.06f),
+                    uncheckedBorderColor   = Color.White.copy(alpha = 0.18f)
                 )
             )
         }
@@ -429,7 +432,8 @@ private fun ReminderEditorDialog(
             Card(
                 Modifier.fillMaxWidth(),
                 colors = CardDefaults.cardColors(containerColor = SurfaceCard),
-                shape = RoundedCornerShape(22.dp)
+                shape = RoundedCornerShape(26.dp),
+                border = BorderStroke(1.dp, Brush.verticalGradient(listOf(GlassBorderTop, GlassBorderBottom)))
             ) {
                 Column(
                     Modifier

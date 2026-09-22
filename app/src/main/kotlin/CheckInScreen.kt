@@ -330,21 +330,6 @@ fun CheckInScreen(
 // CHROME
 // ─────────────────────────────────────────────────────────────────────────────
 
-@Composable
-private fun GlassIconButton(icon: ImageVector, description: String, onClick: () -> Unit) {
-    Box(
-        Modifier
-            .size(44.dp)
-            .clip(CircleShape)
-            .background(Brush.verticalGradient(listOf(GlassFillTop, GlassFillBottom)))
-            .border(1.dp, Brush.verticalGradient(listOf(GlassBorderTop, GlassBorderBottom)), CircleShape)
-            .clickable(onClickLabel = description, role = Role.Button, onClick = onClick),
-        contentAlignment = Alignment.Center
-    ) {
-        Icon(icon, contentDescription = description, tint = TextPrimary, modifier = Modifier.size(22.dp))
-    }
-}
-
 /** One segment per question; the current one is part-filled. */
 @Composable
 private fun SegmentedProgress(current: Int, total: Int, accent: Color, modifier: Modifier = Modifier) {

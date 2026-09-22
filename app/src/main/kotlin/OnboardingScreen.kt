@@ -1,6 +1,10 @@
+@file:OptIn(ExperimentalTextApi::class)
+
 package com.healthify.app.ui.onboarding
 
 import androidx.compose.animation.*
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -12,6 +16,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.text.ExperimentalTextApi
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
@@ -105,11 +115,8 @@ class OnboardingViewModel(private val repo: AppRepository) : ViewModel() {
 fun OnboardingScreen(viewModel: OnboardingViewModel, onComplete: () -> Unit) {
     LaunchedEffect(viewModel.step) { if (viewModel.step == 99) onComplete() }
 
-    Box(
-        Modifier
-            .fillMaxSize()
-            .background(Brush.radialGradient(listOf(SurfaceCard2, BgDark)))
-    ) {
+    // Transparent: the app-wide aurora shows through.
+    Box(Modifier.fillMaxSize()) {
         Column(
             Modifier
                 .fillMaxSize()
@@ -127,13 +134,27 @@ fun OnboardingScreen(viewModel: OnboardingViewModel, onComplete: () -> Unit) {
             ) {
                 repeat(4) { i ->
                     val active = i == viewModel.step
+                    val done   = i < viewModel.step
+                    val width by animateDpAsState(
+                        if (active) 28.dp else 8.dp,
+                        spring(dampingRatio = 0.6f, stiffness = 400f),
+                        label = "dot$i"
+                    )
+                    val color by animateColorAsState(
+                        when {
+                            active -> Green
+                            done   -> Green.copy(alpha = 0.45f)
+                            else   -> TextDim
+                        },
+                        label = "dotColor$i"
+                    )
                     Box(
                         Modifier
                             .padding(horizontal = 4.dp)
                             .clip(RoundedCornerShape(4.dp))
-                            .background(if (active) Green else TextDim)
-                            .width(if (active) 22.dp else 7.dp)
-                            .height(7.dp)
+                            .background(color)
+                            .width(width)
+                            .height(8.dp)
                     )
                 }
             }
@@ -158,16 +179,11 @@ fun OnboardingScreen(viewModel: OnboardingViewModel, onComplete: () -> Unit) {
             Spacer(Modifier.height(32.dp))
 
             // CTA button
-            Button(
+            GlowButton(
+                text    = if (viewModel.step == 3) "Let's Go 🚀" else "Continue →",
                 onClick = { if (viewModel.step == 3) viewModel.finish(onComplete) else viewModel.next() },
-                modifier = Modifier.fillMaxWidth().height(54.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = Green),
-                shape = RoundedCornerShape(16.dp)
-            ) {
-                Text(if (viewModel.step == 3) "Let's Go 🚀" else "Continue →",
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.onPrimary)
-            }
+                loading = viewModel.isLoading
+            )
 
             if (viewModel.step > 0) {
                 TextButton(onClick = { viewModel.back() }, modifier = Modifier.fillMaxWidth()) {
@@ -182,8 +198,28 @@ fun OnboardingScreen(viewModel: OnboardingViewModel, onComplete: () -> Unit) {
 @Composable
 private fun StepName(vm: OnboardingViewModel) {
     Column(verticalArrangement = Arrangement.spacedBy(24.dp)) {
-        Text("🌿", style = MaterialTheme.typography.displayLarge)
-        Text("Welcome to\nHealthify!", style = MaterialTheme.typography.headlineLarge)
+        val bob = rememberBreath(2800, "leaf")
+        Box(
+            Modifier.size(88.dp).radialGlow(Green, alpha = 0.35f, scale = 1.25f),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                "🌿",
+                fontSize = 54.sp,
+                modifier = Modifier.graphicsLayer {
+                    translationY = (bob.value - 0.5f) * 8.dp.toPx()
+                    rotationZ = (bob.value - 0.5f) * 10f
+                }
+            )
+        }
+        Text(
+            buildAnnotatedString {
+                append("Welcome to\n")
+                withStyle(SpanStyle(brush = BrandGradient)) { append("Healthify") }
+                append("!")
+            },
+            style = MaterialTheme.typography.headlineLarge.copy(fontSize = 38.sp, lineHeight = 44.sp)
+        )
         Text("Your personal companion for daily health, habits, and wellness.", color = TextMuted)
         OBLabel("What should we call you?")
         OutlinedTextField(
@@ -227,8 +263,8 @@ private fun StepDemographics(vm: OnboardingViewModel) {
                     Modifier
                         .weight(1f)
                         .clip(RoundedCornerShape(12.dp))
-                        .background(if (sel) GreenDim else SurfaceCard)
-                        .border(1.dp, if (sel) Green else Divider, RoundedCornerShape(12.dp))
+                        .background(if (sel) GreenDim else GlassFillTop)
+                        .border(1.dp, if (sel) Green else GlassBorderTop, RoundedCornerShape(12.dp))
                         .clickable { vm.gender = g }
                         .padding(vertical = 12.dp),
                     contentAlignment = Alignment.Center
@@ -250,8 +286,8 @@ private fun StepBody(vm: OnboardingViewModel) {
                 Box(
                     Modifier
                         .weight(1f).clip(RoundedCornerShape(10.dp))
-                        .background(if (sel) GreenDim else SurfaceCard)
-                        .border(1.dp, if (sel) Green else Divider, RoundedCornerShape(10.dp))
+                        .background(if (sel) GreenDim else GlassFillTop)
+                        .border(1.dp, if (sel) Green else GlassBorderTop, RoundedCornerShape(10.dp))
                         .clickable { vm.unit = u }
                         .padding(vertical = 11.dp),
                     contentAlignment = Alignment.Center
@@ -306,8 +342,8 @@ private fun FlowRow(items: List<String>, selected: List<String>, onToggle: (Stri
             Box(
                 Modifier
                     .clip(RoundedCornerShape(100.dp))
-                    .background(if (sel) GreenDim else SurfaceCard)
-                    .border(1.dp, if (sel) Green else Divider, RoundedCornerShape(100.dp))
+                    .background(if (sel) GreenDim else GlassFillTop)
+                    .border(1.dp, if (sel) Green else GlassBorderTop, RoundedCornerShape(100.dp))
                     .clickable { onToggle(item) }
                     .padding(horizontal = 14.dp, vertical = 9.dp)
             ) { Text(item, style = MaterialTheme.typography.bodySmall, color = if (sel) Green else TextMuted) }
@@ -331,10 +367,10 @@ private fun OBLabel(text: String, trailingColor: androidx.compose.ui.graphics.Co
 @Composable
 private fun textFieldColors() = OutlinedTextFieldDefaults.colors(
     focusedBorderColor   = Green,
-    unfocusedBorderColor = Divider,
+    unfocusedBorderColor = GlassBorderTop,
     focusedTextColor     = TextPrimary,
     unfocusedTextColor   = TextPrimary,
     cursorColor          = Green,
     focusedContainerColor   = GreenDim,
-    unfocusedContainerColor = SurfaceCard
+    unfocusedContainerColor = GlassFillBottom
 )

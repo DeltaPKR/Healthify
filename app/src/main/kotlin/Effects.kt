@@ -15,7 +15,10 @@ import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.LocalIndication
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
@@ -36,6 +39,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.TextUnit
@@ -74,6 +78,23 @@ fun rememberReducedMotion(): Boolean {
  * with a spacer this tall to keep the last item reachable.
  */
 val LocalBottomBarClearance = compositionLocalOf { 0.dp }
+
+/**
+ * Whether the tab hosting this content is the one on screen. The pager
+ * composes neighbouring tabs ahead of time; entrances and count-ups wait
+ * for this so they play when the user actually arrives. Defaults to true
+ * for content outside the pager.
+ */
+val LocalTabVisible = compositionLocalOf { true }
+
+/** True from the first time the hosting tab is on screen, and stays true. */
+@Composable
+fun rememberHasBeenVisible(): Boolean {
+    val visible = LocalTabVisible.current
+    var seen by remember { mutableStateOf(visible) }
+    LaunchedEffect(visible) { if (visible) seen = true }
+    return seen
+}
 
 /**
  * App-wide aurora tint. The root AuroraBackground reads it; a full-screen
@@ -290,8 +311,9 @@ fun Modifier.radialGlow(color: Color, alpha: Float = 0.45f, scale: Float = 1f): 
 fun Modifier.staggeredEnter(index: Int, rise: Dp = 22.dp): Modifier = composed {
     val reduced = LocalReducedMotion.current
     val progress = remember { Animatable(if (reduced) 1f else 0f) }
-    LaunchedEffect(Unit) {
-        if (!reduced) {
+    val seen = rememberHasBeenVisible()
+    LaunchedEffect(seen) {
+        if (!reduced && seen && progress.value < 1f) {
             delay(80L + index * 70L)
             progress.animateTo(1f, tween(560, easing = EaseOutCubic))
         }
@@ -312,9 +334,10 @@ fun Modifier.staggeredEnter(index: Int, rise: Dp = 22.dp): Modifier = composed {
 fun rememberCountUp(target: Int, durationMs: Int = 1200, delayMs: Long = 0): State<Int> {
     val reduced = LocalReducedMotion.current
     val anim = remember { Animatable(if (reduced) target.toFloat() else 0f) }
-    LaunchedEffect(target) {
+    val seen = rememberHasBeenVisible()
+    LaunchedEffect(target, seen) {
         if (reduced) anim.snapTo(target.toFloat())
-        else {
+        else if (seen) {
             if (delayMs > 0 && anim.value == 0f) delay(delayMs)
             anim.animateTo(target.toFloat(), tween(durationMs, easing = EaseOutCubic))
         }
@@ -327,9 +350,10 @@ fun rememberCountUp(target: Int, durationMs: Int = 1200, delayMs: Long = 0): Sta
 fun rememberSweep(target: Float, durationMs: Int = 1300, delayMs: Long = 0): State<Float> {
     val reduced = LocalReducedMotion.current
     val anim = remember { Animatable(if (reduced) target else 0f) }
-    LaunchedEffect(target) {
+    val seen = rememberHasBeenVisible()
+    LaunchedEffect(target, seen) {
         if (reduced) anim.snapTo(target)
-        else {
+        else if (seen) {
             if (delayMs > 0 && anim.value == 0f) delay(delayMs)
             anim.animateTo(target, tween(durationMs, easing = EaseOutCubic))
         }
@@ -569,6 +593,65 @@ fun FlameBadge(emoji: String, color: Color, lively: Boolean, size: Dp = 54.dp) {
                 }
             }
         )
+    }
+}
+
+/** 44dp glass circle holding one icon — back / close / header actions. */
+@Composable
+fun GlassIconButton(
+    icon: ImageVector,
+    description: String,
+    onClick: () -> Unit,
+    tint: Color = TextPrimary
+) {
+    Box(
+        Modifier
+            .size(44.dp)
+            .clip(androidx.compose.foundation.shape.CircleShape)
+            .background(Brush.verticalGradient(listOf(GlassFillTop, GlassFillBottom)))
+            .background(if (tint != TextPrimary) tint.copy(alpha = 0.12f) else Color.Transparent)
+            .border(
+                1.dp,
+                Brush.verticalGradient(listOf(if (tint != TextPrimary) tint.copy(alpha = 0.5f) else GlassBorderTop, GlassBorderBottom)),
+                androidx.compose.foundation.shape.CircleShape
+            )
+            .clickable(onClickLabel = description, role = Role.Button, onClick = onClick),
+        contentAlignment = Alignment.Center
+    ) {
+        Icon(icon, contentDescription = description, tint = tint, modifier = Modifier.size(22.dp))
+    }
+}
+
+/**
+ * Header for the Insights / Reminders / Profile tabs: glass back button,
+ * a big title with an optional kicker line, and trailing actions. Consumes
+ * the status-bar inset itself (the tab Scaffolds pass WindowInsets(0)).
+ */
+@Composable
+fun TabHeader(
+    title: String,
+    kicker: String? = null,
+    onBack: (() -> Unit)? = null,
+    actions: @Composable RowScope.() -> Unit = {}
+) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .statusBarsPadding()
+            .padding(start = 16.dp, end = 16.dp, top = 10.dp, bottom = 10.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        if (onBack != null) {
+            GlassIconButton(Icons.AutoMirrored.Rounded.ArrowBack, "Back to home", onBack)
+            Spacer(Modifier.width(14.dp))
+        }
+        Column(Modifier.weight(1f)) {
+            if (kicker != null) {
+                Text(kicker.uppercase(), style = MaterialTheme.typography.labelSmall, color = TextMuted, maxLines = 1)
+            }
+            Text(title, style = MaterialTheme.typography.headlineMedium, color = TextPrimary, maxLines = 1)
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically, content = actions)
     }
 }
 
