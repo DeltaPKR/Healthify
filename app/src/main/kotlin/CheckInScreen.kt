@@ -435,20 +435,25 @@ private fun QMood(selected: Int, onSelect: (Int) -> Unit) {
         QHeader(1, current?.color ?: Green, "How are you feeling right now?")
         Spacer(Modifier.height(20.dp))
 
-        // Big preview of the chosen face; pops in on every change.
-        AnimatedContent(
-            targetState = selected,
-            transitionSpec = {
-                (scaleIn(spring(dampingRatio = 0.45f, stiffness = 380f), initialScale = 0.4f) + fadeIn(tween(150))) togetherWith
-                    (scaleOut(tween(150), targetScale = 0.6f) + fadeOut(tween(150)))
-            },
-            label = "moodBig"
-        ) { sel ->
-            val m = MOODS.getOrNull(sel)
-            Box(
-                Modifier.size(160.dp).radialGlow(m?.color ?: TextDim, alpha = if (m != null) 0.5f else 0.12f),
-                contentAlignment = Alignment.Center
-            ) {
+        // Big preview of the chosen face; pops in on every change. The glow
+        // lives on the static box outside AnimatedContent and crossfades its
+        // colour: inside, the fade-in renders through an offscreen layer the
+        // size of the box, which cut the overhanging glow square mid-pop.
+        val glowColor by animateColorAsState(current?.color ?: TextDim, tween(300), label = "moodGlow")
+        val glowAlpha by animateFloatAsState(if (current != null) 0.5f else 0.12f, tween(300), label = "moodGlowA")
+        Box(
+            Modifier.size(160.dp).radialGlow(glowColor, alpha = glowAlpha),
+            contentAlignment = Alignment.Center
+        ) {
+            AnimatedContent(
+                targetState = selected,
+                transitionSpec = {
+                    (scaleIn(spring(dampingRatio = 0.45f, stiffness = 380f), initialScale = 0.4f) + fadeIn(tween(150))) togetherWith
+                        (scaleOut(tween(150), targetScale = 0.6f) + fadeOut(tween(150)))
+                },
+                label = "moodBig"
+            ) { sel ->
+                val m = MOODS.getOrNull(sel)
                 Text(
                     m?.emoji ?: "🙂",
                     fontSize = 88.sp,

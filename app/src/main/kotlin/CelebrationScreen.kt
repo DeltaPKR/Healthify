@@ -23,6 +23,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.ExperimentalTextApi
@@ -193,6 +194,9 @@ private fun Modifier.reveal(shown: Boolean, delayMs: Int = 0): Modifier {
     return graphicsLayer {
         alpha = p
         translationY = (1f - p) * rise
+        // No offscreen buffer, so the Done button's glow isn't cut square
+        // while it fades in.
+        compositingStrategy = CompositingStrategy.ModulateAlpha
     }
 }
 

@@ -944,7 +944,12 @@ fun DashBottomNav(
             onClick    = { haptics.confirm(); onCheckIn() },
             modifier   = Modifier
                 .align(Alignment.TopCenter)
-                .graphicsLayer { alpha = orbAlpha; val s = 0.6f + 0.4f * orbAlpha; scaleX = s; scaleY = s }
+                .graphicsLayer {
+                    alpha = orbAlpha
+                    val s = 0.6f + 0.4f * orbAlpha
+                    scaleX = s; scaleY = s
+                    compositingStrategy = CompositingStrategy.ModulateAlpha // keep the glow round while fading
+                }
         )
     }
 }

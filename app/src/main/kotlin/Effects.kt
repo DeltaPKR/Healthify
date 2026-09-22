@@ -300,6 +300,10 @@ fun Modifier.staggeredEnter(index: Int, rise: Dp = 22.dp): Modifier = composed {
     graphicsLayer {
         alpha = progress.value
         translationY = (1f - progress.value) * risePx
+        // Per-draw alpha, no offscreen buffer: a buffer is sized to the
+        // node, so glows reaching past it (CTA, buttons) would be cut
+        // square for the length of the fade.
+        compositingStrategy = CompositingStrategy.ModulateAlpha
     }
 }
 
