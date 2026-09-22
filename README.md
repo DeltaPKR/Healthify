@@ -4,14 +4,14 @@ A calm daily wellness tracker for Android. One check-in a day — mood,
 water, food, sleep, and a rating of how the day went — turned into a
 wellness score, a streak, and a weekly trend.
 
-**Status:** production. Play production access granted; first public
-release (1.0.15, versionCode 16) pending review. The store listing is not
-public yet, so there is no Play link below on purpose.
+**Status:** production on Google Play. Current release 1.0.16
+(versionCode 17): the "aurora glass" redesign, a post-check-in
+celebration, and one goal-based wellness score across the app.
 
 | | |
 |---|---|
 | Package | `com.DeltaPKR.Healthify` |
-| Current version | 1.0.15 (16) |
+| Current version | 1.0.16 (17) |
 | Min / target SDK | 26 (Android 8.0) / 36 |
 | Privacy policy | https://deltapkr.github.io/Healthify/privacy/ |
 | Publisher | DeltaPKR — deltapkr.developer@gmail.com |
@@ -21,13 +21,18 @@ public yet, so there is no Play link below on purpose.
 ## What it does
 
 - **Daily check-in.** Mood, water glasses, food quality, sleep hours, and
-  a 1–5 day rating, in under a minute. Produces a 0–100 wellness score.
-- **Dashboard.** Today's steps and last night's sleep read from Health
-  Connect, next to the water and mood you logged yourself.
+  a 1–5 day rating, in under a minute. Ends on a celebration: the day's
+  score, what each part earned, and the streak ticking over.
+- **Wellness score (0–100).** Water, steps and sleep 20 each against the
+  user's own goals, mood 20, food 10, day rating 10 — the same number on
+  home, the celebration, Insights and Profile.
+- **Dashboard.** Activity rings for water, steps and sleep around the
+  score; steps and sleep come from Health Connect, water from the
+  check-in. A Mon–Sun chain shows the week's check-ins.
 - **Reminders.** Water, movement, check-in and wind-down nudges on exact
   alarms, surviving reboot and app update.
-- **Insights.** Weekly mood strip, wellness average, current and longest
-  streak.
+- **Insights.** Wellness-trend chart, 7-day averages and goal progress,
+  weekly mood strip, current and longest streak.
 - **Streaks with a 6 PM day boundary**, so a late check-in still counts.
 - **Offline-first**, with anonymous Firestore sync for cross-device
   history.
