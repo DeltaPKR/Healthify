@@ -2,6 +2,7 @@ package com.healthify.app.ui.notifications
 
 import android.content.Context
 import androidx.compose.animation.*
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.*
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior
@@ -25,6 +26,9 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -263,20 +267,7 @@ private fun ReminderCard(
     onEdit:   () -> Unit,
     onDelete: () -> Unit
 ) {
-    val catColor = when (reminder.category) {
-        "water"    -> Sky
-        "meds"     -> Coral
-        "movement" -> Green
-        "wellness" -> Lavender
-        else       -> TextMuted
-    }
-    val catColorDim = when (reminder.category) {
-        "water"    -> SkyDim
-        "meds"     -> CoralDim
-        "movement" -> GreenDim
-        "wellness" -> LavenderDim
-        else       -> Divider
-    }
+    val catColor = categoryColor(reminder.category)
 
     var showConfirmDelete by remember { mutableStateOf(false) }
 
@@ -285,14 +276,7 @@ private fun ReminderCard(
     // Switch stays interactive so the user can still mute the nudge
     // without losing the suppression-rule anchor. See HealthifyApp and
     // ReminderReceiver for why the row id has to stay stable.
-    // "Every day" / "Weekdays" / "Weekends", else the day initials.
-    val days = reminder.repeatDays.split(",").mapNotNull { it.trim().toIntOrNull() }.toSet()
-    val daysLabel = when (days) {
-        (1..7).toSet()       -> "Every day"
-        setOf(1, 2, 3, 4, 5) -> "Weekdays"
-        setOf(6, 7)          -> "Weekends"
-        else -> days.sorted().filter { it in 1..7 }.joinToString(" ") { "MTWTFSS"[it - 1].toString() }
-    }
+    val daysLabel = daysSummary(reminder.repeatDays.split(",").mapNotNull { it.trim().toIntOrNull() })
 
     GlassCard(
         modifier = Modifier.fillMaxWidth().then(
@@ -378,24 +362,16 @@ private fun ReminderCard(
     }
 
     if (showConfirmDelete) {
-        AlertDialog(
-            onDismissRequest = { showConfirmDelete = false },
-            title = { Text("Delete reminder?", color = TextPrimary) },
-            text = { Text("\"${reminder.label}\" will be removed and won't notify you anymore.",
-                color = TextMuted) },
-            confirmButton = {
-                TextButton(onClick = {
-                    showConfirmDelete = false
-                    onDelete()
-                }) { Text("Delete", color = Coral) }
+        ConfirmDialog(
+            emoji = reminder.emoji,
+            title = "Delete reminder?",
+            message = "\"${reminder.label}\" will be removed and won't notify you anymore.",
+            confirmLabel = "Delete",
+            onConfirm = {
+                showConfirmDelete = false
+                onDelete()
             },
-            dismissButton = {
-                TextButton(onClick = { showConfirmDelete = false }) {
-                    Text("Cancel", color = TextMuted)
-                }
-            },
-            containerColor = SurfaceCard,
-            shape = RoundedCornerShape(20.dp)
+            onDismiss = { showConfirmDelete = false }
         )
     }
 }
@@ -404,7 +380,26 @@ private fun ReminderCard(
 // EDITOR DIALOG: name, icon picker, time, save/delete
 // ─────────────────────────────────────────────────────────────────────────────
 
-@OptIn(ExperimentalMaterial3Api::class)
+private fun categoryColor(id: String): Color = when (id) {
+    "water"    -> Sky
+    "meds"     -> Coral
+    "movement" -> Green
+    "wellness" -> Lavender
+    else       -> Gold
+}
+
+/** "Every day" / "Weekdays" / "Weekends", else the day initials (1 = Mon). */
+private fun daysSummary(days: Collection<Int>): String {
+    val set = days.filter { it in 1..7 }.toSet()
+    return when (set) {
+        (1..7).toSet()       -> "Every day"
+        setOf(1, 2, 3, 4, 5) -> "Weekdays"
+        setOf(6, 7)          -> "Weekends"
+        emptySet<Int>()      -> "No days"
+        else -> set.sorted().joinToString(" ") { "MTWTFSS"[it - 1].toString() }
+    }
+}
+
 @Composable
 private fun ReminderEditorDialog(
     initial: ReminderEntity?,
@@ -423,172 +418,142 @@ private fun ReminderEditorDialog(
             .split(",").mapNotNull { it.trim().toIntOrNull() }.toSet()
         mutableStateListOf<Int>().also { it.addAll(parsed.ifEmpty { setOf(1,2,3,4,5,6,7) }.sorted()) }
     }
+    var confirmDelete by remember { mutableStateOf(false) }
+    // The whole sheet takes the category's colour: corner light, field
+    // focus, wheel band, day dots and the Save button.
+    val accent by animateColorAsState(categoryColor(category), tween(300), label = "catAccent")
 
-    Dialog(
-        onDismissRequest = onDismiss,
-        properties = DialogProperties(usePlatformDefaultWidth = false)
-    ) {
-        Box(Modifier.padding(horizontal = 18.dp)) {
-            Card(
-                Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = SurfaceCard),
-                shape = RoundedCornerShape(26.dp),
-                border = BorderStroke(1.dp, Brush.verticalGradient(listOf(GlassBorderTop, GlassBorderBottom)))
-            ) {
-                Column(
-                    Modifier
-                        .fillMaxWidth()
-                        .verticalScroll(rememberScrollState())
-                        .padding(22.dp),
-                    verticalArrangement = Arrangement.spacedBy(16.dp)
-                ) {
-                    // Header
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(
-                            if (isEdit) "Edit reminder" else "New reminder",
-                            style = MaterialTheme.typography.headlineMedium, color = TextPrimary,
-                            modifier = Modifier.weight(1f)
-                        )
-                        Text(emoji, fontSize = 30.sp)
-                    }
-
-                    // Name
-                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                        Text("NAME", style = MaterialTheme.typography.labelSmall, color = TextMuted)
-                        OutlinedTextField(
-                            value = label,
-                            onValueChange = { if (it.length <= 40) label = it },
-                            modifier = Modifier.fillMaxWidth(),
-                            singleLine = true,
-                            placeholder = { Text("e.g. Take vitamin D", color = TextDim) },
-                            shape = RoundedCornerShape(12.dp),
-                            colors = dialogTextFieldColors()
-                        )
-                    }
-
-                    // Category chips (explicit type selection)
-                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                        Text("CATEGORY",
-                            style = MaterialTheme.typography.labelSmall, color = TextMuted)
-                        CategoryChips(
-                            selected = category,
-                            onSelect = { newCat ->
-                                if (newCat != category) {
-                                    category = newCat
-                                    // Reset emoji to first icon of the new category
-                                    emoji = ICON_CATALOG.first { it.category == newCat }.emoji
-                                }
-                            }
-                        )
-                    }
-
-                    // Icon picker grid (filtered by selected category)
-                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                        Text("ICON", style = MaterialTheme.typography.labelSmall, color = TextMuted)
-                        IconGrid(
-                            category = category,
-                            selected = emoji,
-                            onSelect = { choice -> emoji = choice.emoji }
-                        )
-                    }
-
-                    // Time
-                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                        Text("TIME", style = MaterialTheme.typography.labelSmall, color = TextMuted)
-                        TimeStepper(
-                            hour = hour,
-                            minute = minute,
-                            onHourChange = { hour = it },
-                            onMinuteChange = { minute = it }
-                        )
-                    }
-
-                    // Days of week
-                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                        Text("REPEATS", style = MaterialTheme.typography.labelSmall, color = TextMuted)
-                        DayChips(
-                            selected = days,
-                            onToggle = { d ->
-                                if (d in days) days.remove(d) else days.add(d)
-                            }
-                        )
-                    }
-
-                    Spacer(Modifier.height(2.dp))
-
-                    // Delete (only when editing) — clear, full-width, with confirm
-                    if (isEdit && onDelete != null) {
-                        var confirmDelete by remember { mutableStateOf(false) }
-                        OutlinedButton(
-                            onClick = { confirmDelete = true },
-                            modifier = Modifier.fillMaxWidth().height(48.dp),
-                            shape = RoundedCornerShape(13.dp),
-                            border = BorderStroke(1.dp, Coral.copy(alpha = 0.6f))
-                        ) {
-                            Icon(Icons.Default.Delete, null, tint = Coral,
-                                modifier = Modifier.size(18.dp))
-                            Spacer(Modifier.width(8.dp))
-                            Text("Delete reminder", color = Coral,
-                                style = MaterialTheme.typography.titleMedium)
-                        }
-                        if (confirmDelete) {
-                            AlertDialog(
-                                onDismissRequest = { confirmDelete = false },
-                                title = { Text("Delete reminder?", color = TextPrimary) },
-                                text = { Text(
-                                    "\"${label.ifBlank { initial?.label ?: "Reminder" }}\" will be removed and won't notify you anymore.",
-                                    color = TextMuted) },
-                                confirmButton = {
-                                    TextButton(onClick = {
-                                        confirmDelete = false
-                                        onDelete()
-                                    }) { Text("Delete", color = Coral) }
-                                },
-                                dismissButton = {
-                                    TextButton(onClick = { confirmDelete = false }) {
-                                        Text("Cancel", color = TextMuted)
-                                    }
-                                },
-                                containerColor = SurfaceCard,
-                                shape = RoundedCornerShape(20.dp)
-                            )
-                        }
-                    }
-
-                    // Cancel / Save
-                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                        OutlinedButton(
-                            onClick = onDismiss,
-                            modifier = Modifier.weight(1f).height(48.dp),
-                            shape = RoundedCornerShape(13.dp),
-                            border = BorderStroke(1.dp, Divider)
-                        ) { Text("Cancel", color = TextMuted) }
-                        Button(
-                            onClick = {
-                                val result = (initial ?: ReminderEntity()).copy(
-                                    label      = label.trim().ifBlank { "Reminder" },
-                                    emoji      = emoji,
-                                    hourOfDay  = hour,
-                                    minute     = minute,
-                                    category   = category,
-                                    enabled    = initial?.enabled ?: true,
-                                    repeatDays = days.sorted().joinToString(",")
-                                )
-                                onSave(result)
-                            },
-                            modifier = Modifier.weight(1f).height(48.dp),
-                            shape = RoundedCornerShape(13.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = Green),
-                            enabled = days.isNotEmpty()
-                        ) {
-                            Text(if (isEdit) "Save" else "Add",
-                                color = MaterialTheme.colorScheme.onPrimary,
-                                style = MaterialTheme.typography.titleMedium)
-                        }
-                    }
+    GlassDialog(onDismiss = onDismiss, accent = accent) {
+        // Header — a live preview of the reminder being built.
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text(
+                    if (isEdit) "EDIT REMINDER" else "NEW REMINDER",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = accent
+                )
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    label.ifBlank { "Reminder" },
+                    style = MaterialTheme.typography.headlineSmall,
+                    color = TextPrimary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Text(
+                    "%02d:%02d  ·  %s".format(hour, minute, daysSummary(days)),
+                    style = MaterialTheme.typography.bodyMedium.copy(fontFeatureSettings = TABULAR),
+                    color = TextMuted
+                )
+            }
+            Spacer(Modifier.width(12.dp))
+            Box(Modifier.size(64.dp).radialGlow(accent, alpha = 0.35f, scale = 1.2f), contentAlignment = Alignment.Center) {
+                IconOrb(accent, size = 56.dp) {
+                    AnimatedContent(
+                        targetState = emoji,
+                        transitionSpec = {
+                            (scaleIn(spring(dampingRatio = 0.45f, stiffness = 420f), initialScale = 0.5f) + fadeIn()) togetherWith
+                                (scaleOut(tween(120)) + fadeOut(tween(120)))
+                        },
+                        label = "reminderEmoji"
+                    ) { e -> Text(e, fontSize = 26.sp) }
                 }
             }
         }
+
+        Spacer(Modifier.height(22.dp))
+        FieldLabel("Name")
+        OutlinedTextField(
+            value = label,
+            onValueChange = { if (it.length <= 40) label = it },
+            modifier = Modifier.fillMaxWidth(),
+            singleLine = true,
+            placeholder = { Text("e.g. Take vitamin D") },
+            shape = RoundedCornerShape(16.dp),
+            colors = glassFieldColors(accent)
+        )
+
+        Spacer(Modifier.height(18.dp))
+        FieldLabel("Category")
+        CategoryChips(
+            selected = category,
+            onSelect = { newCat ->
+                if (newCat != category) {
+                    category = newCat
+                    // Reset emoji to first icon of the new category
+                    emoji = ICON_CATALOG.first { it.category == newCat }.emoji
+                }
+            }
+        )
+
+        Spacer(Modifier.height(18.dp))
+        FieldLabel("Icon")
+        IconGrid(category = category, selected = emoji, accent = accent) { choice -> emoji = choice.emoji }
+
+        Spacer(Modifier.height(18.dp))
+        FieldLabel("Time")
+        TimeStepper(
+            hour = hour,
+            minute = minute,
+            accent = accent,
+            onHourChange = { hour = it },
+            onMinuteChange = { minute = it }
+        )
+
+        Spacer(Modifier.height(18.dp))
+        FieldLabel("Repeats")
+        DayChips(selected = days, accent = accent) { d -> if (d in days) days.remove(d) else days.add(d) }
+        if (days.isEmpty()) {
+            Text(
+                "Pick at least one day",
+                style = MaterialTheme.typography.bodySmall,
+                color = Coral,
+                modifier = Modifier.padding(top = 8.dp)
+            )
+        }
+
+        Spacer(Modifier.height(24.dp))
+        // Delete (only when editing) — full-width, with confirm
+        if (isEdit && onDelete != null) {
+            GhostButton("Delete reminder", { confirmDelete = true }, color = Coral)
+            Spacer(Modifier.height(10.dp))
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            GhostButton("Cancel", onDismiss, Modifier.weight(1f))
+            GlowButton(
+                text = if (isEdit) "Save" else "Add",
+                onClick = {
+                    val result = (initial ?: ReminderEntity()).copy(
+                        label      = label.trim().ifBlank { "Reminder" },
+                        emoji      = emoji,
+                        hourOfDay  = hour,
+                        minute     = minute,
+                        category   = category,
+                        enabled    = initial?.enabled ?: true,
+                        repeatDays = days.sorted().joinToString(",")
+                    )
+                    onSave(result)
+                },
+                modifier = Modifier.weight(1f),
+                accent = accent,
+                enabled = days.isNotEmpty(),
+                height = 52.dp
+            )
+        }
+    }
+
+    if (confirmDelete && onDelete != null) {
+        ConfirmDialog(
+            emoji = "🗑️",
+            title = "Delete reminder?",
+            message = "\"${label.ifBlank { initial?.label ?: "Reminder" }}\" will be removed and won't notify you anymore.",
+            confirmLabel = "Delete",
+            onConfirm = {
+                confirmDelete = false
+                onDelete()
+            },
+            onDismiss = { confirmDelete = false }
+        )
     }
 }
 
@@ -596,72 +561,53 @@ private fun ReminderEditorDialog(
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun CategoryChips(selected: String, onSelect: (String) -> Unit) {
+    val haptics = rememberHaptics()
     FlowRow(
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
         modifier = Modifier.fillMaxWidth()
     ) {
         CATEGORIES.forEach { cat ->
-            val sel = cat.id == selected
-            val (color, dim) = when (cat.id) {
-                "water"    -> Sky      to SkyDim
-                "meds"     -> Coral    to CoralDim
-                "movement" -> Green    to GreenDim
-                "wellness" -> Lavender to LavenderDim
-                else       -> Gold     to GoldDim
-            }
-            Box(
-                Modifier
-                    .clip(RoundedCornerShape(20.dp))
-                    .background(if (sel) dim else SurfaceCard2)
-                    .border(
-                        1.5.dp,
-                        if (sel) color else Divider,
-                        RoundedCornerShape(20.dp)
-                    )
-                    .clickable { onSelect(cat.id) }
-                    .padding(horizontal = 12.dp, vertical = 8.dp)
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Text(cat.emoji, fontSize = 16.sp)
-                    Text(
-                        cat.label,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = if (sel) color else TextMuted
-                    )
-                }
-            }
+            GlassChip(
+                text = cat.label,
+                selected = cat.id == selected,
+                onClick = { haptics.tick(); onSelect(cat.id) },
+                color = categoryColor(cat.id),
+                leading = cat.emoji
+            )
         }
     }
 }
 
-// ── Day-of-week chips (Mon..Sun = 1..7, ISO) ────────────────────────────────
+// ── Day-of-week dots (Mon..Sun = 1..7, ISO) ──────────────────────────────────
 @Composable
-private fun DayChips(selected: List<Int>, onToggle: (Int) -> Unit) {
+private fun DayChips(selected: List<Int>, accent: Color, onToggle: (Int) -> Unit) {
+    val haptics = rememberHaptics()
     val labels = listOf("M", "T", "W", "T", "F", "S", "S")
+    val ink = Color(0xFF06121C)
     Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.fillMaxWidth()) {
         labels.forEachIndexed { idx, lbl ->
             val day = idx + 1
             val sel = day in selected
+            val scale by animateFloatAsState(if (sel) 1f else 0.92f, spring(dampingRatio = 0.5f, stiffness = 500f), label = "day$day")
             Box(
                 Modifier
                     .weight(1f)
-                    .height(40.dp)
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(if (sel) GreenDim else SurfaceCard2)
-                    .border(
-                        1.5.dp,
-                        if (sel) Green else Divider,
-                        RoundedCornerShape(12.dp)
+                    .aspectRatio(1f)
+                    .graphicsLayer { scaleX = scale; scaleY = scale }
+                    .clip(CircleShape)
+                    .background(
+                        if (sel) Brush.linearGradient(listOf(accent, lerp(accent, Color.White, 0.3f)))
+                        else Brush.verticalGradient(listOf(GlassFillTop, GlassFillBottom))
                     )
-                    .clickable { onToggle(day) },
+                    .border(1.dp, if (sel) Color.White.copy(alpha = 0.18f) else GlassBorderTop, CircleShape)
+                    .clickable(role = androidx.compose.ui.semantics.Role.Checkbox) { haptics.tick(); onToggle(day) },
                 contentAlignment = Alignment.Center
             ) {
                 Text(
                     lbl,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = if (sel) Green else TextMuted
+                    style = MaterialTheme.typography.titleSmall,
+                    color = if (sel) ink else TextMuted
                 )
             }
         }
@@ -670,7 +616,8 @@ private fun DayChips(selected: List<Int>, onToggle: (Int) -> Unit) {
 
 // ── Icon grid (filtered by category) ─────────────────────────────────────────
 @Composable
-private fun IconGrid(category: String, selected: String, onSelect: (IconChoice) -> Unit) {
+private fun IconGrid(category: String, selected: String, accent: Color, onSelect: (IconChoice) -> Unit) {
+    val haptics = rememberHaptics()
     val filtered = ICON_CATALOG.filter { it.category == category }
     val rows = filtered.chunked(6)
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -678,21 +625,21 @@ private fun IconGrid(category: String, selected: String, onSelect: (IconChoice) 
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 row.forEach { choice ->
                     val sel = choice.emoji == selected
+                    val scale by animateFloatAsState(if (sel) 1.15f else 1f, spring(dampingRatio = 0.4f, stiffness = 500f), label = "icon${choice.emoji}")
                     Box(
                         Modifier
                             .weight(1f)
                             .aspectRatio(1f)
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(if (sel) GreenDim else SurfaceCard2)
-                            .border(
-                                1.5.dp,
-                                if (sel) Green else Divider,
-                                RoundedCornerShape(12.dp)
+                            .clip(RoundedCornerShape(16.dp))
+                            .background(
+                                if (sel) Brush.linearGradient(listOf(accent.copy(alpha = 0.30f), accent.copy(alpha = 0.10f)))
+                                else Brush.verticalGradient(listOf(GlassFillTop, GlassFillBottom))
                             )
-                            .clickable { onSelect(choice) },
+                            .border(1.dp, if (sel) accent else GlassBorderTop, RoundedCornerShape(16.dp))
+                            .clickable(onClickLabel = choice.label) { haptics.tick(); onSelect(choice) },
                         contentAlignment = Alignment.Center
                     ) {
-                        Text(choice.emoji, fontSize = 22.sp)
+                        Text(choice.emoji, fontSize = 22.sp, modifier = Modifier.graphicsLayer { scaleX = scale; scaleY = scale })
                     }
                 }
                 // pad short rows
@@ -709,50 +656,52 @@ private fun IconGrid(category: String, selected: String, onSelect: (IconChoice) 
 private fun TimeStepper(
     hour: Int,
     minute: Int,
+    accent: Color,
     onHourChange: (Int) -> Unit,
     onMinuteChange: (Int) -> Unit
 ) {
-    Card(
-        colors = CardDefaults.cardColors(containerColor = SurfaceCard2),
-        shape  = RoundedCornerShape(14.dp)
+    val shape = RoundedCornerShape(20.dp)
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .clip(shape)
+            .background(Brush.verticalGradient(listOf(GlassFillTop, GlassFillBottom)))
+            .border(1.dp, GlassBorderTop, shape)
+            .padding(vertical = 12.dp, horizontal = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.Center
     ) {
-        Row(
-            Modifier
-                .fillMaxWidth()
-                .padding(vertical = 12.dp, horizontal = 12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.Center
-        ) {
-            WheelPicker(
-                label = "HOUR",
-                range = 0..23,
-                value = hour,
-                onValueChange = onHourChange,
-                modifier = Modifier.weight(1f)
-            )
-            Text(
-                ":",
-                fontSize = 32.sp,
-                color = TextPrimary,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.padding(horizontal = 4.dp)
-            )
-            WheelPicker(
-                label = "MIN",
-                range = 0..59,
-                value = minute,
-                onValueChange = onMinuteChange,
-                modifier = Modifier.weight(1f)
-            )
-        }
+        WheelPicker(
+            label = "HOUR",
+            range = 0..23,
+            value = hour,
+            accent = accent,
+            onValueChange = onHourChange,
+            modifier = Modifier.weight(1f)
+        )
+        Text(
+            ":",
+            fontSize = 32.sp,
+            color = accent,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(horizontal = 6.dp, vertical = 0.dp).padding(top = 18.dp)
+        )
+        WheelPicker(
+            label = "MIN",
+            range = 0..59,
+            value = minute,
+            accent = accent,
+            onValueChange = onMinuteChange,
+            modifier = Modifier.weight(1f)
+        )
     }
 }
 
 /**
  * Vertical scrolling number wheel — looks/feels like Android's alarm-clock
  * time picker. Wraps infinitely so swiping past 23 lands on 0 (hours) or 59
- * lands on 0 (minutes). Snaps to whole rows. The currently centered row is
- * highlighted between two thin dividers and rendered at full opacity.
+ * lands on 0 (minutes). Snaps to whole rows, ticks as each row passes the
+ * centre, and the centred row sits on a tinted band.
  */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -760,9 +709,11 @@ private fun WheelPicker(
     label: String,
     range: IntRange,
     value: Int,
+    accent: Color,
     onValueChange: (Int) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val haptics          = rememberHaptics()
     val count            = range.last - range.first + 1
     val visibleCount     = 5
     val visibleHalfCount = visibleCount / 2          // 2 rows above/below center
@@ -799,12 +750,20 @@ private fun WheelPicker(
             }
         }
     }
+    // A detent tick each time a new row crosses the centre while scrolling.
+    LaunchedEffect(listState) {
+        var last = centeredAbsIndex
+        snapshotFlow { centeredAbsIndex }.collect { idx ->
+            if (idx != last && listState.isScrollInProgress) haptics.tick()
+            last = idx
+        }
+    }
 
     Column(
         modifier = modifier,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Text(label, style = MaterialTheme.typography.labelSmall, color = Green)
+        Text(label, style = MaterialTheme.typography.labelSmall, color = accent)
         Spacer(Modifier.height(4.dp))
         Box(
             Modifier
@@ -812,6 +771,16 @@ private fun WheelPicker(
                 .height(itemHeight * visibleCount),
             contentAlignment = Alignment.Center
         ) {
+            // Selection band behind the centred row.
+            Box(
+                Modifier
+                    .fillMaxWidth()
+                    .height(itemHeight + 4.dp)
+                    .align(Alignment.Center)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(accent.copy(alpha = 0.14f))
+                    .border(1.dp, accent.copy(alpha = 0.45f), RoundedCornerShape(12.dp))
+            )
             LazyColumn(
                 state = listState,
                 flingBehavior = flingBehavior,
@@ -822,8 +791,8 @@ private fun WheelPicker(
                     val distance   = abs(i - centeredAbsIndex)
                     val alpha = when (distance) {
                         0    -> 1f
-                        1    -> 0.55f
-                        else -> 0.25f
+                        1    -> 0.5f
+                        else -> 0.2f
                     }
                     val isCenter = distance == 0
                     Box(
@@ -834,40 +803,15 @@ private fun WheelPicker(
                     ) {
                         Text(
                             "%02d".format(labelValue),
-                            fontSize = if (isCenter) 26.sp else 22.sp,
-                            fontWeight = if (isCenter) FontWeight.Bold else FontWeight.Normal,
-                            color = if (isCenter) TextPrimary else TextPrimary.copy(alpha = alpha),
+                            style = MaterialTheme.typography.headlineSmall.copy(fontFeatureSettings = TABULAR),
+                            fontSize = if (isCenter) 28.sp else 22.sp,
+                            fontWeight = if (isCenter) FontWeight.ExtraBold else FontWeight.Medium,
+                            color = TextPrimary.copy(alpha = alpha),
                             textAlign = TextAlign.Center
                         )
                     }
                 }
             }
-            // Highlighted selection window around the centered row.
-            Box(
-                Modifier
-                    .fillMaxWidth()
-                    .height(itemHeight)
-                    .align(Alignment.Center)
-                    .border(
-                        width = 1.dp,
-                        color = Green.copy(alpha = 0.45f),
-                        shape = RoundedCornerShape(8.dp)
-                    )
-            )
         }
     }
 }
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun dialogTextFieldColors() = TextFieldDefaults.colors(
-    focusedContainerColor = SurfaceCard2,
-    unfocusedContainerColor = SurfaceCard2,
-    focusedIndicatorColor = Green,
-    unfocusedIndicatorColor = Divider,
-    cursorColor = Green,
-    focusedTextColor = TextPrimary,
-    unfocusedTextColor = TextPrimary,
-    focusedPlaceholderColor = TextDim,
-    unfocusedPlaceholderColor = TextDim
-)

@@ -13,12 +13,18 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.LocalIndication
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
+import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.TextFieldColors
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
@@ -530,9 +536,10 @@ fun GlowButton(
     modifier: Modifier = Modifier,
     accent: Color = Green,
     enabled: Boolean = true,
-    loading: Boolean = false
+    loading: Boolean = false,
+    height: Dp = 58.dp
 ) {
-    val shape = RoundedCornerShape(20.dp)
+    val shape = RoundedCornerShape(height * 0.34f)
     val ink = Color(0xFF06121C)
     val interaction = remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
@@ -542,7 +549,7 @@ fun GlowButton(
     Box(
         modifier
             .fillMaxWidth()
-            .height(58.dp)
+            .height(height)
             .graphicsLayer { scaleX = scale; scaleY = scale }
             .glow(accent, 22.dp, shape) { 0.45f * on }
             .clip(shape)
@@ -566,6 +573,179 @@ fun GlowButton(
                 style = MaterialTheme.typography.titleMedium,
                 color = lerp(TextMuted, ink, on)
             )
+        }
+    }
+}
+
+/** Secondary pill button: plain glass, same footprint as [GlowButton]. */
+@Composable
+fun GhostButton(
+    text: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    color: Color = TextPrimary,
+    height: Dp = 52.dp
+) {
+    val shape = RoundedCornerShape(height * 0.34f)
+    val interaction = remember { MutableInteractionSource() }
+    val pressed by interaction.collectIsPressedAsState()
+    val scale by animateFloatAsState(if (pressed) 0.96f else 1f, spring(dampingRatio = 0.55f, stiffness = 600f), label = "ghostPress")
+    Box(
+        modifier
+            .fillMaxWidth()
+            .height(height)
+            .graphicsLayer { scaleX = scale; scaleY = scale }
+            .clip(shape)
+            .background(Brush.verticalGradient(listOf(GlassFillTop, GlassFillBottom)))
+            .background(if (color != TextPrimary) color.copy(alpha = 0.08f) else Color.Transparent)
+            .border(1.dp, if (color != TextPrimary) color.copy(alpha = 0.4f) else GlassBorderTop, shape)
+            .clickable(
+                interactionSource = interaction,
+                indication = LocalIndication.current,
+                role = Role.Button,
+                onClick = onClick
+            ),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(text, style = MaterialTheme.typography.titleMedium, color = if (color != TextPrimary) color else TextMuted)
+    }
+}
+
+/** Pill toggle: glass when off, tinted with [color] when [selected]. */
+@Composable
+fun GlassChip(
+    text: String,
+    selected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    color: Color = Green,
+    leading: String? = null
+) {
+    val shape = RoundedCornerShape(100.dp)
+    val bg by animateColorAsState(if (selected) color.copy(alpha = 0.18f) else GlassFillTop, tween(200), label = "chipBg")
+    val edge by animateColorAsState(if (selected) color else GlassBorderTop, tween(200), label = "chipEdge")
+    Row(
+        modifier
+            .clip(shape)
+            .background(bg)
+            .border(1.dp, edge, shape)
+            .clickable(role = Role.Checkbox, onClick = onClick)
+            .padding(horizontal = 14.dp, vertical = 9.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(6.dp)
+    ) {
+        if (leading != null) Text(leading, fontSize = 15.sp)
+        Text(text, style = MaterialTheme.typography.labelLarge, color = if (selected) color else TextMuted, maxLines = 1)
+    }
+}
+
+/** Outlined text field colours for glass surfaces. */
+@Composable
+fun glassFieldColors(accent: Color = Green): TextFieldColors = OutlinedTextFieldDefaults.colors(
+    focusedBorderColor        = accent,
+    unfocusedBorderColor      = GlassBorderTop,
+    focusedContainerColor     = accent.copy(alpha = 0.08f),
+    unfocusedContainerColor   = GlassFillBottom,
+    focusedTextColor          = TextPrimary,
+    unfocusedTextColor        = TextPrimary,
+    cursorColor               = accent,
+    focusedPlaceholderColor   = TextDim,
+    unfocusedPlaceholderColor = TextDim
+)
+
+/** Small uppercase section label used inside cards and dialogs. */
+@Composable
+fun FieldLabel(text: String, color: Color = TextMuted) {
+    Text(
+        text.uppercase(),
+        style = MaterialTheme.typography.labelSmall,
+        color = color,
+        modifier = Modifier.padding(bottom = 6.dp)
+    )
+}
+
+/**
+ * Dialog sheet in the glass style: an opaque deep-navy gradient (dialogs
+ * sit over busy content, so no see-through), a hairline edge, a soft
+ * [accent] light in the top corner, and a small spring-in. Content scrolls
+ * when taller than the window.
+ */
+@Composable
+fun GlassDialog(
+    onDismiss: () -> Unit,
+    accent: Color = Green,
+    content: @Composable ColumnScope.() -> Unit
+) {
+    // On Android 15+ dialog windows are edge-to-edge but report no insets
+    // inside, so a tall sheet ran under the gesture bar. Measure the bars
+    // from the activity (outside the dialog) and cap the sheet's height so
+    // a centred sheet always clears both of them; the content scrolls.
+    val density = LocalDensity.current
+    val bars = WindowInsets.systemBars
+    val rootHeightPx = LocalView.current.rootView.height
+    val maxSheetHeight = with(density) {
+        val inset = maxOf(bars.getTop(density), bars.getBottom(density))
+        (rootHeightPx - 2 * inset).coerceAtLeast(0).toDp() - 32.dp
+    }
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false)
+    ) {
+        val reduced = LocalReducedMotion.current
+        val appear = remember { Animatable(if (reduced) 1f else 0f) }
+        LaunchedEffect(Unit) { appear.animateTo(1f, spring(dampingRatio = 0.72f, stiffness = 420f)) }
+        val light by animateColorAsState(accent, tween(400), label = "dialogLight")
+        val shape = RoundedCornerShape(28.dp)
+        Column(
+            Modifier
+                .padding(horizontal = 18.dp)
+                .fillMaxWidth()
+                .heightIn(max = maxSheetHeight)
+                .graphicsLayer {
+                    val s = 0.92f + 0.08f * appear.value
+                    scaleX = s; scaleY = s
+                    alpha = appear.value.coerceIn(0f, 1f)
+                    compositingStrategy = CompositingStrategy.ModulateAlpha
+                }
+                .glow(Color.Black, 30.dp, shape, alpha = 0.6f)
+                .clip(shape)
+                .background(Brush.verticalGradient(listOf(Color(0xFF16223A), Color(0xFF0B1322))))
+                .drawBehind {
+                    val r = size.width * 0.9f
+                    drawCircle(
+                        Brush.radialGradient(listOf(light.copy(alpha = 0.16f), Color.Transparent), center = Offset(0f, 0f), radius = r),
+                        radius = r, center = Offset(0f, 0f)
+                    )
+                }
+                .border(1.dp, Brush.verticalGradient(listOf(GlassBorderTop, GlassBorderBottom)), shape)
+                .verticalScroll(rememberScrollState())
+                .padding(22.dp),
+            content = content
+        )
+    }
+}
+
+/** Two-button confirmation in a [GlassDialog]. */
+@Composable
+fun ConfirmDialog(
+    emoji: String,
+    title: String,
+    message: String,
+    confirmLabel: String,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit,
+    accent: Color = Coral
+) {
+    GlassDialog(onDismiss = onDismiss, accent = accent) {
+        IconOrb(accent, size = 56.dp) { Text(emoji, fontSize = 26.sp) }
+        Spacer(Modifier.height(16.dp))
+        Text(title, style = MaterialTheme.typography.headlineSmall, color = TextPrimary)
+        Spacer(Modifier.height(8.dp))
+        Text(message, style = MaterialTheme.typography.bodyMedium, color = TextMuted)
+        Spacer(Modifier.height(24.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            GhostButton("Cancel", onDismiss, Modifier.weight(1f))
+            GlowButton(confirmLabel, onConfirm, Modifier.weight(1f), accent = accent, height = 52.dp)
         }
     }
 }

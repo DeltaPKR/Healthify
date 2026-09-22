@@ -82,6 +82,11 @@ import com.healthify.app.health.HealthPermissionRationale
 import com.healthify.app.ui.theme.Aurora
 import com.healthify.app.ui.theme.AuroraBackground
 import com.healthify.app.ui.theme.BrandGradient
+import com.healthify.app.ui.theme.GhostButton
+import com.healthify.app.ui.theme.GlassDialog
+import com.healthify.app.ui.theme.GlowButton
+import com.healthify.app.ui.theme.IconOrb
+import com.healthify.app.ui.theme.Sky
 import com.healthify.app.ui.theme.Green
 import com.healthify.app.ui.theme.HealthifyTheme
 import com.healthify.app.ui.theme.LocalBottomBarClearance
@@ -428,71 +433,60 @@ private fun HealthConnectRationaleDialog(
     onDismiss: () -> Unit,
     onContinue: () -> Unit
 ) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        containerColor   = SurfaceCard,
-        shape            = RoundedCornerShape(24.dp),
-        title = {
-            Text(
-                "Connect your health data",
-                style = MaterialTheme.typography.titleLarge,
-                color = TextPrimary,
-                fontWeight = FontWeight.SemiBold
-            )
-        },
-        text = {
-            Column(Modifier.fillMaxWidth()) {
-                Text(
-                    "Healthify reads two things from Health Connect, so your " +
-                    "dashboard and wellness score reflect what you actually did " +
-                    "today instead of what you had to type in:",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = TextMuted
-                )
-                Spacer(Modifier.height(16.dp))
-                rationales.forEach { r ->
-                    Row(
-                        Modifier.fillMaxWidth().padding(bottom = 14.dp),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        Text(r.emoji, fontSize = 22.sp)
-                        Column {
-                            Text(
-                                r.dataType,
-                                style = MaterialTheme.typography.bodyLarge,
-                                color = TextPrimary,
-                                fontWeight = FontWeight.SemiBold
-                            )
-                            Text(
-                                r.purpose,
-                                style = MaterialTheme.typography.bodySmall,
-                                color = TextMuted
-                            )
-                        }
-                    }
+    GlassDialog(onDismiss = onDismiss, accent = Sky) {
+        IconOrb(Sky, size = 56.dp) { Text("🔗", fontSize = 26.sp) }
+        Spacer(Modifier.height(16.dp))
+        Text(
+            "Connect your health data",
+            style = MaterialTheme.typography.headlineSmall,
+            color = TextPrimary
+        )
+        Spacer(Modifier.height(8.dp))
+        Text(
+            "Healthify reads two things from Health Connect, so your " +
+            "dashboard and wellness score reflect what you actually did " +
+            "today instead of what you had to type in:",
+            style = MaterialTheme.typography.bodyMedium,
+            color = TextMuted
+        )
+        Spacer(Modifier.height(16.dp))
+        rationales.forEach { r ->
+            Row(
+                Modifier.fillMaxWidth().padding(bottom = 12.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                IconOrb(Sky) { Text(r.emoji, fontSize = 20.sp) }
+                Column(Modifier.weight(1f)) {
+                    Text(
+                        r.dataType,
+                        style = MaterialTheme.typography.titleSmall,
+                        color = TextPrimary
+                    )
+                    Text(
+                        r.purpose,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = TextMuted
+                    )
                 }
-                Text(
-                    "Read-only — Healthify never writes to Health Connect. Your " +
-                    "readings stay on this device; only the daily totals you " +
-                    "check in with are synced. You grant each type separately on " +
-                    "the next screen, and you can revoke them any time in Health " +
-                    "Connect.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = TextMuted
-                )
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = onContinue) {
-                Text("Continue", color = Green, fontWeight = FontWeight.SemiBold)
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Not now", color = TextMuted)
             }
         }
-    )
+        Spacer(Modifier.height(4.dp))
+        Text(
+            "Read-only — Healthify never writes to Health Connect. Your " +
+            "readings stay on this device; only the daily totals you " +
+            "check in with are synced. You grant each type separately on " +
+            "the next screen, and you can revoke them any time in Health " +
+            "Connect.",
+            style = MaterialTheme.typography.bodySmall,
+            color = TextMuted
+        )
+        Spacer(Modifier.height(22.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            GhostButton("Not now", onDismiss, Modifier.weight(1f))
+            GlowButton("Continue", onContinue, Modifier.weight(1f), height = 52.dp)
+        }
+    }
 }
 
 @Composable

@@ -357,29 +357,17 @@ fun ProfileScreen(
 
     // ── Reset confirm ─────────────────────────────────────────────────────
     if (showConfirmReset) {
-        AlertDialog(
-            onDismissRequest = { showConfirmReset = false },
-            title = { Text("Re-do onboarding?", color = TextPrimary) },
-            text = {
-                Text(
-                    "You'll go through the welcome flow again. Your check-ins and streak are kept.",
-                    color = TextMuted
-                )
+        ConfirmDialog(
+            emoji = "🔄",
+            title = "Re-do onboarding?",
+            message = "You'll go through the welcome flow again. Your check-ins and streak are kept.",
+            confirmLabel = "Continue",
+            onConfirm = {
+                showConfirmReset = false
+                viewModel.resetOnboarding()
+                onResetOnboarding()
             },
-            confirmButton = {
-                TextButton(onClick = {
-                    showConfirmReset = false
-                    viewModel.resetOnboarding()
-                    onResetOnboarding()
-                }) { Text("Continue", color = Coral) }
-            },
-            dismissButton = {
-                TextButton(onClick = { showConfirmReset = false }) {
-                    Text("Cancel", color = TextMuted)
-                }
-            },
-            containerColor = SurfaceCard,
-            shape = RoundedCornerShape(20.dp)
+            onDismiss = { showConfirmReset = false }
         )
     }
 }
@@ -388,7 +376,7 @@ fun ProfileScreen(
 // EDIT DIALOG
 // ═══════════════════════════════════════════════════════════════════════════
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun EditProfileDialog(
     user: UserEntity,
@@ -404,171 +392,124 @@ private fun EditProfileDialog(
     var waterGoal by remember { mutableStateOf(user.waterGoalGlasses.toString()) }
     var sleepGoal by remember { mutableStateOf("%.1f".format(user.sleepGoalHours)) }
 
-    androidx.compose.ui.window.Dialog(
-        onDismissRequest = onDismiss,
-        properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false)
-    ) {
-        Card(
-            Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 18.dp),
-            colors = CardDefaults.cardColors(containerColor = SurfaceCard),
-            shape = RoundedCornerShape(26.dp),
-            border = BorderStroke(1.dp, Brush.verticalGradient(listOf(GlassBorderTop, GlassBorderBottom)))
-        ) {
-            Column(
-                Modifier
-                    .fillMaxWidth()
-                    .verticalScroll(rememberScrollState())
-                    .padding(22.dp),
-                verticalArrangement = Arrangement.spacedBy(14.dp)
-            ) {
-                Text("Edit profile",
-                    style = MaterialTheme.typography.headlineMedium, color = TextPrimary)
-
-                FieldLabel("Name")
-                OutlinedTextField(
-                    value = name, onValueChange = { name = it },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true, shape = RoundedCornerShape(12.dp),
-                    colors = dialogTextFieldColors()
-                )
-
-                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Column(Modifier.weight(1f)) {
-                        FieldLabel("Age")
-                        OutlinedTextField(
-                            value = age, onValueChange = { age = it.filter { c -> c.isDigit() }.take(3) },
-                            modifier = Modifier.fillMaxWidth(), singleLine = true,
-                            shape = RoundedCornerShape(12.dp),
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                            colors = dialogTextFieldColors()
-                        )
-                    }
-                    Column(Modifier.weight(2f)) {
-                        FieldLabel("Gender")
-                        androidx.compose.foundation.layout.FlowRow(
-                            horizontalArrangement = Arrangement.spacedBy(6.dp),
-                            verticalArrangement = Arrangement.spacedBy(6.dp)
-                        ) {
-                            listOf("Male", "Female", "Non-binary", "Skip").forEach { g ->
-                                val sel = gender == g
-                                Box(
-                                    Modifier
-                                        .clip(RoundedCornerShape(10.dp))
-                                        .background(if (sel) GreenDim else SurfaceCard2)
-                                        .border(1.dp, if (sel) Green else Divider,
-                                            RoundedCornerShape(10.dp))
-                                        .clickable { gender = g }
-                                        .padding(horizontal = 10.dp, vertical = 8.dp)
-                                ) {
-                                    Text(g, style = MaterialTheme.typography.bodySmall,
-                                        color = if (sel) Green else TextMuted)
-                                }
-                            }
-                        }
-                    }
-                }
-
-                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Column(Modifier.weight(1f)) {
-                        FieldLabel("Height (cm)")
-                        OutlinedTextField(
-                            value = heightCm,
-                            onValueChange = { heightCm = it.filter { c -> c.isDigit() || c == '.' } },
-                            modifier = Modifier.fillMaxWidth(), singleLine = true,
-                            shape = RoundedCornerShape(12.dp),
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                            colors = dialogTextFieldColors()
-                        )
-                    }
-                    Column(Modifier.weight(1f)) {
-                        FieldLabel("Weight (kg)")
-                        OutlinedTextField(
-                            value = weightKg,
-                            onValueChange = { weightKg = it.filter { c -> c.isDigit() || c == '.' } },
-                            modifier = Modifier.fillMaxWidth(), singleLine = true,
-                            shape = RoundedCornerShape(12.dp),
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                            colors = dialogTextFieldColors()
-                        )
-                    }
-                }
-
+    GlassDialog(onDismiss = onDismiss, accent = Green) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text("EDIT PROFILE", style = MaterialTheme.typography.labelSmall, color = Green)
                 Spacer(Modifier.height(4.dp))
-                Text("Daily goals", style = MaterialTheme.typography.labelSmall, color = Green)
-
-                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Column(Modifier.weight(1f)) {
-                        FieldLabel("Steps")
-                        OutlinedTextField(
-                            value = stepGoal,
-                            onValueChange = { stepGoal = it.filter { c -> c.isDigit() }.take(6) },
-                            modifier = Modifier.fillMaxWidth(), singleLine = true,
-                            shape = RoundedCornerShape(12.dp),
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                            colors = dialogTextFieldColors()
-                        )
-                    }
-                    Column(Modifier.weight(1f)) {
-                        FieldLabel("Water (gl)")
-                        OutlinedTextField(
-                            value = waterGoal,
-                            onValueChange = { waterGoal = it.filter { c -> c.isDigit() }.take(2) },
-                            modifier = Modifier.fillMaxWidth(), singleLine = true,
-                            shape = RoundedCornerShape(12.dp),
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                            colors = dialogTextFieldColors()
-                        )
-                    }
-                    Column(Modifier.weight(1f)) {
-                        FieldLabel("Sleep (h)")
-                        OutlinedTextField(
-                            value = sleepGoal,
-                            onValueChange = { sleepGoal = it.filter { c -> c.isDigit() || c == '.' } },
-                            modifier = Modifier.fillMaxWidth(), singleLine = true,
-                            shape = RoundedCornerShape(12.dp),
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                            colors = dialogTextFieldColors()
-                        )
-                    }
-                }
-
-                Spacer(Modifier.height(6.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    OutlinedButton(
-                        onClick = onDismiss,
-                        modifier = Modifier.weight(1f).height(48.dp),
-                        shape = RoundedCornerShape(13.dp),
-                        border = androidx.compose.foundation.BorderStroke(1.dp, Divider)
-                    ) { Text("Cancel", color = TextMuted) }
-                    Button(
-                        onClick = {
-                            val updated = user.copy(
-                                name = name.trim().ifBlank { "Friend" },
-                                age = age.toIntOrNull() ?: user.age,
-                                gender = gender,
-                                heightCm = heightCm.toFloatOrNull() ?: user.heightCm,
-                                weightKg = weightKg.toFloatOrNull() ?: user.weightKg,
-                                stepGoal = stepGoal.toIntOrNull()?.coerceIn(1000, 100_000)
-                                    ?: user.stepGoal,
-                                waterGoalGlasses = waterGoal.toIntOrNull()?.coerceIn(1, 30)
-                                    ?: user.waterGoalGlasses,
-                                sleepGoalHours = sleepGoal.toFloatOrNull()?.coerceIn(4f, 14f)
-                                    ?: user.sleepGoalHours
-                            )
-                            onSave(updated)
-                        },
-                        modifier = Modifier.weight(1f).height(48.dp),
-                        shape = RoundedCornerShape(13.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = Green)
-                    ) {
-                        Text("Save", color = MaterialTheme.colorScheme.onPrimary,
-                            style = MaterialTheme.typography.titleMedium)
-                    }
-                }
+                Text("Your details", style = MaterialTheme.typography.headlineSmall, color = TextPrimary)
+            }
+            IconOrb(Green, size = 52.dp) {
+                Text(
+                    name.trim().firstOrNull()?.uppercase() ?: "🙂",
+                    style = MaterialTheme.typography.titleLarge,
+                    color = Green
+                )
             }
         }
+
+        Spacer(Modifier.height(20.dp))
+        FieldLabel("Name")
+        OutlinedTextField(
+            value = name, onValueChange = { name = it },
+            modifier = Modifier.fillMaxWidth(),
+            singleLine = true, shape = RoundedCornerShape(16.dp),
+            colors = glassFieldColors()
+        )
+
+        Spacer(Modifier.height(16.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            DialogField("Age", age, Modifier.weight(1f), KeyboardType.Number) {
+                age = it.filter { c -> c.isDigit() }.take(3)
+            }
+            DialogField("Height cm", heightCm, Modifier.weight(1f), KeyboardType.Decimal) {
+                heightCm = it.filter { c -> c.isDigit() || c == '.' }
+            }
+            DialogField("Weight kg", weightKg, Modifier.weight(1f), KeyboardType.Decimal) {
+                weightKg = it.filter { c -> c.isDigit() || c == '.' }
+            }
+        }
+
+        Spacer(Modifier.height(16.dp))
+        FieldLabel("Gender")
+        androidx.compose.foundation.layout.FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            listOf("Male", "Female", "Non-binary", "Skip").forEach { g ->
+                GlassChip(g, selected = gender == g, onClick = { gender = g })
+            }
+        }
+
+        Spacer(Modifier.height(20.dp))
+        FieldLabel("Daily goals", color = Green)
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            DialogField("🚶 Steps", stepGoal, Modifier.weight(1f), KeyboardType.Number) {
+                stepGoal = it.filter { c -> c.isDigit() }.take(6)
+            }
+            DialogField("💧 Water", waterGoal, Modifier.weight(1f), KeyboardType.Number) {
+                waterGoal = it.filter { c -> c.isDigit() }.take(2)
+            }
+            DialogField("🌙 Sleep h", sleepGoal, Modifier.weight(1f), KeyboardType.Decimal) {
+                sleepGoal = it.filter { c -> c.isDigit() || c == '.' }
+            }
+        }
+
+        Spacer(Modifier.height(24.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            GhostButton("Cancel", onDismiss, Modifier.weight(1f))
+            GlowButton(
+                text = "Save",
+                onClick = {
+                    val updated = user.copy(
+                        name = name.trim().ifBlank { "Friend" },
+                        age = age.toIntOrNull() ?: user.age,
+                        gender = gender,
+                        heightCm = heightCm.toFloatOrNull() ?: user.heightCm,
+                        weightKg = weightKg.toFloatOrNull() ?: user.weightKg,
+                        stepGoal = stepGoal.toIntOrNull()?.coerceIn(1000, 100_000)
+                            ?: user.stepGoal,
+                        waterGoalGlasses = waterGoal.toIntOrNull()?.coerceIn(1, 30)
+                            ?: user.waterGoalGlasses,
+                        sleepGoalHours = sleepGoal.toFloatOrNull()?.coerceIn(4f, 14f)
+                            ?: user.sleepGoalHours
+                    )
+                    onSave(updated)
+                },
+                modifier = Modifier.weight(1f),
+                height = 52.dp
+            )
+        }
+    }
+}
+
+/** Small labelled numeric field for the three-across rows. */
+@Composable
+private fun DialogField(
+    label: String,
+    value: String,
+    modifier: Modifier,
+    keyboard: KeyboardType,
+    onChange: (String) -> Unit
+) {
+    Column(modifier) {
+        Text(
+            label,
+            style = MaterialTheme.typography.labelMedium,
+            color = TextMuted,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.padding(bottom = 6.dp)
+        )
+        OutlinedTextField(
+            value = value,
+            onValueChange = onChange,
+            modifier = Modifier.fillMaxWidth(),
+            singleLine = true,
+            shape = RoundedCornerShape(14.dp),
+            keyboardOptions = KeyboardOptions(keyboardType = keyboard),
+            colors = glassFieldColors()
+        )
     }
 }
 
@@ -580,12 +521,6 @@ private fun EditProfileDialog(
 private fun SectionLabel(text: String) {
     Text(text.uppercase(), style = MaterialTheme.typography.labelSmall,
         color = TextMuted, modifier = Modifier.padding(start = 4.dp, top = 4.dp))
-}
-
-@Composable
-private fun FieldLabel(text: String) {
-    Text(text, style = MaterialTheme.typography.bodySmall, color = TextMuted,
-        modifier = Modifier.padding(bottom = 4.dp))
 }
 
 @Composable
@@ -837,15 +772,4 @@ private fun ChipFlow(items: List<String>, color: Color, dim: Color) {
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun dialogTextFieldColors() = TextFieldDefaults.colors(
-    focusedContainerColor = SurfaceCard2,
-    unfocusedContainerColor = SurfaceCard2,
-    focusedIndicatorColor = Green,
-    unfocusedIndicatorColor = Divider,
-    cursorColor = Green,
-    focusedTextColor = TextPrimary,
-    unfocusedTextColor = TextPrimary
-)
 
