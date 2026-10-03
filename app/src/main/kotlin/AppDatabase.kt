@@ -146,7 +146,7 @@ interface ReminderDao {
 @Database(
     entities = [UserEntity::class, CheckInEntity::class, ReminderEntity::class],
     version = 1,
-    exportSchema = false
+    exportSchema = true
 )
 abstract class AppDatabase : RoomDatabase() {
     abstract fun userDao(): UserDao
