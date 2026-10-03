@@ -4,6 +4,9 @@ import android.os.Build
 import android.provider.Settings
 import android.view.HapticFeedbackConstants
 import android.view.View
+import android.view.ViewTreeObserver
+import androidx.core.view.WindowInsetsCompat
+import android.view.WindowManager
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.Canvas
@@ -25,6 +28,7 @@ import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.TextFieldColors
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import androidx.compose.ui.window.DialogWindowProvider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
@@ -683,14 +687,45 @@ fun GlassDialog(
     val density = LocalDensity.current
     val bars = WindowInsets.systemBars
     val rootHeightPx = LocalView.current.rootView.height
-    val maxSheetHeight = with(density) {
-        val inset = maxOf(bars.getTop(density), bars.getBottom(density))
-        (rootHeightPx - 2 * inset).coerceAtLeast(0).toDp() - 32.dp
-    }
+    val barsCapPx = rootHeightPx - 2 * maxOf(bars.getTop(density), bars.getBottom(density))
     Dialog(
         onDismissRequest = onDismiss,
         properties = DialogProperties(usePlatformDefaultWidth = false)
     ) {
+        // The keyboard: Compose pins the dialog window to the sheet's
+        // measured height, so when the window manager resizes the dialog's
+        // area to sit above the keyboard, a tall sheet was clipped there
+        // with its buttons out of reach. Track that visible area (it
+        // shrinks with the keyboard, unlike the window itself) and cap the
+        // sheet to it too, so it shrinks and scrolls instead.
+        val view = LocalView.current
+        val dialogWindow = (view.parent as? DialogWindowProvider)?.window
+        SideEffect { dialogWindow?.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE) }
+        var visiblePx by remember { mutableIntStateOf(Int.MAX_VALUE) }
+        DisposableEffect(view) {
+            val frame = android.graphics.Rect()
+            val measure = Runnable {
+                view.getWindowVisibleDisplayFrame(frame)
+                if (frame.height() > 0) visiblePx = frame.height()
+            }
+            val onLayout = ViewTreeObserver.OnGlobalLayoutListener { measure.run() }
+            view.viewTreeObserver.addOnGlobalLayoutListener(onLayout)
+            // Closing the keyboard doesn't change the pinned window's size,
+            // so no layout pass follows: drop the cap when it hides.
+            val decor = dialogWindow?.decorView
+            decor?.setOnApplyWindowInsetsListener { v, insets ->
+                val imeVisible = WindowInsetsCompat.toWindowInsetsCompat(insets, v).isVisible(WindowInsetsCompat.Type.ime())
+                if (!imeVisible) visiblePx = Int.MAX_VALUE
+                v.onApplyWindowInsets(insets)
+            }
+            onDispose {
+                view.viewTreeObserver.removeOnGlobalLayoutListener(onLayout)
+                decor?.setOnApplyWindowInsetsListener(null)
+                view.removeCallbacks(measure)
+            }
+        }
+        val maxSheetHeight = with(density) { minOf(barsCapPx, visiblePx).coerceAtLeast(0).toDp() - 32.dp }
+
         val reduced = LocalReducedMotion.current
         val appear = remember { Animatable(if (reduced) 1f else 0f) }
         LaunchedEffect(Unit) { appear.animateTo(1f, spring(dampingRatio = 0.72f, stiffness = 420f)) }
