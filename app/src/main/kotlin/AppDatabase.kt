@@ -109,6 +109,9 @@ interface CheckInDao {
 
     @Query("UPDATE check_ins SET wellnessScore = :score WHERE date = :date")
     suspend fun updateScore(date: String, score: Int)
+
+    @Query("UPDATE check_ins SET steps = :steps, sleepHours = :sleep, wellnessScore = :score WHERE date = :date")
+    suspend fun updateLiveMetrics(date: String, steps: Int, sleep: Float, score: Int)
 }
 
 @Dao
@@ -147,20 +150,27 @@ interface ReminderDao {
 // app/schemas JSON and add a MigrationTest case. Never reintroduce
 // fallbackToDestructiveMigration() — the DB is the only copy of the data.
 @Database(
-    entities = [UserEntity::class, CheckInEntity::class, ReminderEntity::class],
+    entities = [
+        UserEntity::class, CheckInEntity::class, ReminderEntity::class,
+        WaterLogEntity::class, MealEntryEntity::class, WorkoutSessionEntity::class,
+    ],
     version = AppDatabase.VERSION,
     exportSchema = true,
     autoMigrations = [
         AutoMigration(from = 1, to = 2, spec = Migration1To2Spec::class),
+        AutoMigration(from = 2, to = 3, spec = Migration2To3Spec::class),
     ]
 )
 abstract class AppDatabase : RoomDatabase() {
     abstract fun userDao(): UserDao
     abstract fun checkInDao(): CheckInDao
     abstract fun reminderDao(): ReminderDao
+    abstract fun waterLogDao(): WaterLogDao
+    abstract fun mealDao(): MealDao
+    abstract fun workoutDao(): WorkoutDao
 
     companion object {
-        const val VERSION = 2
+        const val VERSION = 3
         const val NAME = "healthify.db"
     }
 }

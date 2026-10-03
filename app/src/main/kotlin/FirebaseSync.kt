@@ -10,7 +10,9 @@ import com.google.firebase.firestore.SetOptions
 import com.google.firebase.firestore.ktx.firestore
 import com.google.firebase.ktx.Firebase
 import com.healthify.app.data.db.CheckInEntity
+import com.healthify.app.data.db.MealEntryEntity
 import com.healthify.app.data.db.UserEntity
+import com.healthify.app.data.db.WorkoutSessionEntity
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.tasks.await
 
@@ -27,6 +29,10 @@ enum class CloudSyncState(val label: String) {
  * Schema:
  *   users/{uid}/profile        → UserEntity fields
  *   users/{uid}/checkins/{date} → CheckInEntity fields
+ *   users/{uid}/water/{date}    → daily water total
+ *   users/{uid}/meals/{syncId}  → MealEntryEntity fields
+ *   users/{uid}/workouts/{syncId} → WorkoutSessionEntity fields
+ * The security rules must allow all of these (see firestore.rules).
  *
  * Uses anonymous auth so users don't need to sign up.
  * If internet is unavailable Firestore queues writes and syncs later automatically.
@@ -183,6 +189,72 @@ object FirebaseSync {
             db.collection("users").document(uid)
               .collection("checkins").document(ci.date)
               .set(data, SetOptions.merge()).await()
+        } catch (e: Exception) { /* queued offline */ }
+    }
+
+    // ── All-day logs ─────────────────────────────────────────────────────
+    // Water is mirrored as one daily total; meals and workouts one doc each,
+    // keyed by their client-generated syncId so retries and deletes are safe.
+
+    suspend fun syncWaterDay(date: String, glasses: Int) {
+        val uid = uid ?: return
+        try {
+            db.collection("users").document(uid)
+              .collection("water").document(date)
+              .set(mapOf("date" to date, "glasses" to glasses,
+                         "updatedAt" to System.currentTimeMillis()), SetOptions.merge()).await()
+        } catch (e: Exception) { /* queued offline */ }
+    }
+
+    suspend fun syncMeal(meal: MealEntryEntity) {
+        val uid = uid ?: return
+        try {
+            val data = mapOf(
+                "date"      to meal.date,
+                "mealType"  to meal.mealType,
+                "name"      to meal.name,
+                "quality"   to meal.quality,
+                "loggedAt"  to meal.loggedAt,
+                "updatedAt" to meal.updatedAt
+            )
+            db.collection("users").document(uid)
+              .collection("meals").document(meal.syncId)
+              .set(data, SetOptions.merge()).await()
+        } catch (e: Exception) { /* queued offline */ }
+    }
+
+    suspend fun deleteMeal(syncId: String) {
+        val uid = uid ?: return
+        try {
+            db.collection("users").document(uid)
+              .collection("meals").document(syncId).delete().await()
+        } catch (e: Exception) { /* queued offline */ }
+    }
+
+    suspend fun syncWorkout(w: WorkoutSessionEntity) {
+        val uid = uid ?: return
+        try {
+            val data = mapOf(
+                "date"         to w.date,
+                "activityType" to w.activityType,
+                "title"        to w.title,
+                "startedAt"    to w.startedAt,
+                "endedAt"      to w.endedAt,
+                "durationMin"  to w.durationMin,
+                "source"       to w.source,
+                "updatedAt"    to w.updatedAt
+            )
+            db.collection("users").document(uid)
+              .collection("workouts").document(w.syncId)
+              .set(data, SetOptions.merge()).await()
+        } catch (e: Exception) { /* queued offline */ }
+    }
+
+    suspend fun deleteWorkout(syncId: String) {
+        val uid = uid ?: return
+        try {
+            db.collection("users").document(uid)
+              .collection("workouts").document(syncId).delete().await()
         } catch (e: Exception) { /* queued offline */ }
     }
 

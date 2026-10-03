@@ -2,6 +2,7 @@ package com.healthify.app.data.repository
 
 import com.healthify.app.data.db.*
 import com.healthify.app.score.HealthScore
+import com.healthify.app.time.DayClock
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import java.time.Instant
@@ -33,9 +34,7 @@ class AppRepository(
     // ── Check-ins ───────────────────────────────────────────────────────────
     fun getAllCheckIns(): Flow<List<CheckInEntity>> = checkInDao.getAllCheckIns()
     suspend fun getCheckInForToday(): CheckInEntity? =
-        checkInDao.getCheckInForDate(LocalDate.now().format(iso))
-    fun getCheckInForTodayFlow(): Flow<CheckInEntity?> =
-        checkInDao.getCheckInForDateFlow(LocalDate.now().format(iso))
+        checkInDao.getCheckInForDate(DayClock.todayIso())
 
     /**
      * Returns the most recent check-in inside the *current check-in window*.
@@ -76,6 +75,15 @@ class AppRepository(
     }
     suspend fun totalCheckIns(): Int = checkInDao.totalCount()
     suspend fun updateCheckInScore(date: String, score: Int) = checkInDao.updateScore(date, score)
+    fun getCheckInForDateFlow(date: String): Flow<CheckInEntity?> = checkInDao.getCheckInForDateFlow(date)
+
+    /**
+     * Writes the live steps/sleep (they keep changing after the check-in)
+     * into today's row together with the score they produce, so the row
+     * always reproduces its own score via HealthScore.of.
+     */
+    suspend fun updateLiveMetrics(date: String, steps: Int, sleep: Float, score: Int) =
+        checkInDao.updateLiveMetrics(date, steps, sleep, score)
 
     /**
      * Re-scores every stored check-in with the current [HealthScore] formula

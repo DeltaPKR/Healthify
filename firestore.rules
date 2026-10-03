@@ -1,0 +1,17 @@
+rules_version = '2';
+
+// Healthify Firestore security rules — paste into Firebase Console →
+// Firestore → Rules (or deploy with the Firebase CLI).
+//
+// Every write comes from an anonymously signed-in app install, under its
+// own UID: users/{uid}/profile, checkins, water, meals, workouts (see
+// FirebaseSync.kt). Each install may read and write only its own subtree.
+// FirebaseSync swallows write failures, so a collection missing from these
+// rules fails silently — keep this file in sync when adding one.
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /users/{uid}/{document=**} {
+      allow read, write: if request.auth != null && request.auth.uid == uid;
+    }
+  }
+}

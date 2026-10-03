@@ -31,11 +31,22 @@ object HealthScore {
         val max: Int
     )
 
-    fun parts(ci: CheckInEntity?, steps: Int, sleep: Float, user: UserEntity?): List<Part> {
+    /**
+     * [water] and [food] default to the check-in's own answers. Home passes
+     * today's water log total and, before the check-in, the food tag worked
+     * out from logged meals, so the score shows "today so far".
+     */
+    fun parts(
+        ci: CheckInEntity?,
+        steps: Int,
+        sleep: Float,
+        user: UserEntity?,
+        water: Int = ci?.waterGlasses ?: 0,
+        food: String? = ci?.foodQuality,
+    ): List<Part> {
         val waterGoal = (user?.waterGoalGlasses ?: 8).coerceAtLeast(1)
         val stepGoal  = (user?.stepGoal ?: 10_000).coerceAtLeast(1)
         val sleepGoal = (user?.sleepGoalHours ?: 8f).coerceAtLeast(0.5f)
-        val water     = ci?.waterGlasses ?: 0
 
         fun ofGoal(value: Float, goal: Float, max: Int) =
             ((value / goal).coerceIn(0f, 1f) * max).roundToInt()
@@ -45,7 +56,7 @@ object HealthScore {
             Part("Steps", "🚶", ofGoal(steps.toFloat(), stepGoal.toFloat(), 20), 20),
             Part("Sleep", "🌙", ofGoal(sleep, sleepGoal, 20), 20),
             Part("Mood", "😊", ci?.moodScore?.takeIf { it in 0..4 }?.let { (it + 1) * 4 } ?: 0, 20),
-            Part("Food", "🥗", when (ci?.foodQuality) {
+            Part("Food", "🥗", when (food) {
                 "well" -> 10
                 "ok"   -> 7
                 "poor" -> 3
@@ -55,8 +66,14 @@ object HealthScore {
         )
     }
 
-    fun compute(ci: CheckInEntity?, steps: Int, sleep: Float, user: UserEntity?): Int =
-        parts(ci, steps, sleep, user).sumOf { it.points }.coerceIn(0, 100)
+    fun compute(
+        ci: CheckInEntity?,
+        steps: Int,
+        sleep: Float,
+        user: UserEntity?,
+        water: Int = ci?.waterGlasses ?: 0,
+        food: String? = ci?.foodQuality,
+    ): Int = parts(ci, steps, sleep, user, water, food).sumOf { it.points }.coerceIn(0, 100)
 
     /** Score of a stored check-in from its own recorded values. */
     fun of(ci: CheckInEntity, user: UserEntity?): Int =

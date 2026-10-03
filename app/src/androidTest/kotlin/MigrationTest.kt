@@ -64,6 +64,33 @@ class MigrationTest {
         db.close()
     }
 
+    @Test
+    fun migrate2To3() {
+        helper.createDatabase(testDb, 2).use { db ->
+            db.execSQL(
+                """INSERT INTO check_ins (date, moodScore, waterGlasses, foodQuality, sleepHours,
+                   dayRating, steps, wellnessScore, timestamp) VALUES
+                   ('2026-09-30', 3, 8, 'well', 8.0, 4, 9100, 84, 1759236000000),
+                   ('2026-10-01', 3, 0, 'well', 7.5, 4, 6400, 60, 1759322000000)"""
+            )
+        }
+
+        val db = helper.runMigrationsAndValidate(testDb, 3, true)
+
+        // One backfill row per check-in with water; none for 0 glasses.
+        db.query("SELECT date, glasses, loggedAt, source FROM water_logs ORDER BY date").use {
+            assertEquals(1, it.count)
+            it.moveToFirst()
+            assertEquals("2026-09-30", it.getString(0))
+            assertEquals(8, it.getInt(1))
+            assertEquals(1759236000000L, it.getLong(2))
+            assertEquals("backfill", it.getString(3))
+        }
+        db.query("SELECT COUNT(*) FROM meal_entries").use { it.moveToFirst(); assertEquals(0, it.getInt(0)) }
+        db.query("SELECT COUNT(*) FROM workout_sessions").use { it.moveToFirst(); assertEquals(0, it.getInt(0)) }
+        db.close()
+    }
+
     /** Opens a v1 file through the real builder (no destructive fallback) and DAOs. */
     @Test
     fun migrateAllThroughRoom() {
@@ -84,6 +111,10 @@ class MigrationTest {
                 val reminders = room.reminderDao().getAllReminders().first()
                 assertEquals(9, reminders.size)
                 assertFalse(reminders.first { it.label == "Custom stretch" }.enabled)
+                // v3: each day's water log total equals its check-in's glasses.
+                room.checkInDao().getAllOnce().forEach { ci ->
+                    assertEquals(ci.waterGlasses, room.waterLogDao().totalForDate(ci.date))
+                }
             }
         } finally {
             room.close()

@@ -10,6 +10,7 @@ import com.google.firebase.crashlytics.crashlytics
 import com.healthify.app.data.db.AppDatabase
 import com.healthify.app.data.db.DbBackup
 import com.healthify.app.data.repository.AppRepository
+import com.healthify.app.data.repository.LogRepository
 import com.healthify.app.firebase.FirebaseSync
 import com.healthify.app.health.HealthConnectManager
 import com.healthify.app.notifications.NotificationChannels
@@ -23,7 +24,8 @@ import kotlinx.coroutines.launch
 
 class HealthifyApp : Application() {
 
-    private val appScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    /** Process-wide scope for fire-and-forget work (Firestore writes, seeding). */
+    val appScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     // ── Room ─────────────────────────────────────────────────────────────────
     // Upgrades must go through AutoMigrations (see AppDatabase). A missing
@@ -44,6 +46,8 @@ class HealthifyApp : Application() {
             reminderDao = database.reminderDao()
         )
     }
+
+    val logRepository by lazy { LogRepository(database, appScope) }
 
     // ── Health Connect ───────────────────────────────────────────────────────
     val healthConnectManager by lazy { HealthConnectManager(this) }
