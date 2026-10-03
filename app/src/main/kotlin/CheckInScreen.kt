@@ -71,6 +71,9 @@ private val MOODS = listOf(
     Mood("😄", "Amazing",   Sky)
 )
 
+/** Declaration order is the order asked; SUMMARY is always last. */
+private enum class Question { MOOD, WATER, FOOD, SLEEP, RATING, STEPS, SUMMARY }
+
 private data class Food(val key: String, val emoji: String, val label: String)
 
 private val FOODS = listOf(
@@ -89,7 +92,9 @@ fun CheckInScreen(
 ) {
     val scope   = rememberCoroutineScope()
     val haptics = rememberHaptics()
-    var step    by remember { mutableStateOf(0) }
+    // Tracked by key, not index: the question list can change when the
+    // Health Connect probe returns, and the user must stay where they are.
+    var current by remember { mutableStateOf(Question.MOOD) }
 
     // answers
     var mood      by remember { mutableStateOf(-1) }
@@ -102,14 +107,19 @@ fun CheckInScreen(
     var celebration by remember { mutableStateOf<CelebrationData?>(null) }
 
     // Probe Health Connect once: if it can't give us steps (unavailable, no
-    // permission, or no source writing data), we ask the user manually.
+    // permission, or no source writing data), we ask the user manually. If
+    // it has last night's sleep, the sleep question is skipped — the score
+    // would use Health Connect's value anyway, so asking would be ignored.
     var hcStepsToday    by remember { mutableStateOf(0) }
+    var hcSleepHours    by remember { mutableStateOf(0f) }
     var needsManualSteps by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) {
         val data = healthConnect.readAll()
         hcStepsToday    = data.stepsToday
+        hcSleepHours    = if (data.isAvailable) data.sleepLastNightHours else 0f
         needsManualSteps = !data.isAvailable || data.stepsToday == 0
     }
+    val sleepFromHc = hcSleepHours > 0f
 
     // The user's own goals: the water glass fills toward what they signed up
     // for, and the steps question quotes their step goal.
@@ -117,8 +127,17 @@ fun CheckInScreen(
     LaunchedEffect(Unit) { user = repo.getUserOnce() }
     val waterGoal = (user?.waterGoalGlasses ?: 8).coerceAtLeast(1)
 
-    val total = if (needsManualSteps) 6 else 5
-    val stepsQuestionIndex = 5  // only used when needsManualSteps == true
+    val questions = Question.entries.filter {
+        when (it) {
+            Question.SLEEP -> !sleepFromHc
+            Question.STEPS -> needsManualSteps
+            else           -> true
+        }
+    }
+    // A question that just dropped out of the list resolves to the next one.
+    val step  = questions.indexOf(current).takeIf { it >= 0 }
+        ?: questions.indexOfFirst { it > current }
+    val total = questions.size - 1          // SUMMARY isn't counted
 
     // ── Cool-down state ────────────────────────────────────────────────────
     var loadedCooldown by remember { mutableStateOf(false) }
@@ -146,10 +165,10 @@ fun CheckInScreen(
 
     val context = LocalContext.current
 
-    fun canProceed() = when (step) {
-        0 -> mood >= 0
-        4 -> rating > 0
-        else -> true
+    fun canProceed() = when (questions[step]) {
+        Question.MOOD   -> mood >= 0
+        Question.RATING -> rating > 0
+        else            -> true
     }
 
     fun save() {
@@ -165,12 +184,14 @@ fun CheckInScreen(
                 healthData.sleepLastNightHours else sleepH
             val today  = LocalDate.now().format(DateTimeFormatter.ISO_LOCAL_DATE)
             val before = repo.getUserOnce()
+            // Store the sleep that was scored, so HealthScore.of(row)
+            // reproduces this exact score later.
             val draft = CheckInEntity(
                 date          = today,
                 moodScore     = mood,
                 waterGlasses  = water,
                 foodQuality   = food,
-                sleepHours    = sleepH,
+                sleepHours    = effectiveSleep,
                 dayRating     = rating,
                 steps         = effectiveSteps,
                 timestamp     = System.currentTimeMillis()
@@ -212,22 +233,24 @@ fun CheckInScreen(
 
     // ── Aurora tint follows the question (and the chosen mood) ─────────────
     val accent = when {
-        celebration != null                         -> Green
-        loadedCooldown && !canCheckIn               -> Lavender
-        step == 0                                   -> MOODS.getOrNull(mood)?.color ?: Green
-        step == 1                                   -> Sky
-        step == 2                                   -> Gold
-        step == 3                                   -> Lavender
-        step == 4                                   -> Gold
-        step == stepsQuestionIndex && needsManualSteps -> Green
-        else                                        -> Teal
+        celebration != null           -> Green
+        loadedCooldown && !canCheckIn -> Lavender
+        else -> when (questions[step]) {
+            Question.MOOD    -> MOODS.getOrNull(mood)?.color ?: Green
+            Question.WATER   -> Sky
+            Question.FOOD    -> Gold
+            Question.SLEEP   -> Lavender
+            Question.RATING  -> Gold
+            Question.STEPS   -> Green
+            Question.SUMMARY -> Teal
+        }
     }
     LaunchedEffect(accent) { Aurora.tint = accent }
     DisposableEffect(Unit) { onDispose { Aurora.tint = null } }
 
     // System back steps to the previous question instead of dropping the
     // whole check-in; on the celebration it simply finishes.
-    BackHandler(enabled = celebration == null && step > 0 && !isSaving) { step-- }
+    BackHandler(enabled = celebration == null && step > 0 && !isSaving) { current = questions[step - 1] }
     BackHandler(enabled = celebration != null) { onComplete() }
 
     celebration?.let {
@@ -268,7 +291,7 @@ fun CheckInScreen(
 
         // ── Question ─────────────────────────────────────────────────────
         AnimatedContent(
-            targetState = step,
+            targetState = questions[step],
             transitionSpec = {
                 val forward = targetState > initialState
                 (fadeIn(tween(300, delayMillis = 60)) +
@@ -279,27 +302,30 @@ fun CheckInScreen(
             },
             label = "ci_step",
             modifier = Modifier.weight(1f)
-        ) { s ->
+        ) { q ->
+            // Shown question number skips questions that aren't asked.
+            val n = questions.indexOf(q) + 1
             Column(
                 Modifier
                     .fillMaxSize()
                     .verticalScroll(rememberScrollState())
                     .padding(horizontal = 24.dp, vertical = 8.dp)
             ) {
-                when {
-                    s == 0 -> QMood(mood) { mood = it }
-                    s == 1 -> QWater(water, waterGoal) { water = it }
-                    s == 2 -> QFood(food) { food = it }
-                    s == 3 -> QSleep(sleepH, user?.sleepGoalHours ?: 8f) { sleepH = it }
-                    s == 4 -> QRating(rating) { rating = it }
-                    s == stepsQuestionIndex && needsManualSteps ->
-                        QSteps(manualSteps, user?.stepGoal ?: 10_000) { manualSteps = it }
-                    else -> QSummary(
+                when (q) {
+                    Question.MOOD   -> QMood(n, mood) { mood = it }
+                    Question.WATER  -> QWater(n, water, waterGoal) { water = it }
+                    Question.FOOD   -> QFood(n, food) { food = it }
+                    Question.SLEEP  -> QSleep(n, sleepH, user?.sleepGoalHours ?: 8f) { sleepH = it }
+                    Question.RATING -> QRating(n, rating) { rating = it }
+                    Question.STEPS  -> QSteps(n, manualSteps, user?.stepGoal ?: 10_000) { manualSteps = it }
+                    Question.SUMMARY -> QSummary(
                         mood = mood, water = water, waterGoal = waterGoal, food = food,
-                        sleep = sleepH, rating = rating,
+                        sleep = if (sleepFromHc) hcSleepHours else sleepH,
+                        sleepEditable = !sleepFromHc,
+                        rating = rating,
                         steps = if (needsManualSteps) manualSteps else hcStepsToday,
                         stepsEditable = needsManualSteps,
-                        onEdit = { step = it }
+                        onEdit = { current = it }
                     )
                 }
             }
@@ -310,7 +336,7 @@ fun CheckInScreen(
             if (step < total) {
                 GlowButton(
                     text    = if (step == total - 1) "Finish ✨" else "Next",
-                    onClick = { if (canProceed()) { haptics.tick(); step++ } },
+                    onClick = { if (canProceed()) { haptics.tick(); current = questions[step + 1] } },
                     accent  = accent,
                     enabled = canProceed()
                 )
@@ -413,11 +439,11 @@ private fun RoundGlassButton(
 // ─────────────────────────────────────────────────────────────────────────────
 
 @Composable
-private fun QMood(selected: Int, onSelect: (Int) -> Unit) {
+private fun QMood(n: Int, selected: Int, onSelect: (Int) -> Unit) {
     val haptics = rememberHaptics()
     val current = MOODS.getOrNull(selected)
     Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
-        QHeader(1, current?.color ?: Green, "How are you feeling right now?")
+        QHeader(n, current?.color ?: Green, "How are you feeling right now?")
         Spacer(Modifier.height(20.dp))
 
         // Big preview of the chosen face; pops in on every change. The glow
@@ -482,7 +508,7 @@ private fun QMood(selected: Int, onSelect: (Int) -> Unit) {
 }
 
 @Composable
-private fun QWater(value: Int, goal: Int, onValue: (Int) -> Unit) {
+private fun QWater(n: Int, value: Int, goal: Int, onValue: (Int) -> Unit) {
     // Allow logging more than the goal — cap at goal+4 (or 12, whichever is larger).
     val maxValue = maxOf(goal + 4, 12)
     val haptics  = rememberHaptics()
@@ -496,7 +522,7 @@ private fun QWater(value: Int, goal: Int, onValue: (Int) -> Unit) {
     }
 
     Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
-        QHeader(2, Sky, "How much water today?")
+        QHeader(n, Sky, "How much water today?")
         Spacer(Modifier.height(22.dp))
         Box(Modifier.radialGlow(if (hit) Green else Sky, alpha = 0.22f, scale = 1.2f)) {
             WaterGlass(
@@ -643,10 +669,10 @@ private fun wave(w: Float, h: Float, y0: Float, amp: Float, t: Float, wavelength
 }
 
 @Composable
-private fun QFood(selected: String, onSelect: (String) -> Unit) {
+private fun QFood(n: Int, selected: String, onSelect: (String) -> Unit) {
     val haptics = rememberHaptics()
     Column(Modifier.fillMaxWidth()) {
-        QHeader(3, Gold, "How was your nutrition?")
+        QHeader(n, Gold, "How was your nutrition?")
         Spacer(Modifier.height(24.dp))
         FOODS.chunked(2).forEach { row ->
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -707,7 +733,7 @@ private fun QFood(selected: String, onSelect: (String) -> Unit) {
 }
 
 @Composable
-private fun QSleep(value: Float, goal: Float, onValue: (Float) -> Unit) {
+private fun QSleep(n: Int, value: Float, goal: Float, onValue: (Float) -> Unit) {
     val haptics = rememberHaptics()
     val quality = when {
         value >= 7f -> "Great 🌟" to Green
@@ -715,7 +741,7 @@ private fun QSleep(value: Float, goal: Float, onValue: (Float) -> Unit) {
         else        -> "Poor 😴" to Coral
     }
     Column(Modifier.fillMaxWidth()) {
-        QHeader(4, Lavender, "How long did you sleep?")
+        QHeader(n, Lavender, "How long did you sleep?")
         Spacer(Modifier.height(22.dp))
         NightSky(hours = value, modifier = Modifier.fillMaxWidth().height(200.dp)) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -806,14 +832,14 @@ private fun NightSky(hours: Float, modifier: Modifier = Modifier, content: @Comp
 }
 
 @Composable
-private fun QRating(selected: Int, onSelect: (Int) -> Unit) {
+private fun QRating(n: Int, selected: Int, onSelect: (Int) -> Unit) {
     val haptics = rememberHaptics()
     val msgs = listOf(
         "", "Rough day. Tomorrow is a fresh start 🌱", "Tough but you showed up 💙",
         "Solid day! Small wins add up 💪", "Really good! Keep shining ✨", "Incredible day! 🌟"
     )
     Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
-        QHeader(5, Gold, "Rate your day so far", "Overall, how has today been?")
+        QHeader(n, Gold, "Rate your day so far", "Overall, how has today been?")
         Spacer(Modifier.height(44.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             (1..5).forEach { n ->
@@ -873,10 +899,10 @@ private fun QRating(selected: Int, onSelect: (Int) -> Unit) {
 }
 
 @Composable
-private fun QSteps(value: Int, goal: Int, onValue: (Int) -> Unit) {
+private fun QSteps(n: Int, value: Int, goal: Int, onValue: (Int) -> Unit) {
     Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
         QHeader(
-            6, Green, "How many steps today?",
+            n, Green, "How many steps today?",
             "We couldn't read your step count automatically. Enter it manually, or leave it at 0."
         )
         Spacer(Modifier.height(28.dp))
@@ -921,20 +947,25 @@ private fun QSteps(value: Int, goal: Int, onValue: (Int) -> Unit) {
 /** Review before saving. Tapping a tile jumps back to that question. */
 @Composable
 private fun QSummary(
-    mood: Int, water: Int, waterGoal: Int, food: String, sleep: Float, rating: Int,
+    mood: Int, water: Int, waterGoal: Int, food: String,
+    sleep: Float, sleepEditable: Boolean, rating: Int,
     steps: Int, stepsEditable: Boolean,
-    onEdit: (Int) -> Unit
+    onEdit: (Question) -> Unit
 ) {
     val m = MOODS.getOrNull(mood)
     val f = FOODS.firstOrNull { it.key == food }
     val tiles = listOf(
-        SummaryTile(m?.emoji ?: "😊", "Mood", m?.label ?: "—", m?.color ?: Green, 0),
-        SummaryTile("💧", "Water", "$water / $waterGoal", Sky, 1),
-        SummaryTile(f?.emoji ?: "🍽️", "Food", f?.label ?: "—", Gold, 2),
-        SummaryTile("🌙", "Sleep", "%.1fh".format(sleep), Lavender, 3),
-        SummaryTile("⭐", "Day", if (rating > 0) "$rating / 5" else "—", Gold, 4),
-        SummaryTile("🚶", "Steps", if (steps > 0) "%,d".format(steps) else "—", Green, if (stepsEditable) 5 else null)
+        SummaryTile(m?.emoji ?: "😊", "Mood", m?.label ?: "—", m?.color ?: Green, Question.MOOD),
+        SummaryTile("💧", "Water", "$water / $waterGoal", Sky, Question.WATER),
+        SummaryTile(f?.emoji ?: "🍽️", "Food", f?.label ?: "—", Gold, Question.FOOD),
+        SummaryTile("🌙", "Sleep", "%.1fh".format(sleep), Lavender, Question.SLEEP.takeIf { sleepEditable }),
+        SummaryTile("⭐", "Day", if (rating > 0) "$rating / 5" else "—", Gold, Question.RATING),
+        SummaryTile("🚶", "Steps", if (steps > 0) "%,d".format(steps) else "—", Green, Question.STEPS.takeIf { stepsEditable })
     )
+    val fromHealthConnect = buildList {
+        if (!stepsEditable) add("steps")
+        if (!sleepEditable) add("sleep")
+    }
     Column(Modifier.fillMaxWidth()) {
         Text("ALMOST DONE", style = MaterialTheme.typography.labelSmall, color = Teal)
         Spacer(Modifier.height(8.dp))
@@ -973,6 +1004,15 @@ private fun QSummary(
             }
             Spacer(Modifier.height(12.dp))
         }
+        if (fromHealthConnect.isNotEmpty()) {
+            Text(
+                "🔗 ${fromHealthConnect.joinToString(" and ").replaceFirstChar { it.uppercase() }} " +
+                    "from Health Connect",
+                style = MaterialTheme.typography.bodySmall,
+                color = TextMuted,
+                modifier = Modifier.padding(start = 4.dp)
+            )
+        }
     }
 }
 
@@ -981,7 +1021,7 @@ private data class SummaryTile(
     val label: String,
     val value: String,
     val color: Color,
-    val editStep: Int?
+    val editStep: Question?
 )
 
 // ─────────────────────────────────────────────────────────────────────────────
