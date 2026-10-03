@@ -44,6 +44,10 @@ import com.healthify.app.data.repository.AppRepository
 import com.healthify.app.firebase.CloudSyncState
 import com.healthify.app.firebase.FirebaseSync
 import com.healthify.app.ui.theme.*
+import com.healthify.app.units.BodyMetricsInput
+import com.healthify.app.units.UnitSystem
+import com.healthify.app.units.Units
+import com.healthify.app.units.UnitsReview
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -132,6 +136,8 @@ fun ProfileScreen(
     onResetOnboarding: () -> Unit
 ) {
     val s = viewModel.uiState
+    val context = LocalContext.current
+    val unitsReviewPending by UnitsReview.pending.collectAsState()
     var showEdit by remember { mutableStateOf(false) }
     var showConfirmReset by remember { mutableStateOf(false) }
 
@@ -220,6 +226,13 @@ fun ProfileScreen(
                 }
             }
 
+            if (unitsReviewPending) {
+                UnitsReviewCard(
+                    onReview  = { showEdit = true },
+                    onDismiss = { UnitsReview.dismiss(context) }
+                )
+            }
+
             // ── Streak Stats ─────────────────────────────────────────────
             // Four across normally; 2 × 2 at large font scales so the
             // labels don't break mid-word.
@@ -240,9 +253,10 @@ fun ProfileScreen(
             SectionLabel("Body metrics")
             GlassCard(Modifier.fillMaxWidth(), shape = RoundedCornerShape(20.dp)) {
                 Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                    InfoRow("📏 Height", if (u.heightCm > 0) "%.0f cm".format(u.heightCm) else "—")
+                    val units = UnitSystem.of(u.unitSystem)
+                    InfoRow("📏 Height", Units.formatHeight(u.heightCm, units))
                     HorizontalDivider(color = Divider)
-                    InfoRow("⚖️ Weight", if (u.weightKg > 0) "%.1f kg".format(u.weightKg) else "—")
+                    InfoRow("⚖️ Weight", Units.formatWeight(u.weightKg, units))
                     if (u.heightCm > 0 && u.weightKg > 0) {
                         HorizontalDivider(color = Divider)
                         val bmi = u.weightKg / ((u.heightCm / 100f) * (u.heightCm / 100f))
@@ -350,6 +364,7 @@ fun ProfileScreen(
             onDismiss = { showEdit = false },
             onSave = { updated ->
                 viewModel.saveUser(updated)
+                UnitsReview.dismiss(context)
                 showEdit = false
             }
         )
@@ -386,8 +401,7 @@ private fun EditProfileDialog(
     var name by remember { mutableStateOf(user.name) }
     var age by remember { mutableStateOf(if (user.age > 0) user.age.toString() else "") }
     var gender by remember { mutableStateOf(user.gender) }
-    var heightCm by remember { mutableStateOf(if (user.heightCm > 0) "%.0f".format(user.heightCm) else "") }
-    var weightKg by remember { mutableStateOf(if (user.weightKg > 0) "%.1f".format(user.weightKg) else "") }
+    val body = remember { BodyMetricsInput(UnitSystem.of(user.unitSystem), user.heightCm, user.weightKg) }
     var stepGoal by remember { mutableStateOf(user.stepGoal.toString()) }
     var waterGoal by remember { mutableStateOf(user.waterGoalGlasses.toString()) }
     var sleepGoal by remember { mutableStateOf("%.1f".format(user.sleepGoalHours)) }
@@ -418,15 +432,29 @@ private fun EditProfileDialog(
         )
 
         Spacer(Modifier.height(16.dp))
+        FieldLabel("Units")
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            UnitSystem.entries.forEach { u ->
+                GlassChip(
+                    u.key.replaceFirstChar { it.uppercase() },
+                    selected = body.unit == u,
+                    onClick = { body.switchUnit(u) }
+                )
+            }
+        }
+
+        Spacer(Modifier.height(12.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             DialogField("Age", age, Modifier.weight(1f), KeyboardType.Number) {
                 age = it.filter { c -> c.isDigit() }.take(3)
             }
-            DialogField("Height cm", heightCm, Modifier.weight(1f), KeyboardType.Decimal) {
-                heightCm = it.filter { c -> c.isDigit() || c == '.' }
-            }
-            DialogField("Weight kg", weightKg, Modifier.weight(1f), KeyboardType.Decimal) {
-                weightKg = it.filter { c -> c.isDigit() || c == '.' }
+            if (body.unit == UnitSystem.METRIC) {
+                DialogField("Height cm", body.heightCm, Modifier.weight(1f), KeyboardType.Decimal, body::onHeightCm)
+                DialogField("Weight kg", body.weight, Modifier.weight(1f), KeyboardType.Decimal, body::onWeight)
+            } else {
+                DialogField("Height ft", body.heightFt, Modifier.weight(0.8f), KeyboardType.Number, body::onHeightFt)
+                DialogField("in", body.heightIn, Modifier.weight(0.8f), KeyboardType.Number, body::onHeightIn)
+                DialogField("Weight lb", body.weight, Modifier.weight(1f), KeyboardType.Decimal, body::onWeight)
             }
         }
 
@@ -461,12 +489,16 @@ private fun EditProfileDialog(
             GlowButton(
                 text = "Save",
                 onClick = {
+                    // Blank or implausible entries keep the stored value.
+                    val newCm = body.heightCmValue()
+                    val newKg = body.weightKgValue()
                     val updated = user.copy(
                         name = name.trim().ifBlank { "Friend" },
                         age = age.toIntOrNull() ?: user.age,
                         gender = gender,
-                        heightCm = heightCm.toFloatOrNull() ?: user.heightCm,
-                        weightKg = weightKg.toFloatOrNull() ?: user.weightKg,
+                        heightCm = if (newCm in Units.HEIGHT_CM_RANGE) newCm else user.heightCm,
+                        weightKg = if (newKg in Units.WEIGHT_KG_RANGE) newKg else user.weightKg,
+                        unitSystem = body.unit.key,
                         stepGoal = stepGoal.toIntOrNull()?.coerceIn(1000, 100_000)
                             ?: user.stepGoal,
                         waterGoalGlasses = waterGoal.toIntOrNull()?.coerceIn(1, 30)
@@ -516,6 +548,33 @@ private fun DialogField(
 // ═══════════════════════════════════════════════════════════════════════════
 // SMALL COMPOSABLES
 // ═══════════════════════════════════════════════════════════════════════════
+
+/** One-time notice after the ≤1.0.16 imperial-units repair (UnitsReview). */
+@Composable
+fun UnitsReviewCard(onReview: () -> Unit, onDismiss: (() -> Unit)? = null, modifier: Modifier = Modifier) {
+    GlassCard(modifier.fillMaxWidth(), shape = RoundedCornerShape(20.dp), tint = Gold, onClick = onReview) {
+        Row(
+            Modifier.padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(14.dp)
+        ) {
+            IconOrb(Gold) { Text("📏", fontSize = 20.sp) }
+            Column(Modifier.weight(1f)) {
+                Text("Check your height & weight", style = MaterialTheme.typography.titleMedium,
+                    color = TextPrimary)
+                Text("We fixed how imperial units were saved. Tap to make sure yours look right.",
+                    style = MaterialTheme.typography.bodySmall, color = TextMuted)
+            }
+            if (onDismiss != null) {
+                IconButton(onClick = onDismiss) {
+                    Icon(Icons.Default.Close, "Dismiss", tint = TextMuted)
+                }
+            } else {
+                Icon(Icons.Default.ChevronRight, null, tint = Gold)
+            }
+        }
+    }
+}
 
 @Composable
 private fun SectionLabel(text: String) {

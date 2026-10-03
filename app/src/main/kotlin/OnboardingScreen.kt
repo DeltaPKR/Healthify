@@ -29,7 +29,11 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.healthify.app.data.db.UserEntity
 import com.healthify.app.data.repository.AppRepository
+import com.healthify.app.firebase.FirebaseSync
 import com.healthify.app.ui.theme.*
+import com.healthify.app.units.BodyMetricsInput
+import com.healthify.app.units.UnitSystem
+import com.healthify.app.units.Units
 import kotlinx.coroutines.launch
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -44,9 +48,7 @@ class OnboardingViewModel(private val repo: AppRepository) : ViewModel() {
     // Int in finish(). Empty string means "user hasn't entered one yet".
     var age  by mutableStateOf("")
     var gender by mutableStateOf("")
-    var heightCm by mutableStateOf("")
-    var weightKg by mutableStateOf("")
-    var unit by mutableStateOf("metric")
+    val body = BodyMetricsInput()
     var conditions = mutableStateListOf<String>()
     var goals      = mutableStateListOf<String>()
     var isLoading  by mutableStateOf(false)
@@ -63,8 +65,7 @@ class OnboardingViewModel(private val repo: AppRepository) : ViewModel() {
                 if (user.name.isNotEmpty())   name     = user.name
                 if (user.age > 0)             age      = user.age.toString()
                 if (user.gender.isNotEmpty()) gender   = user.gender
-                if (user.heightCm > 0f)       heightCm = user.heightCm.toInt().toString()
-                if (user.weightKg > 0f)       weightKg = "%.1f".format(user.weightKg)
+                body.reset(UnitSystem.of(user.unitSystem), user.heightCm, user.weightKg)
                 if (user.conditions.isNotEmpty())
                     conditions.addAll(user.conditions.split(",").filter { it.isNotBlank() })
                 if (user.goals.isNotEmpty())
@@ -89,8 +90,10 @@ class OnboardingViewModel(private val repo: AppRepository) : ViewModel() {
             name               = name.ifBlank { "Friend" },
             age                = age.toIntOrNull()?.coerceIn(0, 120) ?: 0,
             gender             = gender,
-            heightCm           = heightCm.toFloatOrNull() ?: 0f,
-            weightKg           = weightKg.toFloatOrNull() ?: 0f,
+            // Always metric in storage; out-of-range input counts as unknown.
+            heightCm           = Units.validHeightCm(body.heightCmValue()),
+            weightKg           = Units.validWeightKg(body.weightKgValue()),
+            unitSystem         = body.unit.key,
             conditions         = conditions.joinToString(","),
             goals              = goals.joinToString(","),
             onboardingComplete = true,
@@ -98,6 +101,7 @@ class OnboardingViewModel(private val repo: AppRepository) : ViewModel() {
         repo.saveUser(updated)
         isLoading = false
         onComplete()
+        FirebaseSync.syncUser(updated)
     }
 
     class Factory(private val repo: AppRepository) : ViewModelProvider.Factory {
@@ -276,41 +280,62 @@ private fun StepDemographics(vm: OnboardingViewModel) {
 
 @Composable
 private fun StepBody(vm: OnboardingViewModel) {
-    val isMetric = vm.unit == "metric"
+    val body = vm.body
+    val isMetric = body.unit == UnitSystem.METRIC
     Column(verticalArrangement = Arrangement.spacedBy(20.dp)) {
         Text("Body metrics 📏", style = MaterialTheme.typography.headlineLarge)
         Text("Used to calculate your personalised health goals.", color = TextMuted)
         Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-            listOf("metric", "imperial").forEach { u ->
-                val sel = vm.unit == u
+            UnitSystem.entries.forEach { u ->
+                val sel = body.unit == u
                 Box(
                     Modifier
                         .weight(1f).clip(RoundedCornerShape(10.dp))
                         .background(if (sel) GreenDim else GlassFillTop)
                         .border(1.dp, if (sel) Green else GlassBorderTop, RoundedCornerShape(10.dp))
-                        .clickable { vm.unit = u }
+                        .clickable { body.switchUnit(u) }
                         .padding(vertical = 11.dp),
                     contentAlignment = Alignment.Center
-                ) { Text(u.replaceFirstChar { it.uppercase() }, color = if (sel) Green else TextMuted) }
+                ) { Text(u.key.replaceFirstChar { it.uppercase() }, color = if (sel) Green else TextMuted) }
             }
         }
-        OBLabel("Height (${if (isMetric) "cm" else "ft"})")
-        OutlinedTextField(
-            value = vm.heightCm, onValueChange = { vm.heightCm = it },
-            placeholder = { Text(if (isMetric) "e.g. 175" else "e.g. 5.10", color = TextDim) },
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-            modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(14.dp),
-            colors = textFieldColors()
-        )
-        OBLabel("Weight (${if (isMetric) "kg" else "lbs"})")
-        OutlinedTextField(
-            value = vm.weightKg, onValueChange = { vm.weightKg = it },
-            placeholder = { Text(if (isMetric) "e.g. 70" else "e.g. 154", color = TextDim) },
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-            modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(14.dp),
-            colors = textFieldColors()
+        OBLabel("Height")
+        if (isMetric) {
+            BodyField(body.heightCm, body::onHeightCm, "e.g. 175", "cm", KeyboardType.Decimal, Modifier.fillMaxWidth())
+        } else {
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                BodyField(body.heightFt, body::onHeightFt, "5", "ft", KeyboardType.Number, Modifier.weight(1f))
+                BodyField(body.heightIn, body::onHeightIn, "10", "in", KeyboardType.Number, Modifier.weight(1f))
+            }
+        }
+        OBLabel("Weight")
+        BodyField(
+            body.weight, body::onWeight,
+            if (isMetric) "e.g. 70" else "e.g. 154",
+            if (isMetric) "kg" else "lb",
+            KeyboardType.Decimal, Modifier.fillMaxWidth()
         )
     }
+}
+
+@Composable
+private fun BodyField(
+    value: String,
+    onChange: (String) -> Unit,
+    hint: String,
+    unit: String,
+    keyboard: KeyboardType,
+    modifier: Modifier
+) {
+    OutlinedTextField(
+        value = value, onValueChange = onChange,
+        placeholder = { Text(hint, color = TextDim) },
+        suffix = { Text(unit, color = TextMuted) },
+        keyboardOptions = KeyboardOptions(keyboardType = keyboard),
+        singleLine = true,
+        modifier = modifier, shape = RoundedCornerShape(14.dp),
+        colors = textFieldColors()
+    )
 }
 
 @Composable

@@ -137,6 +137,8 @@ dependencies {
     ksp("androidx.room:room-compiler:2.6.1")
 
     // ── WorkManager ───────────────────────────────────────────────────────────
+    // Only used to cancel jobs queued by 1.0.0 (HealthifyApp). Removable once
+    // no install older than 1.1.0 is left.
     implementation("androidx.work:work-runtime-ktx:2.9.0")
 
     // ── Health Connect ────────────────────────────────────────────────────────
@@ -148,12 +150,6 @@ dependencies {
     implementation("com.google.firebase:firebase-auth-ktx")
     implementation("com.google.firebase:firebase-analytics-ktx")
     implementation("com.google.firebase:firebase-crashlytics-ktx")
-
-    // ── DataStore (user prefs) ────────────────────────────────────────────────
-    implementation("androidx.datastore:datastore-preferences:1.1.1")
-
-    // ── Accompanist (permissions) ─────────────────────────────────────────────
-    implementation("com.google.accompanist:accompanist-permissions:0.34.0")
 
     // ── Coroutines ────────────────────────────────────────────────────────────
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1")

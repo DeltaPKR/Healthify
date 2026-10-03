@@ -24,7 +24,10 @@ data class UserEntity(
     val onboardingComplete: Boolean = false,
     val currentStreak: Int = 0,
     val longestStreak: Int = 0,
-    val lastStreakDate: String = ""        // ISO date "2024-06-01"
+    val lastStreakDate: String = "",       // ISO date "2024-06-01"
+    // Display preference only — heightCm / weightKg are always metric.
+    @ColumnInfo(defaultValue = "metric")
+    val unitSystem: String = "metric"      // "metric" | "imperial"
 )
 
 @Entity(tableName = "check_ins")
@@ -36,14 +39,7 @@ data class CheckInEntity(
     val sleepHours: Float = 0f,
     val dayRating: Int = 0,               // 1–5
     val steps: Int = 0,                   // synced from Health Connect
-    // LEGACY, always 0. Populated up to 1.0.14 from Health Connect heart
-    // rate; that permission was dropped in 1.0.15 (Play "Minimum Scope").
-    // The column stays because the DB is `version = 1` with no migrations —
-    // removing it would need a migration or would wipe existing check-ins.
-    // Nothing writes a non-zero value and no screen reads it.
-    val heartRateAvg: Int = 0,
     val wellnessScore: Int = 0,           // computed 0–100
-    val aiInsight: String = "",
     val timestamp: Long = System.currentTimeMillis()
 )
 
@@ -77,6 +73,9 @@ interface UserDao {
 
     @Query("UPDATE users SET currentStreak=:streak, longestStreak=:longest, lastStreakDate=:date WHERE id=0")
     suspend fun updateStreak(streak: Int, longest: Int, date: String)
+
+    @Query("UPDATE users SET heightCm=:heightCm, weightKg=:weightKg, unitSystem=:unitSystem WHERE id=0")
+    suspend fun updateBodyMetrics(heightCm: Float, weightKg: Float, unitSystem: String)
 }
 
 @Dao
@@ -143,18 +142,25 @@ interface ReminderDao {
 // DATABASE
 // ═══════════════════════════════════════════════════════════════════════════
 
+// Schema changes: bump `version`, add an AutoMigration (with a spec in
+// Migrations.kt when it drops/renames anything), commit the new
+// app/schemas JSON and add a MigrationTest case. Never reintroduce
+// fallbackToDestructiveMigration() — the DB is the only copy of the data.
 @Database(
     entities = [UserEntity::class, CheckInEntity::class, ReminderEntity::class],
-    version = 1,
-    exportSchema = true
+    version = AppDatabase.VERSION,
+    exportSchema = true,
+    autoMigrations = [
+        AutoMigration(from = 1, to = 2, spec = Migration1To2Spec::class),
+    ]
 )
 abstract class AppDatabase : RoomDatabase() {
     abstract fun userDao(): UserDao
     abstract fun checkInDao(): CheckInDao
     abstract fun reminderDao(): ReminderDao
-}
 
-// class Converters {
-//     // Room type converters – currently unused (we store lists as JSON strings)
-//     // kept for future complex types
-// }
+    companion object {
+        const val VERSION = 2
+        const val NAME = "healthify.db"
+    }
+}

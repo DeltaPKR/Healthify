@@ -27,6 +27,8 @@ class AppRepository(
     suspend fun saveUser(user: UserEntity) = userDao.upsert(user)
     suspend fun updateStreak(streak: Int, longest: Int, date: String) =
         userDao.updateStreak(streak, longest, date)
+    suspend fun updateBodyMetrics(heightCm: Float, weightKg: Float, unitSystem: String) =
+        userDao.updateBodyMetrics(heightCm, weightKg, unitSystem)
 
     // ── Check-ins ───────────────────────────────────────────────────────────
     fun getAllCheckIns(): Flow<List<CheckInEntity>> = checkInDao.getAllCheckIns()

@@ -46,7 +46,9 @@ import com.healthify.app.firebase.FirebaseSync
 import com.healthify.app.health.HealthConnectManager
 import com.healthify.app.score.HealthScore
 import com.healthify.app.streak.StreakManager
+import com.healthify.app.ui.profile.UnitsReviewCard
 import com.healthify.app.ui.theme.*
+import com.healthify.app.units.UnitsReview
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -286,6 +288,14 @@ fun DashboardScreen(
             onAvatar = onNavigateProfile,
             modifier = Modifier.staggeredEnter(0)
         )
+
+        val unitsReviewPending by UnitsReview.pending.collectAsState()
+        if (unitsReviewPending) {
+            UnitsReviewCard(
+                onReview = onNavigateProfile,
+                modifier = Modifier.padding(horizontal = 20.dp).staggeredEnter(1)
+            )
+        }
 
         RingsCard(s, Modifier.staggeredEnter(1))
 

@@ -198,8 +198,8 @@ and the daily wellness score.
 > The dashboard shows today's total step count against the daily step
 > goal the user sets during onboarding. The same figure is one of two
 > Health Connect inputs to the 0–100 wellness score saved with each daily
-> check-in (steps contribute up to 15 points, scaled against a 10 000-step
-> reference), and it is written into the check-in record so the Insights
+> check-in (steps contribute up to 20 points, scaled against the user's own
+> daily step goal), and it is written into the check-in record so the Insights
 > screen can chart the week. Read window: local midnight → now. Without
 > this permission the step card is empty and the user must type their
 > step count by hand on the check-in screen.
@@ -208,8 +208,9 @@ and the daily wellness score.
 and the daily wellness score.
 > The dashboard shows the total hours the user slept last night. The same
 > figure is the second Health Connect input to the wellness score (sleep
-> contributes up to 15 points, scaled against an 8-hour reference) and is
-> stored with the check-in for the weekly trend. Read window: yesterday
+> contributes up to 20 points, scaled against the user's own sleep goal) and
+> is stored with the check-in for the weekly trend; when it is available the
+> check-in skips its manual sleep question. Read window: yesterday
 > 18:00 local → now, with sessions clipped to the window edges so an
 > overnight session is not double-counted; the late start keeps the
 > feature correct for night-shift workers and late risers. Without this
@@ -360,10 +361,10 @@ non-essential, which is the opposite of what Minimum Scope requires.
 | Added a dashboard "connect Health Connect" card so the feature is reachable after dismissing the prompt | `DashboardScreen.kt` |
 | Rewrote the declaration, listing, Data Safety and privacy policy copy | this file, `STORE_LISTING.md`, `PRIVACY_POLICY.md`, `docs/privacy/index.html` |
 
-The `heart_rate_avg` column stays in the `check_ins` table and is always
-`0`. The database is `version = 1` with no migrations, so dropping the
-column would need a migration or would destroy existing check-ins. Nothing
-writes it and no screen reads it.
+The `heartRateAvg` column stayed in the `check_ins` table (always `0`)
+until 1.1.0, whose Room migration (DB v1 → v2) drops it — along with any
+heart-rate values stored by ≤ 1.0.14 — without touching the rest of the
+check-in history.
 
 **Before you resubmit — every one of these:**
 

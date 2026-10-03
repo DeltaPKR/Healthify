@@ -151,6 +151,7 @@ object FirebaseSync {
                 "gender"        to user.gender,
                 "heightCm"      to user.heightCm,
                 "weightKg"      to user.weightKg,
+                "unitSystem"    to user.unitSystem,
                 "conditions"    to user.conditions,
                 "goals"         to user.goals,
                 "stepGoal"      to user.stepGoal,
