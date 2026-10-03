@@ -121,6 +121,12 @@
             android:name=".notifications.ReminderReceiver"
             android:exported="false" />
 
+        <!-- ── "+1 glass" action on water reminders ─────────────────────── -->
+        <!-- Explicit PendingIntent from our own notification; not exported. -->
+        <receiver
+            android:name=".notifications.QuickLogReceiver"
+            android:exported="false" />
+
         <!-- ── Boot receiver: re-schedule alarms after reboot/upgrade ──── -->
         <!--
           BOOT_COMPLETED fires AFTER the user unlocks the device, so the

@@ -74,8 +74,8 @@ Check the following in the Play Console form.
 - ☑️ **Other personal info** (age, gender) — Collected, Not shared, Required, TLS, Deletable ✅
 
 #### Health and fitness
-- ☑️ **Health info** (mood, sleep hours, water intake, day rating, conditions) — Collected, Not shared, Required for app's core functionality, TLS, Deletable ✅
-- ☑️ **Fitness info** (step count, weight, height) — Collected, Not shared, Required for app's core functionality, TLS, Deletable ✅
+- ☑️ **Health info** (mood, sleep hours, water intake, logged meals and their quality, day rating, conditions) — Collected, Not shared, Required for app's core functionality, TLS, Deletable ✅
+- ☑️ **Fitness info** (step count, logged activities and their minutes, weight, height) — Collected, Not shared, Required for app's core functionality, TLS, Deletable ✅
   > Do **not** tick distance, heart rate or active calories here. As of
   > 1.0.15 the app requests none of them, and a Data Safety form that
   > claims more than the manifest requests is itself a policy violation.
@@ -175,19 +175,19 @@ below.
 
 ### Core app functionality (paste verbatim)
 
-> Healthify is a daily wellness check-in tracker. Its single core feature
-> is a once-a-day check-in: the user logs mood, water, food quality,
-> sleep and a 1–5 rating of their day, and the app turns that entry into
-> a 0–100 wellness score, a streak, and a weekly trend on the Insights
-> screen.
+> Healthify is a daily wellness tracker. Through the day the user logs
+> water, meals and activities in a few taps; in the evening a short
+> check-in adds their mood and a 1–5 rating of the day. The app turns
+> these into a 0–100 wellness score, a streak, and weekly trends on the
+> Insights screen.
 >
-> Two of those inputs — how much the user moved and how much they slept —
-> are already recorded by the phone or wearable. Healthify reads exactly
-> those two from Health Connect so the check-in is accurate and takes
-> under a minute instead of asking the user to recall and retype numbers
-> their device already has. Both values are displayed on the home
-> dashboard the moment the app opens, and both are inputs to the wellness
-> score that is stored with each check-in.
+> Two of the score's inputs — how much the user moved and how much they
+> slept — are already recorded by the phone or wearable. Healthify reads
+> exactly those two from Health Connect so the user doesn't have to
+> recall and retype numbers their device already has. Steps are shown on
+> the home dashboard and the Move tab, sleep on the home dashboard, and
+> both are inputs to the wellness score that is stored with each
+> check-in.
 >
 > Healthify requests two read permissions and no write permissions.
 
@@ -195,8 +195,8 @@ below.
 
 **Steps (`READ_STEPS`)** — Required for the home dashboard's step card
 and the daily wellness score.
-> The dashboard shows today's total step count against the daily step
-> goal the user sets during onboarding. The same figure is one of two
+> The dashboard and the Move tab show today's total step count against
+> the daily step goal the user sets during onboarding. The same figure is one of two
 > Health Connect inputs to the 0–100 wellness score saved with each daily
 > check-in (steps contribute up to 20 points, scaled against the user's own
 > daily step goal), and it is written into the check-in record so the Insights
@@ -388,3 +388,32 @@ check-in history.
       permission set. The manifest points reviewers at this URL, so a stale
       page listing five data types re-creates the mismatch on its own.
 - [ ] Paste the updated full description from `STORE_LISTING.md`.
+
+---
+
+## 13. Release 1.2.0 (versionCode 19) — all-day logging
+
+What changed for users: water, meals and activities can be logged any time
+(Home quick-log row, the new Food and Move tabs, and a "+1 glass" button on
+water reminders); the evening check-in pre-fills from those logs. Bottom
+nav is now Home · Food · ✓ · Move · Insights; Profile opens from the Home
+avatar and Reminders moved inside Profile. No new permissions, no new
+Health Connect data types.
+
+**Before uploading:**
+
+- [ ] **Deploy `firestore.rules`** (repo root) in Firebase Console →
+      Firestore → Rules. 1.2.0 writes three new collections under
+      `users/{uid}/` (`water`, `meals`, `workouts`). If the live rules only
+      allow `profile` and `checkins`, those writes fail silently.
+- [ ] Health apps declaration (§7): replace the "Core app functionality"
+      text with the current §7 copy (all-day logs; steps on Home and Move),
+      and the per-type text (20 points against the user's own goal).
+- [ ] Data safety (§5): no new categories — meals are Health info and
+      activities Fitness info, both already ticked. Update descriptions
+      only if the form asks.
+- [ ] Privacy policy: the `docs/privacy/` update ships with the push to
+      `main` (GitHub Pages). Check the live page lists the new logs.
+- [ ] Store listing: new phone screenshots for the new tabs.
+- [ ] Release notes — mention that the morning score now means "today so
+      far" (it no longer shows last night's check-in until 18:00).

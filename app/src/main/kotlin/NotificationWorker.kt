@@ -178,7 +178,7 @@ object NotificationScheduler {
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
         )
         val notification = NotificationCompat.Builder(context, NotificationChannels.STREAK)
-            .setSmallIcon(android.R.drawable.ic_dialog_info)
+            .setSmallIcon(R.drawable.ic_stat_healthify)
             .setContentTitle("🏆 Healthify")
             .setContentText("🔥 $streak day streak! ${streakMsg(streak)}")
             .setAutoCancel(true)
@@ -221,8 +221,9 @@ object NotificationScheduler {
         if (isCheckInReminder) {
             return "How's your day going? Open Healthify for your check-in ❤️"
         }
+        // Water reminders build their own text with today's progress
+        // (ReminderReceiver), so "water" isn't handled here.
         return when (reminder.category) {
-            "water"    -> "Time to hydrate! Have you had water recently? 💧"
             "movement" -> "Get moving! A short walk can boost your mood and energy 🏃"
             "meds"     -> "Medication reminder: time for ${reminder.label} 💊"
             else       -> reminder.label
@@ -310,13 +311,20 @@ class ReminderReceiver : BroadcastReceiver() {
                 )
                 val checkInReminderId = prefs.getInt(HealthifyApp.KEY_CHECKIN_REMINDER_ID, -1)
                 val isCheckInReminder = reminder.id == checkInReminderId
-                val shouldFire = if (isCheckInReminder) {
-                    val (canCheckIn, _) = app.repository.checkInCooldownStatus()
-                    canCheckIn
-                } else true
+                // Water reminders know today's progress: they show it, offer
+                // "+1 glass", and stay quiet once the goal is met.
+                val water = if (!isCheckInReminder && reminder.category == "water") {
+                    val goal = (app.repository.getUserOnce()?.waterGoalGlasses ?: 8).coerceAtLeast(1)
+                    WaterProgress(app.logRepository.waterTotal(), goal)
+                } else null
+                val shouldFire = when {
+                    isCheckInReminder -> app.repository.checkInCooldownStatus().first
+                    water != null     -> water.glasses < water.goal
+                    else              -> true
+                }
 
                 if (shouldFire) {
-                    postReminderNotification(context, reminder, isCheckInReminder)
+                    postReminderNotification(context, reminder, isCheckInReminder, water)
                 }
 
                 // Always queue the next occurrence so the daily cycle keeps running.
@@ -327,10 +335,13 @@ class ReminderReceiver : BroadcastReceiver() {
         }
     }
 
+    private data class WaterProgress(val glasses: Int, val goal: Int)
+
     private fun postReminderNotification(
         context: Context,
         reminder: ReminderEntity,
-        isCheckInReminder: Boolean
+        isCheckInReminder: Boolean,
+        water: WaterProgress?
     ) {
         // Channel + body text both pivot on the same id-anchored flag,
         // so a wellness-category reminder (e.g. the 22:00 "Wind Down"
@@ -345,13 +356,22 @@ class ReminderReceiver : BroadcastReceiver() {
             context, reminder.id, intent,
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
         )
+        val text = if (water != null)
+            "Time to hydrate! ${water.glasses} of ${water.goal} glasses so far 💧"
+        else NotificationScheduler.getNotifText(reminder, isCheckInReminder)
         val notification = NotificationCompat.Builder(context, channel)
-            .setSmallIcon(android.R.drawable.ic_dialog_info)
+            .setSmallIcon(if (water != null) R.drawable.ic_stat_water else R.drawable.ic_stat_healthify)
             .setContentTitle("${reminder.emoji} Healthify")
-            .setContentText(NotificationScheduler.getNotifText(reminder, isCheckInReminder))
+            .setContentText(text)
             .setAutoCancel(true)
             .setContentIntent(pi)
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+            .apply {
+                if (water != null) addAction(
+                    R.drawable.ic_stat_water, "+1 glass",
+                    QuickLogReceiver.pendingIntent(context, reminder.id)
+                )
+            }
             .build()
         val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         nm.notify(reminder.id, notification)

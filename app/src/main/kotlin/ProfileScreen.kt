@@ -32,9 +32,13 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 import com.google.firebase.Firebase
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.auth
@@ -106,6 +110,10 @@ class ProfileViewModel(private val repo: AppRepository) : ViewModel() {
         )
     }
 
+    val activeReminders: StateFlow<Int> = repo.getAllReminders()
+        .map { list -> list.count { it.enabled } }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 0)
+
     fun saveUser(updated: UserEntity) = viewModelScope.launch {
         repo.saveUser(updated)
         FirebaseSync.syncUser(updated)
@@ -133,11 +141,13 @@ class ProfileViewModel(private val repo: AppRepository) : ViewModel() {
 fun ProfileScreen(
     viewModel: ProfileViewModel,
     onBack: () -> Unit,
+    onOpenReminders: () -> Unit,
     onResetOnboarding: () -> Unit
 ) {
     val s = viewModel.uiState
     val context = LocalContext.current
     val unitsReviewPending by UnitsReview.pending.collectAsState()
+    val activeReminders by viewModel.activeReminders.collectAsState()
     var showEdit by remember { mutableStateOf(false) }
     var showConfirmReset by remember { mutableStateOf(false) }
 
@@ -296,6 +306,22 @@ fun ProfileScreen(
                     InfoRow("💧 Water", "${u.waterGoalGlasses} glasses")
                     HorizontalDivider(color = Divider)
                     InfoRow("🌙 Sleep", "%.1fh".format(u.sleepGoalHours))
+                }
+            }
+
+            // ── Reminders ────────────────────────────────────────────────
+            SectionLabel("Reminders")
+            GlassCard(Modifier.fillMaxWidth(), shape = RoundedCornerShape(20.dp), onClick = onOpenReminders) {
+                Row(Modifier.padding(18.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Text("🔔 Reminders", style = MaterialTheme.typography.bodyMedium,
+                        modifier = Modifier.weight(1f), color = TextPrimary)
+                    Text(
+                        if (activeReminders == 0) "Off" else "$activeReminders active",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = Green
+                    )
+                    Spacer(Modifier.width(6.dp))
+                    Icon(Icons.Default.ChevronRight, null, tint = TextMuted)
                 }
             }
 

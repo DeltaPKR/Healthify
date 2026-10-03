@@ -11,6 +11,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowForward
+import androidx.compose.material.icons.automirrored.rounded.DirectionsRun
 import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -40,18 +41,33 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.healthify.app.data.db.CheckInEntity
+import com.healthify.app.data.db.MealEntryEntity
 import com.healthify.app.data.db.UserEntity
+import com.healthify.app.data.db.WorkoutSessionEntity
 import com.healthify.app.data.repository.AppRepository
+import com.healthify.app.data.repository.LogRepository
 import com.healthify.app.firebase.FirebaseSync
 import com.healthify.app.health.HealthConnectManager
+import com.healthify.app.logs.ActivityType
+import com.healthify.app.logs.LogSource
+import com.healthify.app.logs.MealQuality
+import com.healthify.app.logs.MealType
 import com.healthify.app.score.HealthScore
 import com.healthify.app.streak.StreakManager
+import com.healthify.app.time.DayClock
+import com.healthify.app.ui.logs.ActivityLogDialog
+import com.healthify.app.ui.logs.MealLogDialog
 import com.healthify.app.ui.profile.UnitsReviewCard
 import com.healthify.app.ui.theme.*
 import com.healthify.app.units.UnitsReview
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.launch
 import java.time.DayOfWeek
 import java.time.LocalDate
@@ -65,15 +81,19 @@ import kotlin.math.roundToInt
 
 data class DashboardUiState(
     val user: UserEntity?   = null,
+    /** Today's check-in (calendar date) — feeds the rings and the score. */
     val todayCheckIn: CheckInEntity? = null,
+    /** Check-in inside the current 18:00 window — drives the check-in card. */
+    val windowCheckIn: CheckInEntity? = null,
+    val waterToday: Int     = 0,
+    val mealsToday: List<MealEntryEntity> = emptyList(),
+    val activeMinutesToday: Int = 0,
     val stepsToday: Int     = 0,
     val sleepHours: Float   = 0f,
     val streak: Int         = 0,
     val longestStreak: Int  = 0,
-    val isStreakHealthy: Boolean = false,
     val aiTip: String       = "",
     val healthScore: Int    = 0,
-    val isLoading: Boolean  = true,
     val healthConnectAvailable: Boolean = false,
     /**
      * Health Connect is installed AND the user has granted the two read
@@ -86,127 +106,167 @@ data class DashboardUiState(
     val cooldownMsRemaining: Long = 0L,
     /** Dates in the current Mon–Sun week that have a saved check-in. */
     val weekCheckInDates: Set<LocalDate> = emptySet(),
-    /** False until the first load() lands — the UI waits so defaults never flash. */
+    /** False until the first data lands — the UI waits so defaults never flash. */
     val loaded: Boolean = false
 )
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class DashboardViewModel(
     private val repo: AppRepository,
+    private val logRepo: LogRepository,
     private val healthConnectManager: HealthConnectManager
 ) : ViewModel() {
 
     var uiState by mutableStateOf(DashboardUiState())
         private set
 
+    /** Today's rows from Room: cheap, re-read on every change. */
+    private data class Local(
+        val user: UserEntity?,
+        val checkIn: CheckInEntity?,
+        val water: Int,
+        val meals: List<MealEntryEntity>,
+        val workouts: List<WorkoutSessionEntity>,
+    )
+
+    /**
+     * The slow or write-y inputs: Health Connect (a binder call that can
+     * take a second), the check-in cooldown, the streak (evaluate() writes
+     * the users row) and the week dots. Refreshed by [load] — on resume,
+     * after a check-in and on the cooldown ticker — never by a water tap.
+     */
+    private data class Slow(
+        val hcAvailable: Boolean = false,
+        val hcConnected: Boolean = false,
+        val hcSteps: Int = 0,
+        val hcSleep: Float = 0f,
+        val windowCheckIn: CheckInEntity? = null,
+        val canCheckIn: Boolean = true,
+        val cooldownMs: Long = 0L,
+        val streak: Int = 0,
+        val longest: Int = 0,
+        val weekDates: Set<LocalDate> = emptySet(),
+    )
+
+    private val slow = MutableStateFlow<Slow?>(null)
+    private var loadJob: Job? = null
+
     init {
-        // Observe BOTH the current-window check-in flow AND the user row so
-        // the dashboard refreshes immediately after:
-        //   • a check-in is saved (check_ins table changes)
-        //   • the streak is recomputed inside StreakManager.evaluate
-        //     (UPDATE users SET currentStreak=…)
-        // Combining the two means a single collector hop triggers `load()`
-        // on either upstream change. Without the user-flow leg, the
-        // streak/longestStreak counters on the dashboard would stay stale
-        // until the user backgrounded and reopened the app — which is the
-        // exact bug testers reported ("streak doesn't update after
-        // check-in until I restart").
-        //
-        // `distinctUntilChanged` on the (checkIn, user) pair is the
-        // defensive guard against the infinite-loop regression: if any
-        // downstream code ever writes to the users table with the same
-        // values it already holds, Room will still re-emit on the user
-        // flow, but `distinctUntilChanged` swallows the duplicate so we
-        // don't re-enter load() and trigger another no-op write. Data
-        // classes (`CheckInEntity`, `UserEntity`) give us structural
-        // equality for free.
+        // Today's Room rows (re-keyed when the date rolls over) + the slow
+        // snapshot. Room re-emits on every write to a table, even a no-op
+        // one, so the pair is de-duplicated (data-class equality) to keep a
+        // write in publish() from looping.
         viewModelScope.launch {
-            combine(
-                repo.getCheckInForCurrentWindowFlow(),
-                repo.getUser()
-            ) { ci, u -> ci to u }
+            DayClock.todayIsoFlow()
+                .flatMapLatest { today ->
+                    combine(
+                        repo.getUser(),
+                        repo.getCheckInForDateFlow(today),
+                        logRepo.waterTotalFlow(today),
+                        logRepo.mealsFlow(today),
+                        logRepo.workoutsFlow(today),
+                    ) { u, ci, water, meals, workouts -> Local(u, ci, water, meals, workouts) }
+                }
+                .combine(slow.filterNotNull()) { local, s -> local to s }
                 .distinctUntilChanged()
-                .collectLatest { _ -> load() }
+                .collectLatest { (local, s) -> publish(local, s) }
+        }
+        // A saved check-in moves the cooldown, the streak and the week dots.
+        viewModelScope.launch {
+            repo.getCheckInForCurrentWindowFlow()
+                .distinctUntilChanged()
+                .collect { load() }
         }
     }
 
-    fun load() = viewModelScope.launch {
-        uiState = uiState.copy(isLoading = true)
-        val user    = repo.getUserOnce()
-        val checkIn = repo.getCheckInForCurrentWindow()
-        val (canCheckIn, msRemaining) = repo.checkInCooldownStatus()
-        val monday = LocalDate.now().with(DayOfWeek.MONDAY)
-        val weekDates = repo.getCheckInsInRange(monday, monday.plusDays(6))
-            .mapNotNull { runCatching { LocalDate.parse(it.date) }.getOrNull() }
-            .toSet()
+    fun load() {
+        loadJob?.cancel()
+        loadJob = viewModelScope.launch {
+            val user = repo.getUserOnce()
+            val (canCheckIn, msRemaining) = repo.checkInCooldownStatus()
+            val monday = DayClock.today().with(DayOfWeek.MONDAY)
+            val weekDates = repo.getCheckInsInRange(monday, monday.plusDays(6))
+                .mapNotNull { runCatching { LocalDate.parse(it.date) }.getOrNull() }
+                .toSet()
 
-        // First paint comes from the local DB alone. A cold Health Connect
-        // binder can take a second or two to answer; the rings then glide
-        // from the checked-in values to the live ones instead of the page
-        // sitting empty.
-        if (!uiState.loaded) {
-            val localSteps = checkIn?.steps ?: 0
-            val localSleep = checkIn?.sleepHours ?: 0f
-            uiState = uiState.copy(
-                user             = user,
-                todayCheckIn     = checkIn,
-                stepsToday       = localSteps,
-                sleepHours       = localSleep,
-                streak           = user?.currentStreak ?: 0,
-                longestStreak    = user?.longestStreak ?: 0,
-                healthScore      = HealthScore.compute(checkIn, localSteps, localSleep, user),
-                canCheckIn       = canCheckIn,
-                cooldownMsRemaining = msRemaining,
-                weekCheckInDates = weekDates,
-                loaded           = true
+            // First paint comes from the local DB alone. A cold Health Connect
+            // binder can take a second or two to answer; the rings then glide
+            // from the checked-in values to the live ones instead of the page
+            // sitting empty.
+            val base = (slow.value ?: Slow(streak = user?.currentStreak ?: 0, longest = user?.longestStreak ?: 0))
+                .copy(
+                    windowCheckIn = repo.getCheckInForCurrentWindow(),
+                    canCheckIn    = canCheckIn,
+                    cooldownMs    = msRemaining,
+                    weekDates     = weekDates
+                )
+            slow.value = base
+
+            val healthData = healthConnectManager.readAll()
+            val streakResult = StreakManager.evaluate(repo)
+            slow.value = base.copy(
+                hcAvailable = healthData.isAvailable,
+                // Installed AND granted. Drives the "Connect Health Connect" card.
+                hcConnected = healthData.isAvailable && healthConnectManager.hasAllPermissions(),
+                hcSteps     = if (healthData.isAvailable) healthData.stepsToday else 0,
+                hcSleep     = if (healthData.isAvailable) healthData.sleepLastNightHours else 0f,
+                streak      = streakResult.current,
+                longest     = streakResult.longest
             )
         }
+    }
 
-        val healthData  = healthConnectManager.readAll()
-        // Installed AND granted. Drives the "Connect Health Connect" card —
-        // without it a user who dismissed the first-launch prompt would have
-        // no way back to the feature short of system settings.
-        val hcConnected = healthData.isAvailable && healthConnectManager.hasAllPermissions()
-        // Prefer Health Connect when it actually has data; otherwise use whatever
-        // the user entered during check-in. This way a 0-reading from HC doesn't
-        // wipe out the user's manually-entered sleep/steps.
-        val hcSteps = if (healthData.isAvailable) healthData.stepsToday else 0
-        val hcSleep = if (healthData.isAvailable) healthData.sleepLastNightHours else 0f
-        val steps   = if (hcSteps > 0) hcSteps else (checkIn?.steps ?: 0)
-        val sleep   = if (hcSleep > 0f) hcSleep else (checkIn?.sleepHours ?: 0f)
+    private suspend fun publish(l: Local, s: Slow) {
+        val ci = l.checkIn
+        // Health Connect wins when it actually has data; otherwise what the
+        // user entered during check-in, so a 0-reading from HC doesn't wipe
+        // out manually entered sleep/steps.
+        val steps = if (s.hcSteps > 0) s.hcSteps else (ci?.steps ?: 0)
+        val sleep = if (s.hcSleep > 0f) s.hcSleep else (ci?.sleepHours ?: 0f)
+        // Before the check-in, food comes from the meals logged so far.
+        val food  = ci?.foodQuality ?: MealQuality.forDay(l.meals.map { it.quality })?.key
+        val score = HealthScore.compute(ci, steps, sleep, l.user, water = l.water, food = food)
 
-        val streakResult = StreakManager.evaluate(repo)
-        val score = HealthScore.compute(checkIn, steps, sleep, user)
-
-        // Keep today's stored score in step with the live one (steps keep
-        // climbing after the check-in), so Insights and Profile match home.
-        // Only for a check-in dated today: the 6 PM window can still hold
-        // yesterday evening's check-in, whose day is already over.
-        if (checkIn != null && checkIn.wellnessScore != score &&
-            checkIn.date == LocalDate.now().toString()
-        ) {
-            repo.updateCheckInScore(checkIn.date, score)
-            launch { FirebaseSync.syncCheckIn(checkIn.copy(wellnessScore = score)) }
+        // Steps keep climbing after the check-in: write the live values into
+        // today's row so Insights and Profile match home, and the row still
+        // reproduces its own score.
+        if (ci != null && (ci.wellnessScore != score || ci.steps != steps || ci.sleepHours != sleep)) {
+            repo.updateLiveMetrics(ci.date, steps, sleep, score)
+            val synced = ci.copy(steps = steps, sleepHours = sleep, wellnessScore = score)
+            viewModelScope.launch { FirebaseSync.syncCheckIn(synced) }
         }
-        val tip   = generateTip(steps, sleep, checkIn, user)
 
         uiState = DashboardUiState(
-            user                   = user,
-            todayCheckIn           = checkIn,
+            user                   = l.user,
+            todayCheckIn           = ci,
+            windowCheckIn          = s.windowCheckIn,
+            waterToday             = l.water,
+            mealsToday             = l.meals,
+            activeMinutesToday     = l.workouts.filter { it.endedAt != null }.sumOf { it.durationMin },
             stepsToday             = steps,
             sleepHours             = sleep,
-            streak                 = streakResult.current,
-            longestStreak          = streakResult.longest,
-            isStreakHealthy        = streakResult.isHealthyToday,
-            aiTip                  = tip,
+            streak                 = s.streak,
+            longestStreak          = s.longest,
+            aiTip                  = generateTip(steps, sleep, ci, l.user),
             healthScore            = score,
-            isLoading              = false,
-            healthConnectAvailable = healthData.isAvailable,
-            healthConnectConnected = hcConnected,
-            canCheckIn             = canCheckIn,
-            cooldownMsRemaining    = msRemaining,
-            weekCheckInDates       = weekDates,
+            healthConnectAvailable = s.hcAvailable,
+            healthConnectConnected = s.hcConnected,
+            canCheckIn             = s.canCheckIn,
+            cooldownMsRemaining    = s.cooldownMs,
+            weekCheckInDates       = s.weekDates,
             loaded                 = true
         )
+    }
+
+    // ── Quick log ────────────────────────────────────────────────────────────
+    fun changeWater(delta: Int) = viewModelScope.launch { logRepo.changeWater(delta, LogSource.HOME) }
+
+    fun saveMeal(type: MealType, name: String, quality: MealQuality) = viewModelScope.launch {
+        logRepo.saveMeal(null, type, name, quality)
+    }
+
+    fun logActivity(type: ActivityType, minutes: Int) = viewModelScope.launch {
+        logRepo.logActivity(type, minutes)
     }
 
     private fun generateTip(steps: Int, sleep: Float, ci: CheckInEntity?, user: UserEntity?): String {
@@ -222,11 +282,14 @@ class DashboardViewModel(
         }
     }
 
-    class Factory(val repo: AppRepository, val healthConnectManager: HealthConnectManager) :
-        ViewModelProvider.Factory {
+    class Factory(
+        val repo: AppRepository,
+        val logRepo: LogRepository,
+        val healthConnectManager: HealthConnectManager
+    ) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(c: Class<T>) =
-            DashboardViewModel(repo, healthConnectManager) as T
+            DashboardViewModel(repo, logRepo, healthConnectManager) as T
     }
 }
 
@@ -246,12 +309,12 @@ private val SleepEnd   = Color(0xFFC4B5FD)
 fun DashboardScreen(
     viewModel: DashboardViewModel,
     onNavigateCheckIn: () -> Unit,
-    onNavigateInsights: () -> Unit,
-    onNavigateNotifications: () -> Unit,
     onNavigateProfile: () -> Unit,
     onConnectHealthConnect: () -> Unit = {}
 ) {
     val s = viewModel.uiState
+    var showMealDialog by remember { mutableStateOf(false) }
+    var showActivityDialog by remember { mutableStateOf(false) }
 
     // Refresh on resume — picks up changes from CheckIn, Profile, Notifications
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -299,25 +362,36 @@ fun DashboardScreen(
 
         RingsCard(s, Modifier.staggeredEnter(1))
 
+        QuickLogRow(
+            water          = s.waterToday,
+            waterGoal      = (s.user?.waterGoalGlasses ?: 8).coerceAtLeast(1),
+            mealCount      = s.mealsToday.size,
+            activeMinutes  = s.activeMinutesToday,
+            onWater        = viewModel::changeWater,
+            onMeal         = { showMealDialog = true },
+            onActivity     = { showActivityDialog = true },
+            modifier       = Modifier.staggeredEnter(2)
+        )
+
         StreakCard(
             streak     = s.streak,
             longest    = s.longestStreak,
             weekDates  = s.weekCheckInDates,
             canCheckIn = s.canCheckIn,
-            modifier   = Modifier.staggeredEnter(2)
+            modifier   = Modifier.staggeredEnter(3)
         )
 
         CheckInCard(
             canCheckIn   = s.canCheckIn,
-            hasCheckedIn = s.todayCheckIn != null,
+            hasCheckedIn = s.windowCheckIn != null,
             msRemaining  = s.cooldownMsRemaining,
-            lastCheckInMs = s.todayCheckIn?.timestamp,
+            lastCheckInMs = s.windowCheckIn?.timestamp,
             onClick      = onNavigateCheckIn,
-            modifier     = Modifier.staggeredEnter(3)
+            modifier     = Modifier.staggeredEnter(4)
         )
 
         if (s.aiTip.isNotEmpty()) {
-            TipCard(s.aiTip, Modifier.staggeredEnter(4))
+            TipCard(s.aiTip, Modifier.staggeredEnter(5))
         }
 
         // ── Health Connect connect prompt ───────────────────────────────
@@ -327,10 +401,34 @@ fun DashboardScreen(
         // same rationale, so there is always an in-app route to the
         // feature and the steps/sleep rings are never silently empty.
         if (s.healthConnectAvailable && !s.healthConnectConnected) {
-            ConnectHealthConnectCard(onClick = onConnectHealthConnect, modifier = Modifier.staggeredEnter(5))
+            ConnectHealthConnectCard(onClick = onConnectHealthConnect, modifier = Modifier.staggeredEnter(6))
         }
 
         Spacer(Modifier.height(LocalBottomBarClearance.current + 8.dp))
+    }
+
+    if (showMealDialog) {
+        MealLogDialog(
+            existing    = null,
+            initialType = MealType.forHour(java.time.LocalTime.now().hour),
+            onSave      = { type, name, quality ->
+                viewModel.saveMeal(type, name, quality)
+                showMealDialog = false
+            },
+            onDelete    = null,
+            onDismiss   = { showMealDialog = false }
+        )
+    }
+    if (showActivityDialog) {
+        ActivityLogDialog(
+            existing  = null,
+            onSave    = { type, minutes ->
+                viewModel.logActivity(type, minutes)
+                showActivityDialog = false
+            },
+            onDelete  = null,
+            onDismiss = { showActivityDialog = false }
+        )
     }
 
     // Status-bar scrim: cards scrolling up fade out under the clock/icons.
@@ -458,7 +556,7 @@ private fun RingsCard(s: DashboardUiState, modifier: Modifier = Modifier) {
     val waterGoal = (s.user?.waterGoalGlasses ?: 8).coerceAtLeast(1)
     val stepGoal  = (s.user?.stepGoal ?: 10_000).coerceAtLeast(1)
     val sleepGoal = (s.user?.sleepGoalHours ?: 8f).coerceAtLeast(0.5f)
-    val water     = s.todayCheckIn?.waterGlasses ?: 0
+    val water     = s.waterToday
 
     val waterP = water.toFloat() / waterGoal
     val stepsP = s.stepsToday.toFloat() / stepGoal
@@ -486,7 +584,8 @@ private fun RingsCard(s: DashboardUiState, modifier: Modifier = Modifier) {
             Spacer(Modifier.height(12.dp))
             Text(
                 when {
-                    s.todayCheckIn == null -> "Check in to fill your rings ✨"
+                    s.todayCheckIn == null && s.healthScore == 0 -> "Log water or check in to fill your rings ✨"
+                    s.todayCheckIn == null -> "Today so far — check in to complete it ✨"
                     s.healthScore >= 80    -> "You're crushing it today! 💪"
                     s.healthScore >= 60    -> "Good progress — keep going! 🌱"
                     else                   -> "Every step counts. You've got this 💙"
@@ -501,6 +600,98 @@ private fun RingsCard(s: DashboardUiState, modifier: Modifier = Modifier) {
                 RingLegend("Steps", compactSteps(s.stepsToday), stepsP, StepsEnd)
                 RingLegend("Sleep", "%.1fh".format(s.sleepHours), sleepP, SleepEnd)
             }
+        }
+    }
+}
+
+// ── Quick log: water / meal / activity, any time of day ─────────────────────
+@Composable
+private fun QuickLogRow(
+    water: Int,
+    waterGoal: Int,
+    mealCount: Int,
+    activeMinutes: Int,
+    onWater: (Int) -> Unit,
+    onMeal: () -> Unit,
+    onActivity: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val haptics = rememberHaptics()
+    Row(
+        modifier.fillMaxWidth().padding(horizontal = 20.dp).height(IntrinsicSize.Min),
+        horizontalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        // Water: +1 is the whole tile; the small − undoes the last glass.
+        GlassCard(
+            Modifier.weight(1f).fillMaxHeight(),
+            shape = RoundedCornerShape(20.dp),
+            tint = WaterEnd,
+            onClick = { haptics.tick(); onWater(1) }
+        ) {
+            Column(Modifier.padding(start = 12.dp, end = 4.dp, top = 10.dp, bottom = 10.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("💧", fontSize = 20.sp)
+                    Spacer(Modifier.weight(1f))
+                    if (water > 0) {
+                        Box(
+                            Modifier
+                                .size(32.dp)
+                                .clip(CircleShape)
+                                .clickable(onClickLabel = "Remove a glass") { haptics.tick(); onWater(-1) },
+                            contentAlignment = Alignment.Center
+                        ) { Icon(Icons.Rounded.Remove, "Remove a glass", tint = TextMuted, modifier = Modifier.size(18.dp)) }
+                    }
+                }
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    "$water/$waterGoal",
+                    style = MaterialTheme.typography.titleLarge.copy(fontFeatureSettings = TABULAR),
+                    color = TextPrimary,
+                    maxLines = 1
+                )
+                Text("+1 glass", style = MaterialTheme.typography.labelMedium, color = WaterEnd, maxLines = 1)
+            }
+        }
+        QuickLogTile(
+            emoji = "🍽️",
+            value = if (mealCount == 0) "Meal" else "$mealCount",
+            caption = if (mealCount == 0) "Log a meal" else if (mealCount == 1) "meal · add" else "meals · add",
+            color = Gold,
+            onClick = { haptics.tick(); onMeal() },
+            modifier = Modifier.weight(1f)
+        )
+        QuickLogTile(
+            emoji = "🏃",
+            value = if (activeMinutes == 0) "Move" else "${activeMinutes}m",
+            caption = if (activeMinutes == 0) "Log activity" else "active · add",
+            color = StepsEnd,
+            onClick = { haptics.tick(); onActivity() },
+            modifier = Modifier.weight(1f)
+        )
+    }
+}
+
+@Composable
+private fun QuickLogTile(
+    emoji: String,
+    value: String,
+    caption: String,
+    color: Color,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    GlassCard(modifier.fillMaxHeight(), shape = RoundedCornerShape(20.dp), tint = color, onClick = onClick) {
+        Column(Modifier.padding(horizontal = 12.dp, vertical = 10.dp)) {
+            Box(Modifier.height(32.dp), contentAlignment = Alignment.CenterStart) { Text(emoji, fontSize = 20.sp) }
+            Spacer(Modifier.height(4.dp))
+            Text(
+                value,
+                style = MaterialTheme.typography.titleLarge.copy(fontFeatureSettings = TABULAR),
+                color = TextPrimary,
+                maxLines = 1
+            )
+            Text(caption, style = MaterialTheme.typography.labelMedium, color = color, maxLines = 1,
+                overflow = TextOverflow.Ellipsis)
         }
     }
 }
@@ -870,10 +1061,10 @@ private val OrbSize      = 60.dp
 private val OrbOverhang  = 20.dp
 
 /**
- * [selectedPage] is the settled tab (0 Home, 1 Insights, 2 Reminders,
- * 3 Profile). [pagePosition] is the live pager position including swipe
- * offset; the selection pill follows it during a swipe. It is read in the
- * layout phase, so swiping never recomposes the nav.
+ * [selectedPage] is the settled tab (0 Home, 1 Food, 2 Move, 3 Insights).
+ * [pagePosition] is the live pager position including swipe offset; the
+ * selection pill follows it during a swipe. It is read in the layout
+ * phase, so swiping never recomposes the nav.
  */
 @Composable
 fun DashBottomNav(
@@ -882,10 +1073,10 @@ fun DashBottomNav(
     canCheckIn: Boolean,
     ready: Boolean,
     onHome: () -> Unit,
+    onFood: () -> Unit,
     onCheckIn: () -> Unit,
+    onMove: () -> Unit,
     onInsights: () -> Unit,
-    onNotifications: () -> Unit,
-    onProfile: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val haptics = rememberHaptics()
@@ -931,7 +1122,7 @@ fun DashBottomNav(
             )
             Row(Modifier.fillMaxSize()) {
                 NavItem(Icons.Rounded.Home, "Home", selectedPage == 0) { haptics.tick(); onHome() }
-                NavItem(Icons.Rounded.Insights, "Insights", selectedPage == 1) { haptics.tick(); onInsights() }
+                NavItem(Icons.Rounded.Restaurant, "Food", selectedPage == 1) { haptics.tick(); onFood() }
                 Box(Modifier.weight(1f).fillMaxHeight(), contentAlignment = Alignment.BottomCenter) {
                     if (ready) Text(
                         if (canCheckIn) "Check-in" else "Done",
@@ -944,8 +1135,8 @@ fun DashBottomNav(
                         modifier = Modifier.padding(bottom = 10.dp)
                     )
                 }
-                NavItem(Icons.Rounded.Notifications, "Reminders", selectedPage == 2) { haptics.tick(); onNotifications() }
-                NavItem(Icons.Rounded.Person, "Profile", selectedPage == 3) { haptics.tick(); onProfile() }
+                NavItem(Icons.AutoMirrored.Rounded.DirectionsRun, "Move", selectedPage == 2) { haptics.tick(); onMove() }
+                NavItem(Icons.Rounded.Insights, "Insights", selectedPage == 3) { haptics.tick(); onInsights() }
             }
         }
         val orbAlpha by animateFloatAsState(if (ready) 1f else 0f, tween(400), label = "orbIn")

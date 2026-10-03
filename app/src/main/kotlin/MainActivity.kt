@@ -36,6 +36,9 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -72,7 +75,9 @@ import com.healthify.app.ui.checkin.CheckInScreen
 import com.healthify.app.ui.dashboard.DashBottomNav
 import com.healthify.app.ui.dashboard.DashboardScreen
 import com.healthify.app.ui.dashboard.DashboardViewModel
+import com.healthify.app.ui.food.FoodScreen
 import com.healthify.app.ui.insights.InsightsScreen
+import com.healthify.app.ui.move.MoveScreen
 import com.healthify.app.ui.notifications.NotificationsScreen
 import com.healthify.app.ui.onboarding.OnboardingScreen
 import com.healthify.app.ui.onboarding.OnboardingViewModel
@@ -113,14 +118,16 @@ object Routes {
     const val ONBOARDING = "onboarding"
     const val MAIN       = "main"
     const val CHECK_IN   = "checkin"
+    const val PROFILE    = "profile"     // opened from the Home avatar
+    const val REMINDERS  = "reminders"   // opened from Profile
 }
 
 // Tab order for the swipeable pager. Index here == HorizontalPager page index.
-private const val TAB_HOME      = 0
-private const val TAB_INSIGHTS  = 1
-private const val TAB_REMINDERS = 2
-private const val TAB_PROFILE   = 3
-private const val TAB_COUNT     = 4
+private const val TAB_HOME     = 0
+private const val TAB_FOOD     = 1
+private const val TAB_MOVE     = 2
+private const val TAB_INSIGHTS = 3
+private const val TAB_COUNT    = 4
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -209,12 +216,47 @@ fun HealthifyNavGraph() {
         ) {
             CheckInScreen(
                 repo          = repo,
+                logRepo       = app.logRepository,
                 healthConnect = app.healthConnectManager,
                 onComplete    = { navController.popBackStack() },
                 onBack        = { navController.popBackStack() }
             )
         }
+
+        composable(Routes.PROFILE) {
+            PushedPage {
+                ProfilePage(
+                    onBack            = { navController.popBackStack() },
+                    onOpenReminders   = { navController.navigate(Routes.REMINDERS) },
+                    onResetOnboarding = {
+                        navController.navigate(Routes.ONBOARDING) {
+                            popUpTo(Routes.MAIN) { inclusive = true }
+                        }
+                    }
+                )
+            }
+        }
+
+        composable(Routes.REMINDERS) {
+            PushedPage {
+                NotificationsScreen(
+                    repo    = repo,
+                    context = app,
+                    onBack  = { navController.popBackStack() }
+                )
+            }
+        }
     }
+}
+
+/**
+ * Screens pushed over the tabs have no floating nav, so the bottom
+ * clearance their content reserves is just the system navigation bar.
+ */
+@Composable
+private fun PushedPage(content: @Composable () -> Unit) {
+    val navBar = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+    CompositionLocalProvider(LocalBottomBarClearance provides navBar, content = content)
 }
 
 /**
@@ -233,6 +275,7 @@ private fun MainTabs(navController: NavHostController) {
     val dashVm: DashboardViewModel = viewModel(
         factory = DashboardViewModel.Factory(
             repo                 = repo,
+            logRepo              = app.logRepository,
             healthConnectManager = app.healthConnectManager
         )
     )
@@ -288,29 +331,25 @@ private fun MainTabs(navController: NavHostController) {
                     LocalTabVisible provides (pagerState.currentPage == page)
                 ) {
                     when (page) {
-                        TAB_HOME      -> DashboardPage(
-                            vm                      = dashVm,
-                            onNavigateCheckIn       = { navController.navigate(Routes.CHECK_IN) },
-                            onNavigateInsights      = { goTo(TAB_INSIGHTS) },
-                            onNavigateNotifications = { goTo(TAB_REMINDERS) },
-                            onNavigateProfile       = { goTo(TAB_PROFILE) }
+                        TAB_HOME     -> DashboardPage(
+                            vm                = dashVm,
+                            onNavigateCheckIn = { navController.navigate(Routes.CHECK_IN) },
+                            onNavigateProfile = { navController.navigate(Routes.PROFILE) }
                         )
-                        TAB_INSIGHTS  -> InsightsScreen(
-                            repo   = repo,
-                            onBack = { goTo(TAB_HOME) }
-                        )
-                        TAB_REMINDERS -> NotificationsScreen(
-                            repo    = repo,
-                            context = app,
+                        TAB_FOOD     -> FoodScreen(
+                            logRepo = app.logRepository,
                             onBack  = { goTo(TAB_HOME) }
                         )
-                        TAB_PROFILE   -> ProfilePage(
-                            onBack            = { goTo(TAB_HOME) },
-                            onResetOnboarding = {
-                                navController.navigate(Routes.ONBOARDING) {
-                                    popUpTo(Routes.MAIN) { inclusive = true }
-                                }
-                            }
+                        TAB_MOVE     -> MoveScreen(
+                            logRepo         = app.logRepository,
+                            stepsToday      = dashVm.uiState.stepsToday,
+                            stepGoal        = dashVm.uiState.user?.stepGoal ?: 10_000,
+                            healthConnected = dashVm.uiState.healthConnectConnected,
+                            onBack          = { goTo(TAB_HOME) }
+                        )
+                        TAB_INSIGHTS -> InsightsScreen(
+                            repo   = repo,
+                            onBack = { goTo(TAB_HOME) }
                         )
                     }
                 }
@@ -323,10 +362,10 @@ private fun MainTabs(navController: NavHostController) {
             canCheckIn      = dashVm.uiState.canCheckIn,
             ready           = dashVm.uiState.loaded,
             onHome          = { goTo(TAB_HOME) },
-            onInsights      = { goTo(TAB_INSIGHTS) },
+            onFood          = { goTo(TAB_FOOD) },
             onCheckIn       = { navController.navigate(Routes.CHECK_IN) },
-            onNotifications = { goTo(TAB_REMINDERS) },
-            onProfile       = { goTo(TAB_PROFILE) },
+            onMove          = { goTo(TAB_MOVE) },
+            onInsights      = { goTo(TAB_INSIGHTS) },
             modifier        = Modifier
                 .align(Alignment.BottomCenter)
                 .onSizeChanged { navHeightPx = it.height }
@@ -338,8 +377,6 @@ private fun MainTabs(navController: NavHostController) {
 private fun DashboardPage(
     vm: DashboardViewModel,
     onNavigateCheckIn: () -> Unit,
-    onNavigateInsights: () -> Unit,
-    onNavigateNotifications: () -> Unit,
     onNavigateProfile: () -> Unit
 ) {
     val app = HealthifyApp.instance
@@ -408,8 +445,6 @@ private fun DashboardPage(
     DashboardScreen(
         viewModel               = vm,
         onNavigateCheckIn       = onNavigateCheckIn,
-        onNavigateInsights      = onNavigateInsights,
-        onNavigateNotifications = onNavigateNotifications,
         onNavigateProfile       = onNavigateProfile,
         // Re-opens the same rationale the first-launch flow shows, so a user
         // who tapped "Not now" (or never saw it) can still connect later.
@@ -492,6 +527,7 @@ private fun HealthConnectRationaleDialog(
 @Composable
 private fun ProfilePage(
     onBack: () -> Unit,
+    onOpenReminders: () -> Unit,
     onResetOnboarding: () -> Unit
 ) {
     val repo = HealthifyApp.instance.repository
@@ -501,6 +537,7 @@ private fun ProfilePage(
     ProfileScreen(
         viewModel         = vm,
         onBack            = onBack,
+        onOpenReminders   = onOpenReminders,
         onResetOnboarding = onResetOnboarding
     )
 }

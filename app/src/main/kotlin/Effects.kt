@@ -822,7 +822,7 @@ fun TabHeader(
         verticalAlignment = Alignment.CenterVertically
     ) {
         if (onBack != null) {
-            GlassIconButton(Icons.AutoMirrored.Rounded.ArrowBack, "Back to home", onBack)
+            GlassIconButton(Icons.AutoMirrored.Rounded.ArrowBack, "Back", onBack)
             Spacer(Modifier.width(14.dp))
         }
         Column(Modifier.weight(1f)) {

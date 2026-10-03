@@ -44,19 +44,21 @@ import androidx.compose.ui.unit.sp
 import com.healthify.app.data.db.CheckInEntity
 import com.healthify.app.data.db.UserEntity
 import com.healthify.app.data.repository.AppRepository
+import com.healthify.app.data.repository.LogRepository
 import com.healthify.app.firebase.FirebaseSync
 import com.healthify.app.health.HealthConnectManager
+import com.healthify.app.logs.LogSource
+import com.healthify.app.logs.MealQuality
 import com.healthify.app.notifications.NotificationScheduler
 import com.healthify.app.score.HealthScore
 import com.healthify.app.streak.StreakManager
+import com.healthify.app.time.DayClock
 import com.healthify.app.ui.dashboard.CountdownRing
 import com.healthify.app.ui.theme.*
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.time.LocalDate
-import java.time.format.DateTimeFormatter
 import kotlin.math.PI
 import kotlin.math.sin
 import kotlin.random.Random
@@ -86,6 +88,7 @@ private val FOODS = listOf(
 @Composable
 fun CheckInScreen(
     repo: AppRepository,
+    logRepo: LogRepository,
     healthConnect: HealthConnectManager,
     onComplete: () -> Unit,
     onBack: () -> Unit
@@ -98,7 +101,7 @@ fun CheckInScreen(
 
     // answers
     var mood      by remember { mutableStateOf(-1) }
-    var water     by remember { mutableStateOf(4) }
+    var water     by remember { mutableStateOf(0) }
     var food      by remember { mutableStateOf("") }
     var sleepH    by remember { mutableStateOf(7f) }
     var rating    by remember { mutableStateOf(0) }
@@ -120,6 +123,22 @@ fun CheckInScreen(
         needsManualSteps = !data.isAvailable || data.stepsToday == 0
     }
     val sleepFromHc = hcSleepHours > 0f
+
+    // Pre-fill from what was logged through the day. Water edits here are a
+    // change to the log (applied on save), not a separate number; the food
+    // answer starts from the logged meals and can be overridden.
+    var prefilled    by remember { mutableStateOf(false) }
+    var loggedWater  by remember { mutableStateOf(0) }
+    var loggedMeals  by remember { mutableStateOf(0) }
+    LaunchedEffect(Unit) {
+        val today = DayClock.todayIso()
+        loggedWater = logRepo.waterTotal(today)
+        water = loggedWater
+        val meals = logRepo.mealsFor(today)
+        loggedMeals = meals.size
+        MealQuality.forDay(meals.map { it.quality })?.let { food = it.key }
+        prefilled = true
+    }
 
     // The user's own goals: the water glass fills toward what they signed up
     // for, and the steps question quotes their step goal.
@@ -182,14 +201,21 @@ fun CheckInScreen(
                 healthData.stepsToday else manualSteps
             val effectiveSleep = if (healthData.isAvailable && healthData.sleepLastNightHours > 0f)
                 healthData.sleepLastNightHours else sleepH
-            val today  = LocalDate.now().format(DateTimeFormatter.ISO_LOCAL_DATE)
+            val today  = DayClock.todayIso()
             val before = repo.getUserOnce()
+            // The water log is the source of truth: apply this answer to it
+            // as a change, then store the log's total (which also counts any
+            // glass added from a notification while this screen was open).
+            // Uncancellable for the same reason as the save below.
+            val waterTotal = withContext(NonCancellable) {
+                logRepo.changeWater(water - loggedWater, LogSource.CHECKIN, today)
+            }
             // Store the sleep that was scored, so HealthScore.of(row)
             // reproduces this exact score later.
             val draft = CheckInEntity(
                 date          = today,
                 moodScore     = mood,
-                waterGlasses  = water,
+                waterGlasses  = waterTotal,
                 foodQuality   = food,
                 sleepHours    = effectiveSleep,
                 dayRating     = rating,
@@ -268,6 +294,10 @@ fun CheckInScreen(
         return
     }
 
+    // A few ms of DB reads; showing the questions before them would flash
+    // the defaults and then jump to the logged values.
+    if (!prefilled) return
+
     Column(
         Modifier
             .fillMaxSize()
@@ -313,8 +343,8 @@ fun CheckInScreen(
             ) {
                 when (q) {
                     Question.MOOD   -> QMood(n, mood) { mood = it }
-                    Question.WATER  -> QWater(n, water, waterGoal) { water = it }
-                    Question.FOOD   -> QFood(n, food) { food = it }
+                    Question.WATER  -> QWater(n, water, waterGoal, loggedWater) { water = it }
+                    Question.FOOD   -> QFood(n, food, loggedMeals) { food = it }
                     Question.SLEEP  -> QSleep(n, sleepH, user?.sleepGoalHours ?: 8f) { sleepH = it }
                     Question.RATING -> QRating(n, rating) { rating = it }
                     Question.STEPS  -> QSteps(n, manualSteps, user?.stepGoal ?: 10_000) { manualSteps = it }
@@ -508,7 +538,7 @@ private fun QMood(n: Int, selected: Int, onSelect: (Int) -> Unit) {
 }
 
 @Composable
-private fun QWater(n: Int, value: Int, goal: Int, onValue: (Int) -> Unit) {
+private fun QWater(n: Int, value: Int, goal: Int, logged: Int, onValue: (Int) -> Unit) {
     // Allow logging more than the goal — cap at goal+4 (or 12, whichever is larger).
     val maxValue = maxOf(goal + 4, 12)
     val haptics  = rememberHaptics()
@@ -522,7 +552,11 @@ private fun QWater(n: Int, value: Int, goal: Int, onValue: (Int) -> Unit) {
     }
 
     Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
-        QHeader(n, Sky, "How much water today?")
+        QHeader(
+            n, Sky, "How much water today?",
+            if (logged > 0) "You logged $logged ${if (logged == 1) "glass" else "glasses"} today. Adjust if you missed any."
+            else null
+        )
         Spacer(Modifier.height(22.dp))
         Box(Modifier.radialGlow(if (hit) Green else Sky, alpha = 0.22f, scale = 1.2f)) {
             WaterGlass(
@@ -669,10 +703,14 @@ private fun wave(w: Float, h: Float, y0: Float, amp: Float, t: Float, wavelength
 }
 
 @Composable
-private fun QFood(n: Int, selected: String, onSelect: (String) -> Unit) {
+private fun QFood(n: Int, selected: String, fromMeals: Int, onSelect: (String) -> Unit) {
     val haptics = rememberHaptics()
     Column(Modifier.fillMaxWidth()) {
-        QHeader(n, Gold, "How was your nutrition?")
+        QHeader(
+            n, Gold, "How was your nutrition?",
+            if (fromMeals > 0) "Based on the $fromMeals ${if (fromMeals == 1) "meal" else "meals"} you logged. Change it if it's off."
+            else null
+        )
         Spacer(Modifier.height(24.dp))
         FOODS.chunked(2).forEach { row ->
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {

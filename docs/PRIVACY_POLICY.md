@@ -1,7 +1,7 @@
 # Healthify — Privacy Policy
 
 **Effective date:** 2026-05-18
-**Last updated:** 2026-09-08
+**Last updated:** 2026-10-03
 **App:** Healthify (`com.DeltaPKR.Healthify`)
 **Publisher:** DeltaPKR
 **Contact:** deltapkr.developer@gmail.com
@@ -22,6 +22,10 @@ During onboarding and daily check-ins you may enter:
 - **Wellness goals:** daily step goal, water-intake goal, sleep-hours goal
 - **Daily check-ins:** mood score (0–4), water glasses, food-quality tag,
   sleep hours, day rating (1–5)
+- **Logs you add during the day:** glasses of water (with the time
+  logged), meals (meal slot, an optional name you type, a quality tag such
+  as "Healthy" or "Skipped", and the time), and activities (kind, such as
+  walk or yoga, duration in minutes, and the time)
 
 All of these are stored locally on the device in an SQLite database
 (`healthify.db`). A copy is synced to Firebase Firestore under an anonymous
@@ -96,8 +100,8 @@ third-party marketing, or any automated decision making with legal effects.
 
 | Location                                                           | What is stored                                                                    |
 |--------------------------------------------------------------------|-----------------------------------------------------------------------------------|
-| On your device (`healthify.db`, app's private storage)             | Full profile, check-ins, reminders                                                |
-| Firebase Firestore (Google Cloud, EU/US multi-region)              | Anonymous UID, profile summary, daily check-in summaries (mirror of on-device DB) |
+| On your device (`healthify.db`, app's private storage)             | Full profile, check-ins, water/meal/activity logs, reminders                     |
+| Firebase Firestore (Google Cloud, EU/US multi-region)              | Anonymous UID, profile summary, daily check-in summaries, daily water totals, meal and activity logs (mirror of on-device DB) |
 | Firebase Authentication                                            | Anonymous UID + sign-in token                                                     |
 | Firebase Crashlytics (release builds only)                         | Crash stack traces + device metadata + anonymous UID                              |
 
@@ -118,7 +122,7 @@ We use the following sub-processors. We do not share data with anyone else.
 
 | Sub-processor             | Purpose                       | Data shared                            |
 |---------------------------|-------------------------------|----------------------------------------|
-| Google / Firebase         | Auth, Firestore, Crashlytics, Analytics | Anonymous UID, check-in summaries, crash reports |
+| Google / Firebase         | Auth, Firestore, Crashlytics, Analytics | Anonymous UID, check-in summaries, water/meal/activity logs, crash reports |
 | Android Health Connect    | On-device data source         | Per-permission read access; data is read only, not written |
 
 All transit uses HTTPS/TLS; cleartext network traffic is disabled at the
