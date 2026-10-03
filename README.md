@@ -4,15 +4,16 @@ A calm daily wellness tracker for Android. One check-in a day — mood,
 water, food, sleep, and a rating of how the day went — turned into a
 wellness score, a streak, and a weekly trend.
 
-**Status:** production on Google Play. Current release 1.2.0
-(versionCode 19): log water, meals and activities any time — Home quick-log,
-new Food and Move tabs, "+1 glass" on water reminders — and an evening
-check-in that fills itself in from those logs.
+**Status:** production on Google Play. Current release 1.3.0
+(versionCode 20): add meals by searching Open Food Facts or by barcode
+(Google Code Scanner, no camera permission), keep your own foods, and
+count calories against a personal daily target if you want to — off
+unless turned on.
 
 | | |
 |---|---|
 | Package | `com.DeltaPKR.Healthify` |
-| Current version | 1.2.0 (19) |
+| Current version | 1.3.0 (20) |
 | Min / target SDK | 26 (Android 8.0) / 36 |
 | Privacy policy | https://deltapkr.github.io/Healthify/privacy/ |
 | Publisher | DeltaPKR — deltapkr.developer@gmail.com |
@@ -30,6 +31,10 @@ check-in that fills itself in from those logs.
 - **Dashboard.** Activity rings for water, steps and sleep around the
   score; steps and sleep come from Health Connect, water from the
   check-in. A Mon–Sun chain shows the week's check-ins.
+- **Food.** Meals by slot with a quality tag; add foods from Open Food
+  Facts search, a barcode or your own list, in servings, grams or
+  ounces. Calorie counting is optional (Mifflin-St Jeor estimate or your
+  own target) and never feeds the wellness score.
 - **Reminders.** Water, movement, check-in and wind-down nudges on exact
   alarms, surviving reboot and app update.
 - **Insights.** Wellness-trend chart, 7-day averages and goal progress,
@@ -49,8 +54,8 @@ The app requests exactly two read permissions and no write permissions:
 
 | Permission | Rendered by | Also feeds |
 |---|---|---|
-| `health.READ_STEPS` | Dashboard step card vs. the user's step goal | Wellness score (≤15 pts) |
-| `health.READ_SLEEP` | Dashboard sleep card, last night's total | Wellness score (≤15 pts) |
+| `health.READ_STEPS` | Dashboard step card vs. the user's step goal | Wellness score (≤20 pts) |
+| `health.READ_SLEEP` | Dashboard sleep card, last night's total | Wellness score (≤20 pts) |
 
 **Do not add a third without shipping a screen that renders it.** Google
 rejected 1.0.14 for declaring `READ_HEART_RATE`, `READ_DISTANCE` and
