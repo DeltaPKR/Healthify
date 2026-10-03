@@ -158,6 +158,10 @@ object FirebaseSync {
                 "heightCm"      to user.heightCm,
                 "weightKg"      to user.weightKg,
                 "unitSystem"    to user.unitSystem,
+                "countCalories" to user.countCalories,
+                "activityLevel" to user.activityLevel,
+                "calorieGoal"   to user.calorieGoal,
+                "calorieTargetOverride" to user.calorieTargetOverride,
                 "conditions"    to user.conditions,
                 "goals"         to user.goals,
                 "stepGoal"      to user.stepGoal,
@@ -215,7 +219,16 @@ object FirebaseSync {
                 "name"      to meal.name,
                 "quality"   to meal.quality,
                 "loggedAt"  to meal.loggedAt,
-                "updatedAt" to meal.updatedAt
+                "updatedAt" to meal.updatedAt,
+                "barcode"   to meal.barcode,
+                "grams"     to meal.grams,
+                "kcal"      to meal.kcal,
+                "proteinG"  to meal.proteinG,
+                "carbsG"    to meal.carbsG,
+                "fatG"      to meal.fatG,
+                "fiberG"    to meal.fiberG,
+                "sugarG"    to meal.sugarG,
+                "nutriScore" to meal.nutriScore
             )
             db.collection("users").document(uid)
               .collection("meals").document(meal.syncId)

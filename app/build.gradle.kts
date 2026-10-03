@@ -151,12 +151,22 @@ dependencies {
     implementation("com.google.firebase:firebase-analytics-ktx")
     implementation("com.google.firebase:firebase-crashlytics-ktx")
 
+    // ── Food data (Open Food Facts) ───────────────────────────────────────────
+    // OkHttp 4.x: 5.x is built with Kotlin 2 and needs a newer compiler.
+    // JSON is parsed with the platform's org.json, so no codegen/reflection.
+    implementation("com.squareup.okhttp3:okhttp:4.12.0")
+    // Barcode scanning UI runs inside Google Play services: no CAMERA
+    // permission, the app only receives the decoded barcode.
+    implementation("com.google.android.gms:play-services-code-scanner:16.1.0")
+
     // ── Coroutines ────────────────────────────────────────────────────────────
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.8.1")
 
     // ── Tests ─────────────────────────────────────────────────────────────────
     testImplementation("junit:junit:4.13.2")
+    // Android's org.json is stubbed in local unit tests; use the real one there.
+    testImplementation("org.json:json:20240303")
     androidTestImplementation("androidx.room:room-testing:2.6.1")
     androidTestImplementation("androidx.test.ext:junit:1.2.1")
     androidTestImplementation("androidx.test:runner:1.6.2")

@@ -32,7 +32,20 @@ data class MealEntryEntity(
     val name: String = "",
     val quality: String,                  // MealQuality.key
     val loggedAt: Long = System.currentTimeMillis(),
-    val updatedAt: Long = System.currentTimeMillis()
+    val updatedAt: Long = System.currentTimeMillis(),
+    // ── v4: food-based entries. A snapshot taken when logged, so history
+    // doesn't move when Open Food Facts data does. Null for quick entries
+    // (and for any nutrient the source didn't have).
+    val foodItemId: Long? = null,
+    val barcode: String? = null,
+    val grams: Float? = null,
+    val kcal: Float? = null,
+    val proteinG: Float? = null,
+    val carbsG: Float? = null,
+    val fatG: Float? = null,
+    val fiberG: Float? = null,
+    val sugarG: Float? = null,
+    val nutriScore: String? = null        // "a".."e"
 )
 
 /**

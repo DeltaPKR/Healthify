@@ -27,7 +27,17 @@ data class UserEntity(
     val lastStreakDate: String = "",       // ISO date "2024-06-01"
     // Display preference only — heightCm / weightKg are always metric.
     @ColumnInfo(defaultValue = "metric")
-    val unitSystem: String = "metric"      // "metric" | "imperial"
+    val unitSystem: String = "metric",     // "metric" | "imperial"
+    // ── Nutrition (v4). Calories are opt-in: off, the app shows meal
+    // quality only and never a number.
+    @ColumnInfo(defaultValue = "0")
+    val countCalories: Boolean = false,
+    @ColumnInfo(defaultValue = "")
+    val activityLevel: String = "",        // ActivityLevel.key, "" = not asked yet
+    @ColumnInfo(defaultValue = "maintain")
+    val calorieGoal: String = "maintain",  // CalorieGoal.key
+    @ColumnInfo(defaultValue = "0")
+    val calorieTargetOverride: Int = 0     // kcal/day set by the user; 0 = use the estimate
 )
 
 @Entity(tableName = "check_ins")
@@ -153,12 +163,16 @@ interface ReminderDao {
     entities = [
         UserEntity::class, CheckInEntity::class, ReminderEntity::class,
         WaterLogEntity::class, MealEntryEntity::class, WorkoutSessionEntity::class,
+        FoodItemEntity::class,
     ],
     version = AppDatabase.VERSION,
     exportSchema = true,
     autoMigrations = [
         AutoMigration(from = 1, to = 2, spec = Migration1To2Spec::class),
         AutoMigration(from = 2, to = 3, spec = Migration2To3Spec::class),
+        // 3 → 4 (app 1.3.0): users + calorie settings, meal_entries +
+        // nullable nutrient snapshot, + food_items. Additive only.
+        AutoMigration(from = 3, to = 4),
     ]
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -168,9 +182,10 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun waterLogDao(): WaterLogDao
     abstract fun mealDao(): MealDao
     abstract fun workoutDao(): WorkoutDao
+    abstract fun foodDao(): FoodDao
 
     companion object {
-        const val VERSION = 3
+        const val VERSION = 4
         const val NAME = "healthify.db"
     }
 }

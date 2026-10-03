@@ -10,6 +10,7 @@ import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -88,6 +89,41 @@ class MigrationTest {
         }
         db.query("SELECT COUNT(*) FROM meal_entries").use { it.moveToFirst(); assertEquals(0, it.getInt(0)) }
         db.query("SELECT COUNT(*) FROM workout_sessions").use { it.moveToFirst(); assertEquals(0, it.getInt(0)) }
+        db.close()
+    }
+
+    @Test
+    fun migrate3To4() {
+        helper.createDatabase(testDb, 3).use { db ->
+            db.execSQL(
+                """INSERT INTO users (id, name, age, gender, heightCm, weightKg, conditions, goals,
+                   stepGoal, waterGoalGlasses, sleepGoalHours, onboardingComplete, currentStreak,
+                   longestStreak, lastStreakDate, unitSystem)
+                   VALUES (0, 'Sam', 34, 'Male', 177.8, 69.85, '', '', 8000, 8, 8, 1, 2, 5, '2026-10-03', 'metric')"""
+            )
+            db.execSQL(
+                """INSERT INTO meal_entries (syncId, date, mealType, name, quality, loggedAt, updatedAt)
+                   VALUES ('s1', '2026-10-03', 'lunch', 'Salad bowl', 'well', 1, 1)"""
+            )
+        }
+
+        val db = helper.runMigrationsAndValidate(testDb, 4, true)
+
+        db.query("SELECT countCalories, activityLevel, calorieGoal, calorieTargetOverride, name FROM users").use {
+            it.moveToFirst()
+            assertEquals(0, it.getInt(0))
+            assertEquals("", it.getString(1))
+            assertEquals("maintain", it.getString(2))
+            assertEquals(0, it.getInt(3))
+            assertEquals("Sam", it.getString(4))
+        }
+        db.query("SELECT name, quality, kcal, grams, foodItemId FROM meal_entries").use {
+            it.moveToFirst()
+            assertEquals("Salad bowl", it.getString(0))
+            assertEquals("well", it.getString(1))
+            assertTrue(it.isNull(2)); assertTrue(it.isNull(3)); assertTrue(it.isNull(4))
+        }
+        db.query("SELECT COUNT(*) FROM food_items").use { it.moveToFirst(); assertEquals(0, it.getInt(0)) }
         db.close()
     }
 

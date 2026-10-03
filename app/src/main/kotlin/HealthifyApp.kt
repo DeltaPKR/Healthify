@@ -12,6 +12,8 @@ import com.healthify.app.data.db.DbBackup
 import com.healthify.app.data.repository.AppRepository
 import com.healthify.app.data.repository.LogRepository
 import com.healthify.app.firebase.FirebaseSync
+import com.healthify.app.food.FoodRepository
+import com.healthify.app.food.OpenFoodFactsClient
 import com.healthify.app.health.HealthConnectManager
 import com.healthify.app.notifications.NotificationChannels
 import com.healthify.app.notifications.NotificationScheduler
@@ -48,6 +50,17 @@ class HealthifyApp : Application() {
     }
 
     val logRepository by lazy { LogRepository(database, appScope) }
+
+    val foodRepository by lazy {
+        FoodRepository(
+            database,
+            OpenFoodFactsClient(
+                cacheDir  = cacheDir,
+                // Open Food Facts asks every client to identify itself this way.
+                userAgent = "Healthify/${BuildConfig.VERSION_NAME} (deltapkr.developer@gmail.com)"
+            )
+        )
+    }
 
     // ── Health Connect ───────────────────────────────────────────────────────
     val healthConnectManager by lazy { HealthConnectManager(this) }
@@ -115,6 +128,7 @@ class HealthifyApp : Application() {
             repository.getEnabledReminders().forEach { reminder ->
                 NotificationScheduler.schedule(this@HealthifyApp, reminder)
             }
+            foodRepository.prune()
         }
 
         // Sign in to Firebase anonymously (offline-safe). Independent of
