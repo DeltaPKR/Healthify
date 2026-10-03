@@ -137,6 +137,8 @@ and your rights regarding that information.</p>
   <li><strong>Wellness goals:</strong> daily step goal, water-intake goal, sleep-hours goal.</li>
   <li><strong>Daily check-ins:</strong> mood score (0–4), water glasses, food-quality tag, sleep hours, day rating (1–5).</li>
   <li><strong>Logs you add during the day:</strong> glasses of water (with the time logged), meals (meal slot, an optional name you type, a quality tag such as “Healthy” or “Skipped”, and the time), and activities (kind, such as walk or yoga, duration in minutes, and the time).</li>
+  <li><strong>Food details (optional):</strong> when you log a food you searched for or scanned, the meal also stores its barcode, the amount in grams, and its calories, protein, carbohydrate, fat, fibre, sugar and Nutri-Score. Foods you look up are kept in a local food list so you can log them again; foods you add yourself (a name, calories per 100 g, and optionally a barcode) are kept there too.</li>
+  <li><strong>Calorie-counting settings (optional, off by default):</strong> whether calorie counting is on, your activity level, your goal (maintain, lose or gain weight), and your own daily calorie target if you set one.</li>
 </ul>
 <p>All of these are stored locally on the device in an SQLite database
 (<code>healthify.db</code>). A copy is synced to Firebase Firestore under an
@@ -176,13 +178,16 @@ today") is synced.</p>
       and the anonymous UID above. No screen contents and no health data are included.</li>
   <li><strong>Firebase Analytics events.</strong> Aggregated, non-PII usage events
       (e.g. "user completed a check-in"). No free-text inputs are sent.</li>
+  <li><strong>Food searches and barcodes.</strong> When you search for a food or look up a
+      barcode, the search text or barcode is sent to Open Food Facts (see §4). Healthify
+      keeps no history of your searches beyond the foods you choose to log.</li>
 </ul>
 
 <h3>1.4 Information we do <em>not</em> collect</h3>
 <ul>
   <li>We do not request your name, email address, phone number, or any government identifiers.</li>
   <li>We do not request precise location.</li>
-  <li>We do not access contacts, microphone, camera, SMS, call logs, or files on external storage.</li>
+  <li>We do not access contacts, microphone, camera, SMS, call logs, or files on external storage. Barcode scanning uses Google's code scanner (see §4), which runs in Google Play services: Healthify does not hold the camera permission and never receives camera images, only the barcode number.</li>
   <li>We do not share data with advertisers.</li>
   <li>We do not sell personal information.</li>
 </ul>
@@ -190,7 +195,7 @@ today") is synced.</p>
 <h2>2. How we use information</h2>
 <p>We use the data described in §1 to:</p>
 <ol>
-  <li>Power core app features (check-ins, daily dashboard, weekly insights, streak tracking, reminders).</li>
+  <li>Power core app features (check-ins, daily dashboard, food logging and the optional calorie estimate, weekly insights, streak tracking, reminders).</li>
   <li>Sync your records across devices so reinstalling the app does not lose your history.</li>
   <li>Diagnose and fix crashes via Firebase Crashlytics.</li>
   <li>Improve the product via aggregated, non-PII analytics.</li>
@@ -203,9 +208,9 @@ third-party marketing, or any automated decision making with legal effects.</p>
   <thead><tr><th>Location</th><th>What is stored</th></tr></thead>
   <tbody>
     <tr><td>On your device (<code>healthify.db</code>, app's private storage)</td>
-        <td>Full profile, check-ins, water/meal/activity logs, reminders</td></tr>
+        <td>Full profile, check-ins, water/meal/activity logs, reminders, your food list (looked-up foods are removed after 180 days unused)</td></tr>
     <tr><td>Firebase Firestore (Google Cloud, EU/US multi-region)</td>
-        <td>Anonymous UID, profile summary, daily check-in summaries, daily water totals, meal and activity logs (mirror of on-device DB)</td></tr>
+        <td>Anonymous UID, profile summary and calorie settings, daily check-in summaries, daily water totals, meal logs with their food details, activity logs (mirror of on-device DB)</td></tr>
     <tr><td>Firebase Authentication</td>
         <td>Anonymous UID + sign-in token</td></tr>
     <tr><td>Firebase Crashlytics (release builds only)</td>
@@ -230,8 +235,16 @@ installation files. Your health data does not roam through Google account backup
     <tr><td>Android Health Connect</td>
         <td>On-device data source</td>
         <td>Per-permission read access; data is read only, not written</td></tr>
+    <tr><td>Open Food Facts (non-profit food database)</td>
+        <td>Food search and barcode lookup</td>
+        <td>The search text or barcode you look up, and your IP address as part of the connection. No account, UID or health data is sent. Their privacy policy: <a href="https://world.openfoodfacts.org/privacy">world.openfoodfacts.org/privacy</a></td></tr>
+    <tr><td>Google Code Scanner (Google Play services)</td>
+        <td>Reading a barcode with the camera</td>
+        <td>Runs inside Google Play services under Google's privacy policy; Healthify receives only the barcode number</td></tr>
   </tbody>
 </table>
+<p>Food data shown in the app comes from Open Food Facts and is available under the
+<a href="https://opendatacommons.org/licenses/odbl/1-0/">Open Database License</a>.</p>
 <p>All transit uses HTTPS/TLS; cleartext network traffic is disabled at the OS level.</p>
 
 <h2>5. Your rights</h2>

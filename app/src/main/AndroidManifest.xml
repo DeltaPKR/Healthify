@@ -110,6 +110,14 @@
             android:name="health_connect_request_permissions_privacy_policy_url"
             android:value="https://deltapkr.github.io/Healthify/privacy/" />
 
+        <!-- ── Google Code Scanner (barcode) ─────────────────────────────── -->
+        <!-- Downloads the scanner module with the app instead of on first
+             scan. The camera runs inside Google Play services; Healthify
+             holds no CAMERA permission and only receives the barcode. -->
+        <meta-data
+            android:name="com.google.mlkit.vision.DEPENDENCIES"
+            android:value="barcode_ui" />
+
         <!-- ── Reminder alarm receiver ─────────────────────────────────── -->
         <!--
           No <intent-filter> needed: AlarmManager delivers via an explicit

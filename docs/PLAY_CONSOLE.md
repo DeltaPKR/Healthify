@@ -74,7 +74,7 @@ Check the following in the Play Console form.
 - ☑️ **Other personal info** (age, gender) — Collected, Not shared, Required, TLS, Deletable ✅
 
 #### Health and fitness
-- ☑️ **Health info** (mood, sleep hours, water intake, logged meals and their quality, day rating, conditions) — Collected, Not shared, Required for app's core functionality, TLS, Deletable ✅
+- ☑️ **Health info** (mood, sleep hours, water intake, logged meals and their quality, the nutrition of logged foods — grams, calories, macros, Nutri-Score — and the optional calorie settings, day rating, conditions) — Collected, Not shared, Required for app's core functionality, TLS, Deletable ✅
 - ☑️ **Fitness info** (step count, logged activities and their minutes, weight, height) — Collected, Not shared, Required for app's core functionality, TLS, Deletable ✅
   > Do **not** tick distance, heart rate or active calories here. As of
   > 1.0.15 the app requests none of them, and a Data Safety form that
@@ -82,6 +82,7 @@ Check the following in the Play Console form.
 
 #### App activity
 - ☑️ **App interactions** (Firebase Analytics events: check-in completed, screen views) — Collected, Not shared, Optional, TLS, **Cannot request deletion** (aggregated)
+- ☑️ **In-app search history** (since 1.3.0: food search text and looked-up barcodes, sent to Open Food Facts to fetch results) — Collected, **Processed ephemerally** ✅ (Healthify stores no search history; only foods the user logs), Not shared (user-initiated lookup the user expects to go to the food database), Optional, Purpose: App functionality, TLS
 
 #### App info and performance
 - ☑️ **Crash logs** — Collected, Not shared, Optional, TLS, Cannot request deletion (aggregated)
@@ -92,8 +93,11 @@ Check the following in the Play Console form.
 
 ### Data types **NOT** collected (leave unchecked)
 Financial info, Location (precise/approximate), Messages, Photos & videos,
-Audio, Files & docs, Calendar, Contacts, Web browsing, Search history,
+Audio, Files & docs, Calendar, Contacts, Web browsing history,
 Installed apps, User-payment info.
+> Photos & videos stays unchecked: barcode scanning runs in Google Play
+> services' code scanner, and the app never receives camera frames or holds
+> the CAMERA permission.
 
 ### Security practices
 - ☑️ **Data is encrypted in transit** — Yes, TLS (network security config).
@@ -134,7 +138,11 @@ Required on Android 13+ to display the reminder notifications above.
 
 ### `INTERNET` + `ACCESS_NETWORK_STATE`
 
-Firestore sync + offline state detection.
+Firestore sync, food search / barcode lookup on Open Food Facts (1.3.0+),
+and offline state detection.
+
+> No `CAMERA` permission: the barcode scanner is Google Code Scanner,
+> which runs in Play services. Check the merged manifest stays free of it.
 
 ### Health Connect permissions
 
@@ -176,10 +184,11 @@ below.
 ### Core app functionality (paste verbatim)
 
 > Healthify is a daily wellness tracker. Through the day the user logs
-> water, meals and activities in a few taps; in the evening a short
-> check-in adds their mood and a 1–5 rating of the day. The app turns
-> these into a 0–100 wellness score, a streak, and weekly trends on the
-> Insights screen.
+> water, meals and activities in a few taps; meals can be looked up by
+> name or barcode in the Open Food Facts database, with optional calorie
+> counting. In the evening a short check-in adds their mood and a 1–5
+> rating of the day. The app turns these into a 0–100 wellness score, a
+> streak, and weekly trends on the Insights screen.
 >
 > Two of the score's inputs — how much the user moved and how much they
 > slept — are already recorded by the phone or wearable. Healthify reads
@@ -417,3 +426,37 @@ Health Connect data types.
 - [ ] Store listing: new phone screenshots for the new tabs.
 - [ ] Release notes — mention that the morning score now means "today so
       far" (it no longer shows last night's check-in until 18:00).
+
+---
+
+## 14. Release 1.3.0 (versionCode 20) — food logging and optional calories
+
+What changed for users: meals can be added from an Open Food Facts search,
+a barcode scan, or the user's own foods, with an amount in grams or
+servings. Calorie counting is optional and off by default; when on, the
+Food tab shows a daily target (Mifflin-St Jeor estimate or the user's own
+number) and calories/macros per meal. No new Android permissions (no
+`CAMERA` — the scanner runs in Play services), no new Health Connect data
+types.
+
+**Before uploading:**
+
+- [ ] **Firestore rules:** nothing new — meals still write to
+      `users/{uid}/meals`, now with extra fields. The 1.2.0 rules cover it.
+- [ ] Data safety (§5): tick **App activity → In-app search history**
+      (collected, processed ephemerally, not shared, optional, app
+      functionality). Health info description now includes food nutrition
+      and calorie settings — no new category.
+- [ ] Health apps declaration (§7): on the first page tick **Nutrition**
+      (food logging, calorie and macro tracking) alongside the existing
+      features. Replace "Core app functionality" with the current §7 copy.
+      Health Connect per-type text is unchanged (still Steps + Sleep only;
+      the app does not read or write Health Connect nutrition).
+- [ ] Privacy policy: `docs/privacy/` now lists Open Food Facts and Google
+      Code Scanner. Check the live GitHub Pages copy after the push.
+- [ ] Store listing: mention food search, barcode scanning and optional
+      calorie counting; add a Food tab screenshot. Credit "Food data from
+      Open Food Facts (ODbL)" in the full description.
+- [ ] Release notes — e.g. "Log meals by searching or scanning a barcode
+      (food data from Open Food Facts). Optional calorie counting with a
+      personal daily target — off unless you turn it on in Food settings."

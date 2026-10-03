@@ -52,6 +52,7 @@ import com.healthify.app.logs.ActivityType
 import com.healthify.app.logs.LogSource
 import com.healthify.app.logs.MealQuality
 import com.healthify.app.logs.MealType
+import com.healthify.app.nutrition.totals
 import com.healthify.app.score.HealthScore
 import com.healthify.app.streak.StreakManager
 import com.healthify.app.time.DayClock
@@ -366,6 +367,7 @@ fun DashboardScreen(
             water          = s.waterToday,
             waterGoal      = (s.user?.waterGoalGlasses ?: 8).coerceAtLeast(1),
             mealCount      = s.mealsToday.size,
+            mealKcal       = if (s.user?.countCalories == true) s.mealsToday.totals().kcal else null,
             activeMinutes  = s.activeMinutesToday,
             onWater        = viewModel::changeWater,
             onMeal         = { showMealDialog = true },
@@ -411,7 +413,7 @@ fun DashboardScreen(
         MealLogDialog(
             existing    = null,
             initialType = MealType.forHour(java.time.LocalTime.now().hour),
-            onSave      = { type, name, quality ->
+            onSave      = { type, name, quality, _ ->
                 viewModel.saveMeal(type, name, quality)
                 showMealDialog = false
             },
@@ -610,6 +612,8 @@ private fun QuickLogRow(
     water: Int,
     waterGoal: Int,
     mealCount: Int,
+    /** Today's kcal when the user counts calories, else null (no numbers). */
+    mealKcal: Int?,
     activeMinutes: Int,
     onWater: (Int) -> Unit,
     onMeal: () -> Unit,
@@ -654,8 +658,17 @@ private fun QuickLogRow(
         }
         QuickLogTile(
             emoji = "🍽️",
-            value = if (mealCount == 0) "Meal" else "$mealCount",
-            caption = if (mealCount == 0) "Log a meal" else if (mealCount == 1) "meal · add" else "meals · add",
+            value = when {
+                mealKcal != null && mealCount > 0 -> "%,d".format(mealKcal)
+                mealCount == 0 -> "Meal"
+                else -> "$mealCount"
+            },
+            caption = when {
+                mealKcal != null && mealCount > 0 -> "kcal · add"
+                mealCount == 0 -> "Log a meal"
+                mealCount == 1 -> "meal · add"
+                else -> "meals · add"
+            },
             color = Gold,
             onClick = { haptics.tick(); onMeal() },
             modifier = Modifier.weight(1f)

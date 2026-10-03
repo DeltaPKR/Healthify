@@ -14,7 +14,9 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -25,6 +27,7 @@ import com.healthify.app.logs.ActivityType
 import com.healthify.app.logs.MealQuality
 import com.healthify.app.logs.MealType
 import com.healthify.app.ui.theme.*
+import com.healthify.app.units.Units
 
 // Dialogs shared by Home's quick-log row, the Food tab and the Move tab.
 
@@ -39,13 +42,16 @@ private const val MAX_MEAL_NAME = 60
 fun MealLogDialog(
     existing: MealEntryEntity?,
     initialType: MealType,
-    onSave: (type: MealType, name: String, quality: MealQuality) -> Unit,
+    /** [grams] is the edited amount for a food-based entry, else null. */
+    onSave: (type: MealType, name: String, quality: MealQuality, grams: Float?) -> Unit,
     onDelete: (() -> Unit)?,
     onDismiss: () -> Unit,
 ) {
     var type by remember { mutableStateOf(existing?.let { MealType.of(it.mealType) } ?: initialType) }
     var name by remember { mutableStateOf(existing?.name ?: "") }
     var quality by remember { mutableStateOf(MealQuality.of(existing?.quality)) }
+    // Food-based entries (logged from search/scan) can change their amount.
+    var grams by remember { mutableStateOf(existing?.grams?.let { Units.plain(it, 0) } ?: "") }
     val haptics = rememberHaptics()
 
     GlassDialog(onDismiss = onDismiss, accent = Gold) {
@@ -80,6 +86,21 @@ fun MealLogDialog(
             colors = glassFieldColors(Gold)
         )
 
+        if (existing?.grams != null) {
+            Spacer(Modifier.height(16.dp))
+            FieldLabel("Amount")
+            OutlinedTextField(
+                value = grams,
+                onValueChange = { grams = it.filter { c -> c.isDigit() || c == '.' }.take(6) },
+                singleLine = true,
+                suffix = { Text("g", color = TextMuted) },
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal, imeAction = ImeAction.Done),
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp),
+                colors = glassFieldColors(Gold)
+            )
+        }
+
         Spacer(Modifier.height(16.dp))
         FieldLabel("How was it?")
         MealQuality.entries.chunked(2).forEach { row ->
@@ -104,10 +125,12 @@ fun MealLogDialog(
             else GhostButton("Cancel", onDismiss, Modifier.weight(1f))
             GlowButton(
                 text = "Save",
-                onClick = { quality?.let { haptics.confirm(); onSave(type, name.trim(), it) } },
+                onClick = {
+                    quality?.let { haptics.confirm(); onSave(type, name.trim(), it, grams.toFloatOrNull()) }
+                },
                 modifier = Modifier.weight(1f),
                 accent = Gold,
-                enabled = quality != null,
+                enabled = quality != null && (existing?.grams == null || (grams.toFloatOrNull() ?: 0f) in 1f..5000f),
                 height = 52.dp
             )
         }
@@ -189,7 +212,7 @@ fun ActivityLogDialog(
     }
 }
 
-/** Selectable glass tile with an emoji and a label. */
+/** Selectable glass tile with an emoji, a label and an optional [subtitle] line. */
 @Composable
 fun ChoiceTile(
     emoji: String,
@@ -198,6 +221,7 @@ fun ChoiceTile(
     color: Color,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    subtitle: String? = null,
 ) {
     GlassCard(
         modifier,
@@ -212,13 +236,18 @@ fun ChoiceTile(
             horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             Text(emoji, fontSize = 22.sp)
-            Text(
-                label,
-                style = MaterialTheme.typography.titleSmall,
-                color = if (selected) color else TextPrimary,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
+            Column {
+                Text(
+                    label,
+                    style = MaterialTheme.typography.titleSmall,
+                    color = if (selected) color else TextPrimary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                if (subtitle != null) {
+                    Text(subtitle, style = MaterialTheme.typography.bodySmall, color = TextMuted)
+                }
+            }
         }
     }
 }

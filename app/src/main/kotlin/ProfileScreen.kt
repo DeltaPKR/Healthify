@@ -347,6 +347,8 @@ fun ProfileScreen(
                 Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
                     InfoRow("🌿 App", "Healthify v${BuildConfig.VERSION_NAME}")
                     HorizontalDivider(color = Divider)
+                    FoodDataRow()
+                    HorizontalDivider(color = Divider)
                     CloudSyncRow()
                     HorizontalDivider(color = Divider)
                     AccountIdRow()
@@ -758,6 +760,29 @@ private fun AccountIdRow() {
                 modifier = Modifier.size(16.dp)
             )
         }
+    }
+}
+
+/** Attribution for Open Food Facts data (ODbL); opens their site. */
+@Composable
+private fun FoodDataRow() {
+    val ctx = LocalContext.current
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClickLabel = "Open the Open Food Facts website") {
+                try {
+                    ctx.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://world.openfoodfacts.org/")))
+                } catch (_: android.content.ActivityNotFoundException) { }
+            },
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(Modifier.weight(1f)) {
+            Text("🥫 Food data", style = MaterialTheme.typography.bodyMedium, color = TextPrimary)
+            Text("Open Food Facts, under the Open Database License",
+                style = MaterialTheme.typography.bodySmall, color = TextMuted)
+        }
+        Icon(Icons.Default.ChevronRight, null, tint = TextMuted)
     }
 }
 

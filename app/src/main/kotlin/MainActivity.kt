@@ -75,7 +75,14 @@ import com.healthify.app.ui.checkin.CheckInScreen
 import com.healthify.app.ui.dashboard.DashBottomNav
 import com.healthify.app.ui.dashboard.DashboardScreen
 import com.healthify.app.ui.dashboard.DashboardViewModel
+import androidx.navigation.NavType
+import androidx.navigation.navArgument
+import com.healthify.app.logs.MealType
+import com.healthify.app.time.DayClock
+import com.healthify.app.ui.food.FoodAddScreen
+import com.healthify.app.ui.food.FoodAddViewModel
 import com.healthify.app.ui.food.FoodScreen
+import com.healthify.app.ui.food.dayLabel
 import com.healthify.app.ui.insights.InsightsScreen
 import com.healthify.app.ui.move.MoveScreen
 import com.healthify.app.ui.notifications.NotificationsScreen
@@ -120,6 +127,9 @@ object Routes {
     const val CHECK_IN   = "checkin"
     const val PROFILE    = "profile"     // opened from the Home avatar
     const val REMINDERS  = "reminders"   // opened from Profile
+    const val FOOD_ADD   = "food_add/{mealType}/{date}"   // search / scan into one meal slot
+
+    fun foodAdd(type: MealType, date: String) = "food_add/${type.key}/$date"
 }
 
 // Tab order for the swipeable pager. Index here == HorizontalPager page index.
@@ -237,6 +247,23 @@ fun HealthifyNavGraph() {
             }
         }
 
+        composable(
+            Routes.FOOD_ADD,
+            arguments = listOf(
+                navArgument("mealType") { type = NavType.StringType },
+                navArgument("date") { type = NavType.StringType }
+            )
+        ) { entry ->
+            val type = MealType.of(entry.arguments?.getString("mealType").orEmpty())
+            val date = entry.arguments?.getString("date") ?: DayClock.todayIso()
+            val vm: FoodAddViewModel = viewModel(
+                factory = FoodAddViewModel.Factory(app.foodRepository, app.logRepository, repo, date)
+            )
+            PushedPage {
+                FoodAddScreen(vm, type, dayLabel(date), onDone = { navController.popBackStack() })
+            }
+        }
+
         composable(Routes.REMINDERS) {
             PushedPage {
                 NotificationsScreen(
@@ -337,8 +364,10 @@ private fun MainTabs(navController: NavHostController) {
                             onNavigateProfile = { navController.navigate(Routes.PROFILE) }
                         )
                         TAB_FOOD     -> FoodScreen(
-                            logRepo = app.logRepository,
-                            onBack  = { goTo(TAB_HOME) }
+                            logRepo   = app.logRepository,
+                            repo      = repo,
+                            onBack    = { goTo(TAB_HOME) },
+                            onAddFood = { type, date -> navController.navigate(Routes.foodAdd(type, date)) }
                         )
                         TAB_MOVE     -> MoveScreen(
                             logRepo         = app.logRepository,
