@@ -4,15 +4,15 @@ A calm daily wellness tracker for Android. One check-in a day — mood,
 water, food, sleep, and a rating of how the day went — turned into a
 wellness score, a streak, and a weekly trend.
 
-**Status:** production on Google Play. Current release 1.1.0
-(versionCode 18): database upgrades that keep history (Room migrations
-replace the old wipe-on-upgrade), working imperial units, and Health
-Connect sleep used directly in the check-in.
+**Status:** production on Google Play. Current release 1.2.0
+(versionCode 19): log water, meals and activities any time — Home quick-log,
+new Food and Move tabs, "+1 glass" on water reminders — and an evening
+check-in that fills itself in from those logs.
 
 | | |
 |---|---|
 | Package | `com.DeltaPKR.Healthify` |
-| Current version | 1.1.0 (18) |
+| Current version | 1.2.0 (19) |
 | Min / target SDK | 26 (Android 8.0) / 36 |
 | Privacy policy | https://deltapkr.github.io/Healthify/privacy/ |
 | Publisher | DeltaPKR — deltapkr.developer@gmail.com |
