@@ -4,16 +4,15 @@ A calm daily wellness tracker for Android. One check-in a day — mood,
 water, food, sleep, and a rating of how the day went — turned into a
 wellness score, a streak, and a weekly trend.
 
-**Status:** production on Google Play. Current release 1.3.0
-(versionCode 20): add meals by searching Open Food Facts or by barcode
-(Google Code Scanner, no camera permission), keep your own foods, and
-count calories against a personal daily target if you want to — off
-unless turned on.
+**Status:** production on Google Play. Current release 1.4.0
+(versionCode 21): workouts on the Move tab — ten built-in routines or
+your own, an exercise library of ~870 exercises, and a set-by-set
+workout player with rest timer and personal records.
 
 | | |
 |---|---|
 | Package | `com.DeltaPKR.Healthify` |
-| Current version | 1.3.0 (20) |
+| Current version | 1.4.0 (21) |
 | Min / target SDK | 26 (Android 8.0) / 36 |
 | Privacy policy | https://deltapkr.github.io/Healthify/privacy/ |
 | Publisher | DeltaPKR — deltapkr.developer@gmail.com |
@@ -35,6 +34,12 @@ unless turned on.
   Facts search, a barcode or your own list, in servings, grams or
   ounces. Calorie counting is optional (Mifflin-St Jeor estimate or your
   own target) and never feeds the wellness score.
+- **Move.** Steps against the goal, active minutes for the week, and
+  workouts: ten built-in routines (mobility to barbell 5×5) or your own,
+  an exercise library bundled from free-exercise-db (public domain), and
+  a player that saves each set as it's ticked, shows last time's numbers,
+  runs rest and timed-set timers, and marks personal records (heaviest,
+  estimated 1-rep max, most reps, longest hold).
 - **Reminders.** Water, movement, check-in and wind-down nudges on exact
   alarms, surviving reboot and app update.
 - **Insights.** Wellness-trend chart, 7-day averages and goal progress,
