@@ -55,21 +55,28 @@ device; only the daily summary saved with a check-in is synced.
 
 ## Health Connect — minimum scope
 
-The app requests exactly two read permissions and no write permissions:
+The app requests exactly two read permissions and one optional write:
 
 | Permission | Rendered by | Also feeds |
 |---|---|---|
 | `health.READ_STEPS` | Dashboard step card vs. the user's step goal | Wellness score (≤20 pts) |
 | `health.READ_SLEEP` | Dashboard sleep card, last night's total | Wellness score (≤20 pts) |
+| `health.WRITE_EXERCISE` | Move settings → "Save to Health Connect" (off by default) | Finished workouts and logged activities written as exercise sessions |
 
-**Do not add a third without shipping a screen that renders it.** Google
+The write is requested on its own, never with the reads: from Move
+settings or the one-time offer on a workout summary
+(`WorkoutHealthSync`, `HealthConnectWriteUi.kt`). Each session is written
+with its `syncId` as the client record id, so edits and deletes follow.
+
+**Do not add another data type without shipping a screen that uses it.** Google
 rejected 1.0.14 for declaring `READ_HEART_RATE`, `READ_DISTANCE` and
 `READ_ACTIVE_CALORIES_BURNED` under *"Excessive data access for declared
 feature"*; distance and calories had no code behind them at all. The
 manifest, `HealthConnectManager.requiredPermissions`,
 `HealthConnectManager.permissionRationales`, the in-app rationale dialog
 and the Play declaration in `docs/PLAY_CONSOLE.md` §7 must all list the
-same set. See `docs/PLAY_CONSOLE.md` §12 for the full post-mortem.
+same set (the write lives in `WorkoutHealthSync` and its own settings
+screen instead). See `docs/PLAY_CONSOLE.md` §12 for the full post-mortem.
 
 Granting is optional — decline it and the app still works, with steps and
 sleep entered by hand.
@@ -97,7 +104,7 @@ Compose BOM 2024.06.00      UI
 Navigation Compose 2.7.7    Screen routing
 Room 2.6.1 (KSP)            Local SQLite
 WorkManager 2.9.0           Background scheduling
-Health Connect 1.1.0        Steps + sleep
+Health Connect 1.1.0        Steps + sleep; optional workout write
 Firebase BOM 33.1.0         Firestore, Auth, Crashlytics, Analytics
 DataStore 1.1.1             Preferences
 Accompanist 0.34.0          Runtime permissions

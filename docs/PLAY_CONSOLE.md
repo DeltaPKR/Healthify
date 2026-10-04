@@ -146,8 +146,8 @@ and offline state detection.
 
 ### Health Connect permissions
 
-`READ_STEPS` and `READ_SLEEP`. Nothing else. See the health apps declaration
-below.
+`READ_STEPS` and `READ_SLEEP`, and since 1.4.1 `WRITE_EXERCISE`. Nothing
+else. See the health apps declaration below.
 
 > **History — do not regress.** Up to 1.0.14 the manifest also declared
 > `READ_HEART_RATE`, `READ_DISTANCE` and `READ_ACTIVE_CALORIES_BURNED`.
@@ -157,8 +157,9 @@ below.
 > *"Excessive data access for declared feature"* and *"Insufficient
 > Information to Determine App Functionality"* — naming exactly those
 > three data types. 1.0.15 removes all three from the manifest and the
-> code. Keep this list identical to
-> `HealthConnectManager.requiredPermissions`.
+> code. Keep the reads identical to
+> `HealthConnectManager.requiredPermissions`; the one write is
+> `WorkoutHealthSync.writePermission`, requested separately.
 
 ---
 
@@ -199,7 +200,12 @@ below.
 > both are inputs to the wellness score that is stored with each
 > check-in.
 >
-> Healthify requests two read permissions and no write permissions.
+> Healthify requests two read permissions and one write permission.
+> The write is optional and off by default: when the user turns on "Save
+> to Health Connect" in Move settings (or accepts the offer shown after a
+> finished workout), the workouts and activities they log in Healthify
+> are added to Health Connect as exercise sessions, so their other health
+> and fitness apps can see them.
 
 ### Per-record-type justification (paste each verbatim)
 
@@ -227,6 +233,21 @@ and the daily wellness score.
 > permission the sleep card is empty and the user must enter sleep hours
 > manually.
 
+**Exercise (`WRITE_EXERCISE`, since 1.4.1)** — Optional; saves the user's
+workouts to Health Connect.
+> Off by default and requested on its own, never together with the two
+> reads: only when the user turns on "Save to Health Connect" in Move
+> settings or taps "Turn on" on the offer shown after finishing a
+> workout. Each finished workout from the workout player, and each
+> activity logged by type and minutes, is written as one exercise
+> session: exercise type, title, start and end time — no sets, weights,
+> notes or calorie estimates. Each record carries the workout's own id,
+> so editing a workout in Healthify updates its copy and deleting it
+> deletes the copy. Turning the setting on also saves workouts logged
+> earlier. Healthify does not read exercise sessions back and holds no
+> exercise read permission. Without this permission workouts stay in
+> Healthify only.
+
 **No other Health Connect data types are requested.** Heart rate,
 distance and active calories were removed in version 1.0.15.
 
@@ -238,12 +259,15 @@ distance and active calories were removed in version 1.0.15.
   the user checks in with (e.g. total steps and sleep hours for that day)
   is written to Firestore as part of the check-in record, under an
   anonymous account with no name, email or phone number.
-- The app holds **no write permissions** — it never writes to Health
-  Connect.
+- The one write permission, exercise, is used only after the user turns
+  it on, and only for workouts and activities they logged in Healthify.
+  Writes happen when a workout is saved, edited or deleted, or at app
+  launch to catch up on ones that failed; there is no other background
+  work.
 - Health data is excluded from Android cloud backup and device transfer
   (`backup_rules.xml` / `data_extraction_rules.xml`).
 - Users can request full deletion at deltapkr.developer@gmail.com, and
-  can revoke either permission at any time in Health Connect.
+  can revoke any permission at any time in Health Connect.
 
 ### In-app rationale (what a reviewer will see)
 On first launch, before the system Health Connect sheet appears, the app
@@ -251,6 +275,13 @@ shows its own dialog naming each data type and what it is used for
 (`HealthConnectRationaleDialog` in `MainActivity.kt`, driven by
 `HealthConnectManager.permissionRationales`). Manifest, rationale dialog
 and this declaration are all kept in sync with that one list.
+
+The exercise write is asked separately and in context: Move tab → settings
+button (top right) → **Save to Health Connect** (`MoveSettingsDialog` in
+`HealthConnectWriteUi.kt`), which lists what is and isn't saved before the
+switch asks for the permission, or the one-time **Add workouts to Health
+Connect?** card on the summary after a workout. Health Connect's privacy
+policy link opens the privacy policy (`HealthPrivacyActivity`).
 
 Whenever Health Connect is installed but the permissions are not granted,
 the dashboard shows a **"Fill in steps and sleep automatically"** card
@@ -267,6 +298,11 @@ Required by Play. Capture a 30–60s screen recording showing, in order:
    Health Connect.
 4. The daily check-in screen where those values are persisted, and the
    resulting wellness score / streak.
+5. (1.4.1, exercise write) Move tab → settings → "Save to Health
+   Connect": the explanation, the switch, the system sheet asking only
+   for exercise; then finish a short workout and show it in Health
+   Connect (Settings → Health Connect → Data and access → Activity →
+   Exercise), with Healthify as the source.
 
 Make sure the test device has real (or seeded) step and sleep data in
 Health Connect before recording — an empty dashboard is what triggered
@@ -495,3 +531,37 @@ Health Connect data types (writing workouts to Health Connect is 1.4.1).
 - [ ] Release notes — e.g. "Workouts are here: 10 ready-made routines or
       your own, 870+ exercises with how-tos, a set-by-set player with rest
       timer, and personal records."
+
+## 16. Release 1.4.1 (versionCode 22) — save workouts to Health Connect
+
+What changed for users: an optional "Save to Health Connect" switch in
+Move settings (also offered once after a finished workout). When on,
+finished workouts and logged activities are written to Health Connect as
+exercise sessions — type, title, start and end time — and edits and
+deletes follow. Also: Health Connect's privacy policy link now opens the
+privacy policy, and Android 13-and-lower devices get the permissions
+rationale activity Health Connect expects.
+
+**New permission:** `android.permission.health.WRITE_EXERCISE`. This is
+the release that can be rejected, so it ships on its own.
+
+**Before uploading:**
+
+- [ ] Health apps declaration (§7): add the **Exercise (WRITE_EXERCISE)**
+      justification, replace "Core app functionality" with the current
+      copy, and update the data-handling answers (the app now writes).
+      If the form's first page asks which features write data, tick the
+      fitness/activity one.
+- [ ] Demo video (§7 item 5): record the write flow and upload it with the
+      declaration.
+- [ ] Data safety (§5): no change. Health Connect is on the device;
+      nothing new leaves it.
+- [ ] Privacy policy: `docs/privacy/` now says workouts can be written to
+      Health Connect. Check the live GitHub Pages copy after the push.
+- [ ] Firestore rules: nothing to deploy.
+- [ ] Release notes — e.g. "Your workouts can now be saved to Health
+      Connect, so your other fitness apps see them too. Turn it on in Move
+      settings."
+- [ ] Roll out to internal testing first and turn the switch on from a
+      Play-installed build, on Android 14+ and, if you have one, an
+      Android 13-or-lower phone with the Health Connect app.

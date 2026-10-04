@@ -379,6 +379,7 @@ fun HealthifyNavGraph() {
             PushedPage {
                 WorkoutSummaryScreen(
                     repo         = workouts,
+                    healthSync   = app.workoutHealthSync,
                     sessionId    = entry.arguments?.getLong("sessionId") ?: 0L,
                     fresh        = entry.arguments?.getBoolean("fresh") == true,
                     unit         = UnitSystem.of(user?.unitSystem),
@@ -507,6 +508,7 @@ private fun MainTabs(navController: NavHostController) {
                         TAB_MOVE     -> MoveScreen(
                             logRepo         = app.logRepository,
                             workoutRepo     = app.workoutRepository,
+                            healthSync      = app.workoutHealthSync,
                             stepsToday      = dashVm.uiState.stepsToday,
                             stepGoal        = dashVm.uiState.user?.stepGoal ?: 10_000,
                             healthConnected = dashVm.uiState.healthConnectConnected,
@@ -679,11 +681,11 @@ private fun HealthConnectRationaleDialog(
         }
         Spacer(Modifier.height(4.dp))
         Text(
-            "Read-only — Healthify never writes to Health Connect. Your " +
-            "readings stay on this device; only the daily totals you " +
-            "check in with are synced. You grant each type separately on " +
-            "the next screen, and you can revoke them any time in Health " +
-            "Connect.",
+            "Read-only. Your readings stay on this device; only the daily " +
+            "totals you check in with are synced. You grant each type " +
+            "separately on the next screen, and you can revoke them any " +
+            "time in Health Connect. Saving your workouts to Health " +
+            "Connect is a separate choice, in Move settings.",
             style = MaterialTheme.typography.bodySmall,
             color = TextMuted
         )

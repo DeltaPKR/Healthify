@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.room.withTransaction
 import com.healthify.app.data.db.*
 import com.healthify.app.firebase.FirebaseSync
+import com.healthify.app.health.WorkoutHealthSync
 import com.healthify.app.logs.ActivityType
 import com.healthify.app.logs.LogSource
 import com.healthify.app.time.DayClock
@@ -36,6 +37,8 @@ class WorkoutRepository(
     private val context: Context,
     private val db: AppDatabase,
     private val syncScope: CoroutineScope,
+    /** Copies finished workouts to Health Connect when that's turned on. */
+    private val healthSync: WorkoutHealthSync? = null,
 ) {
     private val sessions = db.workoutDao()
     private val setDao = db.workoutSetDao()
@@ -216,6 +219,7 @@ class WorkoutRepository(
             done to setDao.forSession(sessionId)
         } ?: return null
         syncScope.launch { FirebaseSync.syncWorkout(finished, sets) }
+        healthSync?.requestSync()
         return finished
     }
 
@@ -224,11 +228,12 @@ class WorkoutRepository(
         sessions.byId(sessionId)?.takeIf { it.endedAt == null }?.let { sessions.delete(it) }
     }
 
-    /** Deletes a finished workout, its sets and its Firestore copy. */
+    /** Deletes a finished workout, its sets and its Firestore and Health Connect copies. */
     suspend fun delete(sessionId: Long) {
         val s = sessions.byId(sessionId) ?: return
         sessions.delete(s)
         syncScope.launch { FirebaseSync.deleteWorkout(s.syncId) }
+        healthSync?.onDeleted(s)
     }
 
     suspend fun summary(sessionId: Long): WorkoutSummary? {

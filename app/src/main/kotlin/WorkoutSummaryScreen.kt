@@ -16,7 +16,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.healthify.app.health.WorkoutHealthSync
 import com.healthify.app.logs.ActivityType
+import com.healthify.app.ui.move.HealthConnectOffer
 import com.healthify.app.ui.theme.*
 import com.healthify.app.units.UnitSystem
 import com.healthify.app.workout.*
@@ -36,6 +38,7 @@ private val Accent = Green
 @Composable
 fun WorkoutSummaryScreen(
     repo: WorkoutRepository,
+    healthSync: WorkoutHealthSync,
     sessionId: Long,
     fresh: Boolean,
     unit: UnitSystem,
@@ -43,6 +46,8 @@ fun WorkoutSummaryScreen(
     onDone: () -> Unit,
 ) {
     val summary by produceState<WorkoutSummary?>(null, sessionId) { value = repo.summary(sessionId) }
+    // Live row, for hcSyncedAt: the Health Connect write lands after finishing.
+    val live by remember(sessionId) { repo.sessionFlow(sessionId) }.collectAsState(initial = null)
     val scope = rememberCoroutineScope()
     var askDelete by remember { mutableStateOf(false) }
     var confetti by remember { mutableIntStateOf(0) }
@@ -101,6 +106,8 @@ fun WorkoutSummaryScreen(
                     }
                 }
 
+                if (fresh) HealthConnectOffer(healthSync)
+
                 if (records.isNotEmpty() || sum.firstTimes.isNotEmpty()) {
                     GlassCard(Modifier.fillMaxWidth(), tint = Gold) {
                         Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -143,6 +150,9 @@ fun WorkoutSummaryScreen(
                 if (showCalories && session.kcalEstimate != null) {
                     Text("Calories are a rough estimate from the activity type, your weight and the time.",
                         style = MaterialTheme.typography.bodySmall, color = TextDim)
+                }
+                if (live?.hcSyncedAt != null) {
+                    Text("🔗 Saved to Health Connect", style = MaterialTheme.typography.bodySmall, color = TextDim)
                 }
                 Spacer(Modifier.height(LocalBottomBarClearance.current + 8.dp))
             }

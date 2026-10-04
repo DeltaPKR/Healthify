@@ -85,10 +85,11 @@ PERMISSIONS WE ASK FOR
 • Notifications — to deliver your reminders.
 • Exact alarms — so reminders fire at the precise minute you set.
 • Boot completed — to re-arm reminders after a reboot.
-• Health Connect — Steps and Sleep only. Read-only, granted separately,
+• Health Connect — reads Steps and Sleep only, granted separately,
   revocable any time, and used solely to fill in the dashboard and your
-  wellness score. We ask for nothing else: no heart rate, no distance,
-  no calories, no location.
+  wellness score. Optionally, only if you turn it on in Move settings,
+  saves your workouts there as exercise sessions. We ask for nothing
+  else: no heart rate, no distance, no calories, no location.
 
 PERMISSIONS WE WILL NEVER ASK FOR
 

@@ -14,24 +14,30 @@
 
     <!-- ── Health Connect ──────────────────────────────────────────────── -->
     <!--
-      MINIMUM SCOPE. Exactly two read permissions, one per dashboard metric:
+      MINIMUM SCOPE. Two reads, one per dashboard metric, and one write:
 
-        READ_STEPS  → today's step count on the dashboard, compared against
-                      the user's daily step goal, and one of the two Health
-                      Connect inputs to the wellness score stored with each
-                      daily check-in.
-        READ_SLEEP  → last night's total sleep hours on the dashboard, and
-                      the second input to that same wellness score.
+        READ_STEPS     → today's step count on the dashboard, compared
+                         against the user's daily step goal, and one of the
+                         two Health Connect inputs to the wellness score
+                         stored with each daily check-in.
+        READ_SLEEP     → last night's total sleep hours on the dashboard,
+                         and the second input to that same wellness score.
+        WRITE_EXERCISE → (1.4.1) saves finished workouts and logged
+                         activities as exercise sessions. Off by default;
+                         requested on its own when the user turns on
+                         "Save to Health Connect" in Move settings or on a
+                         workout summary (WorkoutHealthSync).
 
-      No write permissions. No background reads. Do NOT add a data type here
-      unless a shipped screen actually renders it — Play rejects
-      declared-but-unused Health Connect permissions under the "Excessive
-      data access for declared feature" rule. READ_HEART_RATE, READ_DISTANCE
-      and READ_ACTIVE_CALORIES_BURNED were declared but never read by any
-      code path; they were removed in 1.0.15 for exactly that reason.
+      No background reads. Do NOT add a data type here unless a shipped
+      screen actually uses it — Play rejects declared-but-unused Health
+      Connect permissions under the "Excessive data access for declared
+      feature" rule. READ_HEART_RATE, READ_DISTANCE and
+      READ_ACTIVE_CALORIES_BURNED were declared but never read by any code
+      path; they were removed in 1.0.15 for exactly that reason.
     -->
     <uses-permission android:name="android.permission.health.READ_STEPS" />
     <uses-permission android:name="android.permission.health.READ_SLEEP" />
+    <uses-permission android:name="android.permission.health.WRITE_EXERCISE" />
 
     <!-- ── Strip Firebase-injected advertising-ID + AdServices permissions ─
          Firebase Analytics's manifest declares com.google.android.gms.permission.AD_ID
@@ -85,11 +91,31 @@
             </intent-filter>
         </activity>
 
-        <!-- ── Health Connect: required for permission usage screen ──── -->
+        <!-- ── Health Connect: privacy policy link ─────────────────────── -->
+        <!--
+          Health Connect's "privacy policy" link opens this; it must show the
+          same policy as the Play listing, so it opens that page and closes.
+          ACTION_SHOW_PERMISSIONS_RATIONALE is how the Health Connect app on
+          Android 13 and lower reaches it (and it expects an app to handle it
+          before showing that app's permission sheet). The alias below is the
+          Android 14+ route. Up to 1.4.0 the alias opened MainActivity and
+          there was no rationale filter.
+        -->
+        <activity
+            android:name=".HealthPrivacyActivity"
+            android:exported="true"
+            android:excludeFromRecents="true"
+            android:noHistory="true"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar">
+            <intent-filter>
+                <action android:name="androidx.health.ACTION_SHOW_PERMISSIONS_RATIONALE" />
+            </intent-filter>
+        </activity>
+
         <activity-alias
             android:name="ViewPermissionUsageActivity"
             android:exported="true"
-            android:targetActivity=".MainActivity"
+            android:targetActivity=".HealthPrivacyActivity"
             android:permission="android.permission.START_VIEW_PERMISSION_USAGE">
             <intent-filter>
                 <action android:name="android.intent.action.VIEW_PERMISSION_USAGE" />

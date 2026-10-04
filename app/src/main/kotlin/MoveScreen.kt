@@ -13,6 +13,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.ChevronRight
+import androidx.compose.material.icons.rounded.Tune
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -30,6 +31,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.healthify.app.data.db.WorkoutSessionEntity
 import com.healthify.app.data.repository.LogRepository
+import com.healthify.app.health.WorkoutHealthSync
 import com.healthify.app.logs.ActivityType
 import com.healthify.app.logs.LogSource
 import com.healthify.app.logs.WEEKLY_ACTIVE_MINUTES_TARGET
@@ -61,6 +63,7 @@ private val StepsTint = Color(0xFF5BF5C4)
 fun MoveScreen(
     logRepo: LogRepository,
     workoutRepo: WorkoutRepository,
+    healthSync: WorkoutHealthSync,
     stepsToday: Int,
     stepGoal: Int,
     healthConnected: Boolean,
@@ -83,9 +86,14 @@ fun MoveScreen(
     val scope = rememberCoroutineScope()
     var adding by remember { mutableStateOf(false) }
     var editing by remember { mutableStateOf<WorkoutSessionEntity?>(null) }
+    var showSettings by remember { mutableStateOf(false) }
 
     Scaffold(
-        topBar = { TabHeader("Move", kicker = "Today's activity", onBack = onBack) },
+        topBar = {
+            TabHeader("Move", kicker = "Today's activity", onBack = onBack) {
+                GlassIconButton(Icons.Rounded.Tune, "Move settings", { showSettings = true }, tint = Sky)
+            }
+        },
         containerColor = Color.Transparent,
         contentWindowInsets = WindowInsets(0)
     ) { pad ->
@@ -121,6 +129,7 @@ fun MoveScreen(
         }
     }
 
+    if (showSettings) MoveSettingsDialog(healthSync, onDismiss = { showSettings = false })
     if (adding) {
         ActivityLogDialog(
             existing  = null,

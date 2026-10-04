@@ -15,6 +15,7 @@ import com.healthify.app.firebase.FirebaseSync
 import com.healthify.app.food.FoodRepository
 import com.healthify.app.food.OpenFoodFactsClient
 import com.healthify.app.health.HealthConnectManager
+import com.healthify.app.health.WorkoutHealthSync
 import com.healthify.app.notifications.NotificationChannels
 import com.healthify.app.notifications.NotificationScheduler
 import com.healthify.app.score.HealthScore
@@ -50,7 +51,7 @@ class HealthifyApp : Application() {
         )
     }
 
-    val logRepository by lazy { LogRepository(database, appScope) }
+    val logRepository by lazy { LogRepository(database, appScope, workoutHealthSync) }
 
     val foodRepository by lazy {
         FoodRepository(
@@ -63,10 +64,13 @@ class HealthifyApp : Application() {
         )
     }
 
-    val workoutRepository by lazy { WorkoutRepository(this, database, appScope) }
+    val workoutRepository by lazy { WorkoutRepository(this, database, appScope, workoutHealthSync) }
 
     // ── Health Connect ───────────────────────────────────────────────────────
     val healthConnectManager by lazy { HealthConnectManager(this) }
+
+    /** Writes workouts to Health Connect once the user turns it on (Move settings). */
+    val workoutHealthSync by lazy { WorkoutHealthSync(this, database, healthConnectManager, appScope) }
 
     override fun onCreate() {
         super.onCreate()
@@ -132,6 +136,9 @@ class HealthifyApp : Application() {
                 NotificationScheduler.schedule(this@HealthifyApp, reminder)
             }
             foodRepository.prune()
+            // Health Connect writes that failed or were queued while it was
+            // unavailable. Returns at once while the setting is off.
+            workoutHealthSync.syncPending()
         }
 
         // Sign in to Firebase anonymously (offline-safe). Independent of

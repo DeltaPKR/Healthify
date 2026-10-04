@@ -3,6 +3,7 @@ package com.healthify.app.data.repository
 import androidx.room.withTransaction
 import com.healthify.app.data.db.*
 import com.healthify.app.firebase.FirebaseSync
+import com.healthify.app.health.WorkoutHealthSync
 import com.healthify.app.logs.ActivityType
 import com.healthify.app.logs.LogSource
 import com.healthify.app.logs.MealQuality
@@ -28,6 +29,8 @@ import kotlinx.coroutines.launch
 class LogRepository(
     private val db: AppDatabase,
     private val syncScope: CoroutineScope,
+    /** Copies finished activities to Health Connect when that's turned on. */
+    private val healthSync: WorkoutHealthSync? = null,
 ) {
     private val waterDao   = db.waterLogDao()
     private val mealDao    = db.mealDao()
@@ -148,15 +151,24 @@ class LogRepository(
         WorkoutMath.kcal(type.met, userDao.getUserOnce()?.weightKg ?: 0f, minutes)
 
     suspend fun saveWorkout(session: WorkoutSessionEntity): WorkoutSessionEntity {
-        val stamped = session.copy(updatedAt = System.currentTimeMillis())
+        // Keep the stored hcSyncedAt: the caller's copy may predate the
+        // Health Connect write, and losing it would orphan that copy.
+        val stored = if (session.id != 0L) workoutDao.byId(session.id) else null
+        val stamped = session.copy(
+            updatedAt  = System.currentTimeMillis(),
+            hcSyncedAt = stored?.hcSyncedAt ?: session.hcSyncedAt
+        )
         val rowId = workoutDao.upsert(stamped)
         val saved = if (stamped.id == 0L) stamped.copy(id = rowId) else stamped
         syncScope.launch { FirebaseSync.syncWorkout(saved) }
+        if (saved.endedAt != null) healthSync?.requestSync()
         return saved
     }
 
     suspend fun deleteWorkout(session: WorkoutSessionEntity) {
-        workoutDao.delete(session)
-        syncScope.launch { FirebaseSync.deleteWorkout(session.syncId) }
+        val stored = workoutDao.byId(session.id) ?: session
+        workoutDao.delete(stored)
+        syncScope.launch { FirebaseSync.deleteWorkout(stored.syncId) }
+        healthSync?.onDeleted(stored)
     }
 }

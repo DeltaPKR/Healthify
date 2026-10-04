@@ -47,7 +47,7 @@ All of these are stored locally on the device in an SQLite database
 (`healthify.db`). A copy is synced to Firebase Firestore under an anonymous
 identifier so the same account can be used across devices.
 
-### 1.2 Information read from Health Connect
+### 1.2 Health Connect
 With your explicit per-data-type permission, Healthify reads the following
 record types from Android Health Connect:
 
@@ -56,8 +56,8 @@ record types from Android Health Connect:
 | Steps                 | Today's step count on the home dashboard, measured against your step goal, and one of the two automatic inputs to your daily wellness score |
 | Sleep sessions        | Last night's total sleep hours on the home dashboard, and the second automatic input to your daily wellness score |
 
-These are the only two Health Connect record types Healthify requests. It
-does **not** request heart rate, distance, active calories, weight,
+These are the only two Health Connect record types Healthify reads. It
+does **not** read heart rate, distance, active calories, weight,
 height, blood glucose, oxygen saturation, menstruation, nutrition,
 exercise sessions, or any other record type. Heart rate, distance and
 active calories were requested by versions up to 1.0.14 and were removed
@@ -68,9 +68,21 @@ later in the Health Connect app, Healthify keeps working — you enter
 steps and sleep manually on the check-in screen instead.
 
 Health Connect data is read **on demand**, summarised, and the summary is
-stored alongside your check-in record. **The app does not write data back
-to Health Connect** and does not export raw Health Connect records to
-Firestore — only the daily summary (e.g. "12 345 steps today") is synced.
+stored alongside your check-in record. Healthify does not export raw Health
+Connect records to Firestore — only the daily summary (e.g. "12 345 steps
+today") is synced.
+
+**Saving workouts to Health Connect (optional, off by default).** If you
+turn on "Save to Health Connect" in the Move tab's settings, Healthify asks
+for Health Connect's exercise write permission and then writes each workout
+you finish and each activity you log as an exercise session: its type,
+title, start and end time. Sets, weights, notes and calorie estimates are
+not written. Workouts you logged before turning it on are written too.
+Editing or deleting a workout in Healthify updates or deletes its copy.
+Healthify does not read exercise sessions back. Once written, a session is
+in Health Connect on your device, where apps you allow to read exercise can
+see it. Turning the setting off stops new writes; sessions already written
+stay until you delete them in Health Connect.
 
 ### 1.3 Information collected automatically
 
@@ -147,7 +159,7 @@ We use the following sub-processors. We do not share data with anyone else.
 | Sub-processor             | Purpose                       | Data shared                            |
 |---------------------------|-------------------------------|----------------------------------------|
 | Google / Firebase         | Auth, Firestore, Crashlytics, Analytics | Anonymous UID, check-in summaries, water/meal/activity/workout logs, routines, crash reports |
-| Android Health Connect    | On-device data source         | Per-permission read access; data is read only, not written |
+| Android Health Connect    | On-device health data store   | Reads steps and sleep with your permission; writes workouts as exercise sessions only if you turn that on. Stays on your device |
 | Open Food Facts (non-profit food database) | Food search and barcode lookup | The search text or barcode you look up, and your IP address as part of the connection. No account, UID or health data is sent. Their privacy policy: https://world.openfoodfacts.org/privacy |
 | Google Code Scanner (Google Play services) | Reading a barcode with the camera | Runs inside Google Play services under Google's privacy policy; Healthify receives only the barcode number |
 
@@ -165,6 +177,8 @@ You can, at any time:
 
 - **Revoke Health Connect access** — Android system settings → Health Connect →
   Permissions → Healthify.
+- **Stop saving workouts to Health Connect** — Move tab → settings → Save
+  to Health Connect. Delete saved sessions in the Health Connect app.
 - **Disable notifications** — Android system settings → Apps → Healthify →
   Notifications.
 - **Delete your data** — Uninstall the app to remove the local database.

@@ -141,6 +141,18 @@ interface WorkoutDao {
     @Query("SELECT * FROM workout_sessions WHERE endedAt IS NULL AND source = 'workout' ORDER BY startedAt DESC LIMIT 1")
     suspend fun active(): WorkoutSessionEntity?
 
+    /** Finished sessions not yet written to Health Connect, or edited since. */
+    @Query(
+        """SELECT * FROM workout_sessions
+           WHERE endedAt IS NOT NULL AND (hcSyncedAt IS NULL OR hcSyncedAt < updatedAt)
+           ORDER BY startedAt, id LIMIT :limit"""
+    )
+    suspend fun pendingHealthSync(limit: Int): List<WorkoutSessionEntity>
+
+    /** Marks [id] written, unless it was edited after [version] was read. */
+    @Query("UPDATE workout_sessions SET hcSyncedAt = :at WHERE id = :id AND updatedAt = :version")
+    suspend fun markHealthSynced(id: Long, version: Long, at: Long)
+
     @Upsert
     suspend fun upsert(session: WorkoutSessionEntity): Long
 

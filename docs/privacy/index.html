@@ -145,7 +145,7 @@ and your rights regarding that information.</p>
 (<code>healthify.db</code>). A copy is synced to Firebase Firestore under an
 anonymous identifier so the same account can be used across devices.</p>
 
-<h3>1.2 Information read from Health Connect</h3>
+<h3>1.2 Health Connect</h3>
 <p>With your explicit per-data-type permission, Healthify reads the following
 record types from Android Health Connect:</p>
 <table>
@@ -155,8 +155,8 @@ record types from Android Health Connect:</p>
     <tr><td>Sleep sessions</td> <td>Last night's total sleep hours on the home dashboard, and the second automatic input to your daily wellness score</td></tr>
   </tbody>
 </table>
-<p>These are the only two Health Connect record types Healthify requests. It
-does <strong>not</strong> request heart rate, distance, active calories, weight,
+<p>These are the only two Health Connect record types Healthify reads. It
+does <strong>not</strong> read heart rate, distance, active calories, weight,
 height, blood glucose, oxygen saturation, menstruation, nutrition, exercise
 sessions, or any other record type. Heart rate, distance and active calories
 were requested by versions up to 1.0.14 and were removed in 1.0.15.</p>
@@ -164,10 +164,20 @@ were requested by versions up to 1.0.14 and were removed in 1.0.15.</p>
 later in the Health Connect app, Healthify keeps working — you enter steps
 and sleep manually on the check-in screen instead.</p>
 <p>Health Connect data is read <strong>on demand</strong>, summarised, and the
-summary is stored alongside your check-in record. <strong>The app does not
-write data back to Health Connect</strong> and does not export raw Health
-Connect records to Firestore — only the daily summary (e.g. "12 345 steps
-today") is synced.</p>
+summary is stored alongside your check-in record. Healthify does not export
+raw Health Connect records to Firestore — only the daily summary (e.g.
+"12 345 steps today") is synced.</p>
+<p><strong>Saving workouts to Health Connect (optional, off by default).</strong>
+If you turn on "Save to Health Connect" in the Move tab's settings, Healthify
+asks for Health Connect's exercise write permission and then writes each
+workout you finish and each activity you log as an exercise session: its type,
+title, start and end time. Sets, weights, notes and calorie estimates are not
+written. Workouts you logged before turning it on are written too. Editing or
+deleting a workout in Healthify updates or deletes its copy. Healthify does not
+read exercise sessions back. Once written, a session is in Health Connect on
+your device, where apps you allow to read exercise can see it. Turning the
+setting off stops new writes; sessions already written stay until you delete
+them in Health Connect.</p>
 
 <h3>1.3 Information collected automatically</h3>
 <ul>
@@ -234,8 +244,8 @@ installation files. Your health data does not roam through Google account backup
         <td>Auth, Firestore, Crashlytics, Analytics</td>
         <td>Anonymous UID, check-in summaries, water/meal/activity/workout logs, routines, crash reports</td></tr>
     <tr><td>Android Health Connect</td>
-        <td>On-device data source</td>
-        <td>Per-permission read access; data is read only, not written</td></tr>
+        <td>On-device health data store</td>
+        <td>Reads steps and sleep with your permission; writes workouts as exercise sessions only if you turn that on. Stays on your device</td></tr>
     <tr><td>Open Food Facts (non-profit food database)</td>
         <td>Food search and barcode lookup</td>
         <td>The search text or barcode you look up, and your IP address as part of the connection. No account, UID or health data is sent. Their privacy policy: <a href="https://world.openfoodfacts.org/privacy">world.openfoodfacts.org/privacy</a></td></tr>
@@ -252,6 +262,7 @@ installation files. Your health data does not roam through Google account backup
 <p>You can, at any time:</p>
 <ul>
   <li><strong>Revoke Health Connect access</strong> — Android system settings → Health Connect → Permissions → Healthify.</li>
+  <li><strong>Stop saving workouts to Health Connect</strong> — Move tab → settings → Save to Health Connect. Delete saved sessions in the Health Connect app.</li>
   <li><strong>Disable notifications</strong> — Android system settings → Apps → Healthify → Notifications.</li>
   <li><strong>Delete your data</strong> — Uninstall the app to remove the local database. To delete the synced copy on Firestore, email
       <a href="mailto:deltapkr.developer@gmail.com">deltapkr.developer@gmail.com</a>

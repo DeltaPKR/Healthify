@@ -4,6 +4,8 @@ import android.content.Context
 import android.util.Log
 import androidx.health.connect.client.HealthConnectClient
 import androidx.health.connect.client.permission.HealthPermission
+import androidx.health.connect.client.records.ExerciseSessionRecord
+import androidx.health.connect.client.records.Record
 import androidx.health.connect.client.records.SleepSessionRecord
 import androidx.health.connect.client.records.StepsRecord
 import androidx.health.connect.client.request.ReadRecordsRequest
@@ -20,7 +22,7 @@ data class HealthData(
 )
 
 /**
- * One read-only metric per Health Connect permission the app declares.
+ * One metric per Health Connect read permission the app declares.
  *
  * This is the single source of truth for the permission rationale: the
  * pre-permission screen renders it, and the Play Console Health Apps
@@ -37,21 +39,40 @@ data class HealthPermissionRationale(
 
 class HealthConnectManager(private val context: Context) {
 
-    private val client: HealthConnectClient? by lazy {
-        try {
-            if (HealthConnectClient.getSdkStatus(context) == HealthConnectClient.SDK_AVAILABLE)
-                HealthConnectClient.getOrCreate(context)
+    // Cached once available. Until then every access re-checks, so a user
+    // who installs or updates Health Connect mid-session can use it
+    // without restarting the app.
+    @Volatile private var cachedClient: HealthConnectClient? = null
+    private val client: HealthConnectClient?
+        get() = cachedClient ?: try {
+            if (sdkStatus() == HealthConnectClient.SDK_AVAILABLE)
+                HealthConnectClient.getOrCreate(context).also { cachedClient = it }
             else null
         } catch (e: Exception) { null }
-    }
 
     val isAvailable: Boolean get() = client != null
+
+    /** [HealthConnectClient.getSdkStatus], or unavailable if even that fails. */
+    fun sdkStatus(): Int = try {
+        HealthConnectClient.getSdkStatus(context)
+    } catch (e: Exception) { HealthConnectClient.SDK_UNAVAILABLE }
+
+    /**
+     * Health Connect is missing or out of date but can be installed from
+     * Google Play (Android 13 and lower).
+     */
+    val canInstall: Boolean
+        get() = sdkStatus() == HealthConnectClient.SDK_UNAVAILABLE_PROVIDER_UPDATE_REQUIRED
 
     /**
      * MINIMUM SCOPE — read-only, exactly the two data types the dashboard
      * renders. Every entry here has a matching read function below, a
      * matching card on the dashboard, and a matching entry in
      * [permissionRationales]. Keep those four in lockstep.
+     *
+     * The one write permission (exercise, 1.4.1) is not part of this set:
+     * it's requested on its own from Move settings ([WorkoutHealthSync]),
+     * so the Home connect card still only asks for steps and sleep.
      *
      * Heart rate, distance and active calories were declared in the
      * manifest up to 1.0.14 without ever being read; they were removed in
@@ -78,16 +99,33 @@ class HealthConnectManager(private val context: Context) {
         ),
     )
 
-    suspend fun hasAllPermissions(): Boolean {
-        val c = client ?: return false
+    suspend fun hasAllPermissions(): Boolean = grantedPermissions().containsAll(requiredPermissions)
+
+    /** Every Health Connect permission granted to the app; empty if unavailable. */
+    suspend fun grantedPermissions(): Set<String> {
+        val c = client ?: return emptySet()
         return try {
-            val granted = c.permissionController.getGrantedPermissions()
-            Log.d(TAG, "granted permissions: $granted")
-            granted.containsAll(requiredPermissions)
+            c.permissionController.getGrantedPermissions().also { Log.d(TAG, "granted permissions: $it") }
         } catch (e: Exception) {
-            Log.e(TAG, "hasAllPermissions failed", e)
-            false
+            Log.e(TAG, "getGrantedPermissions failed", e)
+            emptySet()
         }
+    }
+
+    /**
+     * Writes [records], replacing earlier copies with the same client
+     * record id and a lower version. Throws on failure so the caller can
+     * retry later.
+     */
+    suspend fun insert(records: List<Record>) {
+        val c = checkNotNull(client) { "Health Connect unavailable" }
+        c.insertRecords(records)
+    }
+
+    /** Deletes the app's exercise session written with [clientRecordId]. Throws on failure. */
+    suspend fun deleteExerciseSession(clientRecordId: String) {
+        val c = checkNotNull(client) { "Health Connect unavailable" }
+        c.deleteRecords(ExerciseSessionRecord::class, recordIdsList = emptyList(), clientRecordIdsList = listOf(clientRecordId))
     }
 
     companion object { private const val TAG = "HealthConnect" }
