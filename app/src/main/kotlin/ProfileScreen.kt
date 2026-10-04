@@ -347,7 +347,11 @@ fun ProfileScreen(
                 Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
                     InfoRow("🌿 App", "Healthify v${BuildConfig.VERSION_NAME}")
                     HorizontalDivider(color = Divider)
-                    FoodDataRow()
+                    DataSourceRow("🥫 Food data", "Open Food Facts, under the Open Database License",
+                        "https://world.openfoodfacts.org/", "Open the Open Food Facts website")
+                    HorizontalDivider(color = Divider)
+                    DataSourceRow("🏋️ Exercise data", "free-exercise-db, public domain",
+                        "https://github.com/yuhonas/free-exercise-db", "Open the free-exercise-db project")
                     HorizontalDivider(color = Divider)
                     CloudSyncRow()
                     HorizontalDivider(color = Divider)
@@ -763,24 +767,23 @@ private fun AccountIdRow() {
     }
 }
 
-/** Attribution for Open Food Facts data (ODbL); opens their site. */
+/** Credit for a bundled or looked-up data source (Open Food Facts requires it); opens its site. */
 @Composable
-private fun FoodDataRow() {
+private fun DataSourceRow(title: String, detail: String, url: String, clickLabel: String) {
     val ctx = LocalContext.current
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClickLabel = "Open the Open Food Facts website") {
+            .clickable(onClickLabel = clickLabel) {
                 try {
-                    ctx.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://world.openfoodfacts.org/")))
+                    ctx.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
                 } catch (_: android.content.ActivityNotFoundException) { }
             },
         verticalAlignment = Alignment.CenterVertically
     ) {
         Column(Modifier.weight(1f)) {
-            Text("🥫 Food data", style = MaterialTheme.typography.bodyMedium, color = TextPrimary)
-            Text("Open Food Facts, under the Open Database License",
-                style = MaterialTheme.typography.bodySmall, color = TextMuted)
+            Text(title, style = MaterialTheme.typography.bodyMedium, color = TextPrimary)
+            Text(detail, style = MaterialTheme.typography.bodySmall, color = TextMuted)
         }
         Icon(Icons.Default.ChevronRight, null, tint = TextMuted)
     }

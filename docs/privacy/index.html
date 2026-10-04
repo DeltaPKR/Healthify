@@ -117,7 +117,7 @@
 <h1 style="font-size:28px;margin:0 0 6px;letter-spacing:-0.4px;">Privacy Policy</h1>
 <p class="meta">
   <strong>Effective date:</strong> 2026-05-18 &nbsp;·&nbsp;
-  <strong>Last updated:</strong> 2026-10-03<br>
+  <strong>Last updated:</strong> 2026-10-04<br>
   <strong>App:</strong> Healthify (<code>com.DeltaPKR.Healthify</code>) &nbsp;·&nbsp;
   <strong>Publisher:</strong> DeltaPKR<br>
   <strong>Contact:</strong> <a href="mailto:deltapkr.developer@gmail.com">deltapkr.developer@gmail.com</a>
@@ -139,6 +139,7 @@ and your rights regarding that information.</p>
   <li><strong>Logs you add during the day:</strong> glasses of water (with the time logged), meals (meal slot, an optional name you type, a quality tag such as “Healthy” or “Skipped”, and the time), and activities (kind, such as walk or yoga, duration in minutes, and the time).</li>
   <li><strong>Food details (optional):</strong> when you log a food you searched for or scanned, the meal also stores its barcode, the amount in grams, and its calories, protein, carbohydrate, fat, fibre, sugar and Nutri-Score. Foods you look up are kept in a local food list so you can log them again; foods you add yourself (a name, calories per 100 g, and optionally a barcode) are kept there too.</li>
   <li><strong>Calorie-counting settings (optional, off by default):</strong> whether calorie counting is on, your activity level, your goal (maintain, lose or gain weight), and your own daily calorie target if you set one.</li>
+  <li><strong>Workouts (optional):</strong> routines you create (a name and the exercises in it with their sets, reps or time, and rest), exercises you add yourself (a name and how you track it), and the workouts you do in the workout player: each set's exercise, reps, weight and time, whether it was a warm-up, any personal record it set, and the workout's length and an estimated calorie burn (shown only if calorie counting is on). The exercise library itself is part of the app and needs no connection.</li>
 </ul>
 <p>All of these are stored locally on the device in an SQLite database
 (<code>healthify.db</code>). A copy is synced to Firebase Firestore under an
@@ -208,9 +209,9 @@ third-party marketing, or any automated decision making with legal effects.</p>
   <thead><tr><th>Location</th><th>What is stored</th></tr></thead>
   <tbody>
     <tr><td>On your device (<code>healthify.db</code>, app's private storage)</td>
-        <td>Full profile, check-ins, water/meal/activity logs, reminders, your food list (looked-up foods are removed after 180 days unused)</td></tr>
+        <td>Full profile, check-ins, water/meal/activity logs, workouts with their sets, your routines and exercises, reminders, your food list (looked-up foods are removed after 180 days unused)</td></tr>
     <tr><td>Firebase Firestore (Google Cloud, EU/US multi-region)</td>
-        <td>Anonymous UID, profile summary and calorie settings, daily check-in summaries, daily water totals, meal logs with their food details, activity logs (mirror of on-device DB)</td></tr>
+        <td>Anonymous UID, profile summary and calorie settings, daily check-in summaries, daily water totals, meal logs with their food details, activity and workout logs with their sets, your routines and exercises (mirror of on-device DB)</td></tr>
     <tr><td>Firebase Authentication</td>
         <td>Anonymous UID + sign-in token</td></tr>
     <tr><td>Firebase Crashlytics (release builds only)</td>
@@ -231,7 +232,7 @@ installation files. Your health data does not roam through Google account backup
   <tbody>
     <tr><td>Google / Firebase</td>
         <td>Auth, Firestore, Crashlytics, Analytics</td>
-        <td>Anonymous UID, check-in summaries, water/meal/activity logs, crash reports</td></tr>
+        <td>Anonymous UID, check-in summaries, water/meal/activity/workout logs, routines, crash reports</td></tr>
     <tr><td>Android Health Connect</td>
         <td>On-device data source</td>
         <td>Per-permission read access; data is read only, not written</td></tr>

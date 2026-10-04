@@ -6,6 +6,8 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -29,10 +31,17 @@ import androidx.compose.ui.unit.sp
 import com.healthify.app.data.db.WorkoutSessionEntity
 import com.healthify.app.data.repository.LogRepository
 import com.healthify.app.logs.ActivityType
+import com.healthify.app.logs.LogSource
 import com.healthify.app.logs.WEEKLY_ACTIVE_MINUTES_TARGET
 import com.healthify.app.time.DayClock
 import com.healthify.app.ui.logs.ActivityLogDialog
 import com.healthify.app.ui.theme.*
+import com.healthify.app.ui.workout.routineMeta
+import com.healthify.app.workout.Routine
+import com.healthify.app.workout.WorkoutMath
+import com.healthify.app.workout.WorkoutRepository
+import com.healthify.app.Entitlements
+import com.healthify.app.Feature
 import kotlinx.coroutines.launch
 import java.time.DayOfWeek
 import java.time.LocalDate
@@ -43,17 +52,25 @@ import java.util.Locale
 private val StepsTint = Color(0xFF5BF5C4)
 
 /**
- * Steps against the goal, today's logged activities and this week's
- * active minutes. [stepsToday] comes from Home's view model (Health Connect
+ * Steps against the goal, workouts (routines, the exercise library and a
+ * workout in progress), this week's active minutes and today's
+ * activities. [stepsToday] comes from Home's view model (Health Connect
  * when connected, otherwise the check-in), so both tabs show one number.
  */
 @Composable
 fun MoveScreen(
     logRepo: LogRepository,
+    workoutRepo: WorkoutRepository,
     stepsToday: Int,
     stepGoal: Int,
     healthConnected: Boolean,
-    onBack: () -> Unit
+    showCalories: Boolean,
+    onBack: () -> Unit,
+    onOpenRoutine: (String) -> Unit,
+    onNewRoutine: () -> Unit,
+    onOpenLibrary: () -> Unit,
+    onOpenWorkout: (Long) -> Unit,
+    onOpenSummary: (Long) -> Unit,
 ) {
     val today by remember { DayClock.todayIsoFlow() }.collectAsState(DayClock.todayIso())
     val monday = remember(today) { LocalDate.parse(today).with(DayOfWeek.MONDAY) }
@@ -61,6 +78,8 @@ fun MoveScreen(
     val week by remember(monday) {
         logRepo.minutesByDayFlow(DayClock.iso(monday), DayClock.iso(monday.plusDays(6)))
     }.collectAsState(initial = emptyList())
+    val routines by remember { workoutRepo.routinesFlow() }.collectAsState(initial = emptyList())
+    val active by remember { workoutRepo.activeSessionFlow() }.collectAsState(initial = null)
     val scope = rememberCoroutineScope()
     var adding by remember { mutableStateOf(false) }
     var editing by remember { mutableStateOf<WorkoutSessionEntity?>(null) }
@@ -80,13 +99,23 @@ fun MoveScreen(
                 .padding(horizontal = 20.dp, vertical = 4.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
+            active?.let { ActiveWorkoutCard(it, onResume = { onOpenWorkout(it.id) }) }
             StepsCard(stepsToday, stepGoal.coerceAtLeast(1), healthConnected, Modifier.staggeredEnter(0))
-            WeekCard(monday, LocalDate.parse(today), minutesByDate, Modifier.staggeredEnter(1))
+            WorkoutsCard(
+                routines      = routines,
+                onOpen        = onOpenRoutine,
+                onNew         = onNewRoutine,
+                onEmpty       = { scope.launch { onOpenWorkout(workoutRepo.start(null)) } },
+                onLibrary     = onOpenLibrary,
+                modifier      = Modifier.staggeredEnter(1)
+            )
+            WeekCard(monday, LocalDate.parse(today), minutesByDate, Modifier.staggeredEnter(2))
             TodayCard(
-                workouts = list.filter { it.endedAt != null },
-                onAdd    = { adding = true },
-                onEdit   = { editing = it },
-                modifier = Modifier.staggeredEnter(2)
+                workouts     = list.filter { it.endedAt != null },
+                showCalories = showCalories,
+                onAdd        = { adding = true },
+                onEdit       = { w -> if (w.source == LogSource.WORKOUT) onOpenSummary(w.id) else editing = w },
+                modifier     = Modifier.staggeredEnter(3)
             )
             Spacer(Modifier.height(LocalBottomBarClearance.current + 8.dp))
         }
@@ -220,6 +249,7 @@ private fun WeekCard(
 @Composable
 private fun TodayCard(
     workouts: List<WorkoutSessionEntity>,
+    showCalories: Boolean,
     onAdd: () -> Unit,
     onEdit: (WorkoutSessionEntity) -> Unit,
     modifier: Modifier = Modifier
@@ -241,7 +271,7 @@ private fun TodayCard(
                         .fillMaxWidth()
                         .padding(top = 8.dp)
                         .clip(RoundedCornerShape(12.dp))
-                        .clickable(onClickLabel = "Edit activity") { onEdit(w) }
+                        .clickable(onClickLabel = if (w.source == LogSource.WORKOUT) "Open workout" else "Edit activity") { onEdit(w) }
                         .padding(vertical = 6.dp, horizontal = 4.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -250,7 +280,11 @@ private fun TodayCard(
                     Column(Modifier.weight(1f)) {
                         Text(w.title.ifBlank { type.label }, style = MaterialTheme.typography.bodyMedium, color = TextPrimary)
                         Text(
-                            "${w.durationMin} min · ${timeFormat.format(Date(w.startedAt))}",
+                            listOfNotNull(
+                                "${w.durationMin} min",
+                                timeFormat.format(Date(w.startedAt)),
+                                w.kcalEstimate?.takeIf { showCalories }?.let { "≈ ${it.toInt()} kcal" }
+                            ).joinToString(" · "),
                             style = MaterialTheme.typography.bodySmall,
                             color = TextMuted
                         )
@@ -260,6 +294,96 @@ private fun TodayCard(
             }
             Spacer(Modifier.height(16.dp))
             GlowButton("Log activity", onAdd, height = 52.dp)
+        }
+    }
+}
+
+/** A workout started but not finished: resume it from here. */
+@Composable
+private fun ActiveWorkoutCard(session: WorkoutSessionEntity, onResume: () -> Unit) {
+    val minutes = ((System.currentTimeMillis() - session.startedAt) / 60_000).toInt()
+    GlassCard(Modifier.fillMaxWidth(), tint = Gold, glow = Gold, onClick = onResume) {
+        Row(Modifier.padding(18.dp), verticalAlignment = Alignment.CenterVertically) {
+            IconOrb(Gold, size = 48.dp) { Text("⏱️", fontSize = 22.sp) }
+            Spacer(Modifier.width(14.dp))
+            Column(Modifier.weight(1f)) {
+                Text("WORKOUT IN PROGRESS", style = MaterialTheme.typography.labelSmall, color = Gold)
+                Text(session.title, style = MaterialTheme.typography.titleMedium, color = TextPrimary)
+                Text(
+                    if (minutes < 1) "Started just now" else "Started ${WorkoutMath.shortDuration(minutes * 60)} ago",
+                    style = MaterialTheme.typography.bodySmall, color = TextMuted
+                )
+            }
+            Text("Resume", style = MaterialTheme.typography.titleSmall, color = Gold)
+        }
+    }
+}
+
+/** Routines to start (yours first), a blank workout, and the exercise library. */
+@Composable
+private fun WorkoutsCard(
+    routines: List<Routine>,
+    onOpen: (String) -> Unit,
+    onNew: () -> Unit,
+    onEmpty: () -> Unit,
+    onLibrary: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    GlassCard(modifier.fillMaxWidth()) {
+        Column(Modifier.padding(vertical = 18.dp)) {
+            Text("WORKOUTS", style = MaterialTheme.typography.labelSmall, color = TextMuted, modifier = Modifier.padding(horizontal = 18.dp))
+            Spacer(Modifier.height(10.dp))
+            LazyRow(
+                contentPadding = PaddingValues(horizontal = 18.dp),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                items(routines, key = { it.ref }) { r -> RoutineTile(r) { onOpen(r.ref) } }
+                if (Entitlements.has(Feature.CUSTOM_ROUTINES)) item { ActionTile("➕", "New routine", onNew) }
+                item { ActionTile("📝", "Empty workout", onEmpty) }
+            }
+            Spacer(Modifier.height(12.dp))
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .clickable(onClickLabel = "Open the exercise library", onClick = onLibrary)
+                    .padding(horizontal = 18.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text("📚", fontSize = 18.sp)
+                Spacer(Modifier.width(12.dp))
+                Column(Modifier.weight(1f)) {
+                    Text("Exercise library", style = MaterialTheme.typography.bodyLarge, color = TextPrimary)
+                    Text("Over 850 exercises, how-tos and your records", style = MaterialTheme.typography.bodySmall, color = TextMuted)
+                }
+                Icon(Icons.Rounded.ChevronRight, null, tint = TextDim, modifier = Modifier.size(20.dp))
+            }
+        }
+    }
+}
+
+@Composable
+private fun RoutineTile(r: Routine, onClick: () -> Unit) {
+    GlassCard(Modifier.width(150.dp).height(132.dp), shape = RoundedCornerShape(20.dp), tint = if (r.custom) Gold else Green, onClick = onClick) {
+        Column(Modifier.padding(14.dp).fillMaxHeight()) {
+            Text(r.emoji, fontSize = 24.sp)
+            Spacer(Modifier.height(8.dp))
+            Text(r.name, style = MaterialTheme.typography.titleSmall, color = TextPrimary, maxLines = 2,
+                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+            Spacer(Modifier.weight(1f))
+            Text(if (r.custom) "Yours · ~${r.estimatedMinutes} min" else "~${r.estimatedMinutes} min",
+                style = MaterialTheme.typography.labelMedium, color = if (r.custom) Gold else TextMuted, maxLines = 1)
+        }
+    }
+}
+
+@Composable
+private fun ActionTile(emoji: String, label: String, onClick: () -> Unit) {
+    GlassCard(Modifier.width(120.dp).height(132.dp), shape = RoundedCornerShape(20.dp), onClick = onClick) {
+        Column(Modifier.padding(14.dp).fillMaxSize(), verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(emoji, fontSize = 24.sp)
+            Spacer(Modifier.height(8.dp))
+            Text(label, style = MaterialTheme.typography.titleSmall, color = TextMuted,
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center)
         }
     }
 }

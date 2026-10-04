@@ -1,7 +1,7 @@
 # Healthify — Privacy Policy
 
 **Effective date:** 2026-05-18
-**Last updated:** 2026-10-03
+**Last updated:** 2026-10-04
 **App:** Healthify (`com.DeltaPKR.Healthify`)
 **Publisher:** DeltaPKR
 **Contact:** deltapkr.developer@gmail.com
@@ -35,6 +35,13 @@ During onboarding and daily check-ins you may enter:
 - **Calorie-counting settings (optional, off by default):** whether calorie
   counting is on, your activity level, your goal (maintain, lose or gain
   weight), and your own daily calorie target if you set one
+- **Workouts (optional):** routines you create (a name and the exercises
+  in it with their sets, reps or time, and rest), exercises you add
+  yourself (a name and how you track it), and the workouts you do in the
+  workout player: each set's exercise, reps, weight and time, whether it
+  was a warm-up, any personal record it set, and the workout's length and
+  an estimated calorie burn (shown only if calorie counting is on). The
+  exercise library itself is part of the app and needs no connection.
 
 All of these are stored locally on the device in an SQLite database
 (`healthify.db`). A copy is synced to Firebase Firestore under an anonymous
@@ -117,8 +124,8 @@ third-party marketing, or any automated decision making with legal effects.
 
 | Location                                                           | What is stored                                                                    |
 |--------------------------------------------------------------------|-----------------------------------------------------------------------------------|
-| On your device (`healthify.db`, app's private storage)             | Full profile, check-ins, water/meal/activity logs, reminders, your food list (looked-up foods are removed after 180 days unused) |
-| Firebase Firestore (Google Cloud, EU/US multi-region)              | Anonymous UID, profile summary and calorie settings, daily check-in summaries, daily water totals, meal logs with their food details, activity logs (mirror of on-device DB) |
+| On your device (`healthify.db`, app's private storage)             | Full profile, check-ins, water/meal/activity logs, workouts with their sets, your routines and exercises, reminders, your food list (looked-up foods are removed after 180 days unused) |
+| Firebase Firestore (Google Cloud, EU/US multi-region)              | Anonymous UID, profile summary and calorie settings, daily check-in summaries, daily water totals, meal logs with their food details, activity and workout logs with their sets, your routines and exercises (mirror of on-device DB) |
 | Firebase Authentication                                            | Anonymous UID + sign-in token                                                     |
 | Firebase Crashlytics (release builds only)                         | Crash stack traces + device metadata + anonymous UID                              |
 
@@ -139,7 +146,7 @@ We use the following sub-processors. We do not share data with anyone else.
 
 | Sub-processor             | Purpose                       | Data shared                            |
 |---------------------------|-------------------------------|----------------------------------------|
-| Google / Firebase         | Auth, Firestore, Crashlytics, Analytics | Anonymous UID, check-in summaries, water/meal/activity logs, crash reports |
+| Google / Firebase         | Auth, Firestore, Crashlytics, Analytics | Anonymous UID, check-in summaries, water/meal/activity/workout logs, routines, crash reports |
 | Android Health Connect    | On-device data source         | Per-permission read access; data is read only, not written |
 | Open Food Facts (non-profit food database) | Food search and barcode lookup | The search text or barcode you look up, and your IP address as part of the connection. No account, UID or health data is sent. Their privacy policy: https://world.openfoodfacts.org/privacy |
 | Google Code Scanner (Google Play services) | Reading a barcode with the camera | Runs inside Google Play services under Google's privacy policy; Healthify receives only the barcode number |

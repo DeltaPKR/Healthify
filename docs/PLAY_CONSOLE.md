@@ -75,7 +75,7 @@ Check the following in the Play Console form.
 
 #### Health and fitness
 - ☑️ **Health info** (mood, sleep hours, water intake, logged meals and their quality, the nutrition of logged foods — grams, calories, macros, Nutri-Score — and the optional calorie settings, day rating, conditions) — Collected, Not shared, Required for app's core functionality, TLS, Deletable ✅
-- ☑️ **Fitness info** (step count, logged activities and their minutes, weight, height) — Collected, Not shared, Required for app's core functionality, TLS, Deletable ✅
+- ☑️ **Fitness info** (step count, logged activities and their minutes, workouts done in the app — exercises, sets, reps, weights, times, personal records — and the user's routines, weight, height) — Collected, Not shared, Required for app's core functionality, TLS, Deletable ✅
   > Do **not** tick distance, heart rate or active calories here. As of
   > 1.0.15 the app requests none of them, and a Data Safety form that
   > claims more than the manifest requests is itself a policy violation.
@@ -186,8 +186,9 @@ below.
 > Healthify is a daily wellness tracker. Through the day the user logs
 > water, meals and activities in a few taps; meals can be looked up by
 > name or barcode in the Open Food Facts database, with optional calorie
-> counting. In the evening a short check-in adds their mood and a 1–5
-> rating of the day. The app turns these into a 0–100 wellness score, a
+> counting, and workouts can be followed set by set from built-in or
+> their own routines, with rest timers and personal records. In the
+> evening a short check-in adds their mood and a 1–5 rating of the day. The app turns these into a 0–100 wellness score, a
 > streak, and weekly trends on the Insights screen.
 >
 > Two of the score's inputs — how much the user moved and how much they
@@ -460,3 +461,37 @@ types.
 - [ ] Release notes — e.g. "Log meals by searching or scanning a barcode
       (food data from Open Food Facts). Optional calorie counting with a
       personal daily target — off unless you turn it on in Food settings."
+
+---
+
+## 15. Release 1.4.0 (versionCode 21) — workouts
+
+What changed for users: the Move tab gets workouts. Ten built-in routines
+(mobility, desk break, bodyweight, core, low-impact cardio, dumbbell,
+gym upper/lower, barbell 5×5, evening stretch), routines of their own,
+an exercise library of ~870 exercises (free-exercise-db, public domain,
+bundled — no network), and a workout player: each set saved when ticked,
+last time's numbers, rest timer, 3-2-1 countdown for timed sets, personal
+records and a summary. Calorie estimates for activities and workouts
+show only with calorie counting on. No new Android permissions, no new
+Health Connect data types (writing workouts to Health Connect is 1.4.1).
+
+**Before uploading:**
+
+- [ ] **Firestore rules:** nothing to deploy — the new `routines` and
+      `customExercises` collections are under `users/{uid}/`, which the
+      wildcard rule already covers.
+- [ ] Data safety (§5): no new category. Workouts and routines are Fitness
+      info, already ticked; update its description if the form asks.
+- [ ] Health apps declaration (§7): on the first page make sure the
+      activity/fitness feature is ticked (it should be already, for steps)
+      and replace "Core app functionality" with the current §7 copy.
+      Health Connect per-type text is unchanged.
+- [ ] Privacy policy: `docs/privacy/` now lists workouts, routines and
+      custom exercises. Check the live GitHub Pages copy after the push.
+- [ ] Store listing: mention guided workouts, the exercise library and
+      personal records; add screenshots of the Move tab, a routine and the
+      player.
+- [ ] Release notes — e.g. "Workouts are here: 10 ready-made routines or
+      your own, 870+ exercises with how-tos, a set-by-set player with rest
+      timer, and personal records."

@@ -85,6 +85,17 @@ import com.healthify.app.ui.food.FoodScreen
 import com.healthify.app.ui.food.dayLabel
 import com.healthify.app.ui.insights.InsightsScreen
 import com.healthify.app.ui.move.MoveScreen
+import com.healthify.app.ui.workout.ExerciseDetailScreen
+import com.healthify.app.ui.workout.ExerciseLibraryScreen
+import com.healthify.app.ui.workout.RoutineDetailScreen
+import com.healthify.app.ui.workout.RoutineEditorScreen
+import com.healthify.app.ui.workout.RoutineEditorViewModel
+import com.healthify.app.ui.workout.WorkoutPlayerScreen
+import com.healthify.app.ui.workout.WorkoutSummaryScreen
+import com.healthify.app.ui.workout.WorkoutViewModel
+import com.healthify.app.units.UnitSystem
+import androidx.navigation.NavBackStackEntry
+import android.net.Uri
 import com.healthify.app.ui.notifications.NotificationsScreen
 import com.healthify.app.ui.onboarding.OnboardingScreen
 import com.healthify.app.ui.onboarding.OnboardingViewModel
@@ -128,8 +139,23 @@ object Routes {
     const val PROFILE    = "profile"     // opened from the Home avatar
     const val REMINDERS  = "reminders"   // opened from Profile
     const val FOOD_ADD   = "food_add/{mealType}/{date}"   // search / scan into one meal slot
+    const val ROUTINE      = "routine/{ref}"                   // preview + start
+    const val ROUTINE_EDIT = "routine_edit/{target}"           // RoutineEditorViewModel.NEW, a ref, or a copy
+    const val EXERCISES    = "exercises?pick={pick}"           // library; pick=true returns ids
+    const val EXERCISE     = "exercise/{id}"
+    const val WORKOUT      = "workout/{sessionId}"             // the player
+    const val WORKOUT_DONE = "workout_done/{sessionId}?fresh={fresh}"
+
+    /** savedStateHandle key the library (pick mode) returns its selection under. */
+    const val PICKED = "picked_exercises"
 
     fun foodAdd(type: MealType, date: String) = "food_add/${type.key}/$date"
+    fun routine(ref: String) = "routine/${Uri.encode(ref)}"
+    fun routineEdit(target: String) = "routine_edit/${Uri.encode(target)}"
+    fun exercises(pick: Boolean) = "exercises?pick=$pick"
+    fun exercise(id: String) = "exercise/${Uri.encode(id)}"
+    fun workout(sessionId: Long) = "workout/$sessionId"
+    fun workoutDone(sessionId: Long, fresh: Boolean) = "workout_done/$sessionId?fresh=$fresh"
 }
 
 // Tab order for the swipeable pager. Index here == HorizontalPager page index.
@@ -193,6 +219,8 @@ fun HealthifyNavGraph() {
     }
 
     val navController = rememberNavController()
+    // Unit system and calorie setting for the pushed workout screens.
+    val user by repo.getUser().collectAsState(initial = null)
 
     NavHost(
         navController    = navController,
@@ -264,6 +292,102 @@ fun HealthifyNavGraph() {
             }
         }
 
+        // ── Move: routines, library, player ────────────────────────────────
+        val workouts = app.workoutRepository
+        composable(Routes.ROUTINE, arguments = listOf(navArgument("ref") { type = NavType.StringType })) { entry ->
+            val ref = entry.arguments?.getString("ref").orEmpty()
+            PushedPage {
+                RoutineDetailScreen(
+                    repo      = workouts,
+                    ref       = ref,
+                    onBack    = { navController.popBackStack() },
+                    onStarted = { id -> navController.navigate(Routes.workout(id)) },
+                    onEdit    = { target -> navController.navigate(Routes.routineEdit(target)) }
+                )
+            }
+        }
+
+        composable(Routes.ROUTINE_EDIT, arguments = listOf(navArgument("target") { type = NavType.StringType })) { entry ->
+            val target = entry.arguments?.getString("target") ?: RoutineEditorViewModel.NEW
+            val vm: RoutineEditorViewModel = viewModel(factory = RoutineEditorViewModel.Factory(workouts, target))
+            OnPickedExercises(entry) { vm.addExercises(it) }
+            PushedPage {
+                RoutineEditorScreen(
+                    vm              = vm,
+                    onBack          = { navController.popBackStack() },
+                    onPickExercises = { navController.navigate(Routes.exercises(pick = true)) },
+                    onSaved         = { ref -> navController.navigate(Routes.routine(ref)) { popUpTo(Routes.MAIN) } }
+                )
+            }
+        }
+
+        composable(
+            Routes.EXERCISES,
+            arguments = listOf(navArgument("pick") { type = NavType.BoolType; defaultValue = false })
+        ) { entry ->
+            PushedPage {
+                ExerciseLibraryScreen(
+                    repo     = workouts,
+                    pickMode = entry.arguments?.getBoolean("pick") == true,
+                    onBack   = { navController.popBackStack() },
+                    onOpen   = { id -> navController.navigate(Routes.exercise(id)) },
+                    onPicked = { ids ->
+                        navController.previousBackStackEntry?.savedStateHandle?.set(Routes.PICKED, ArrayList(ids))
+                        navController.popBackStack()
+                    }
+                )
+            }
+        }
+
+        composable(Routes.EXERCISE, arguments = listOf(navArgument("id") { type = NavType.StringType })) { entry ->
+            PushedPage {
+                ExerciseDetailScreen(
+                    repo       = workouts,
+                    exerciseId = entry.arguments?.getString("id").orEmpty(),
+                    unit       = UnitSystem.of(user?.unitSystem),
+                    onBack     = { navController.popBackStack() }
+                )
+            }
+        }
+
+        composable(Routes.WORKOUT, arguments = listOf(navArgument("sessionId") { type = NavType.LongType })) { entry ->
+            val id = entry.arguments?.getLong("sessionId") ?: 0L
+            val vm: WorkoutViewModel = viewModel(factory = WorkoutViewModel.Factory(workouts, id))
+            OnPickedExercises(entry) { vm.addExercises(it) }
+            PushedPage {
+                WorkoutPlayerScreen(
+                    vm             = vm,
+                    unit           = UnitSystem.of(user?.unitSystem),
+                    // Discarding both leaves and removes the session, which the
+                    // player also reacts to: pop only while it's still on top.
+                    onLeave        = { if (navController.currentBackStackEntry?.id == entry.id) navController.popBackStack() },
+                    onAddExercises = { navController.navigate(Routes.exercises(pick = true)) },
+                    onFinished     = { done ->
+                        navController.navigate(Routes.workoutDone(done, fresh = true)) { popUpTo(Routes.MAIN) }
+                    }
+                )
+            }
+        }
+
+        composable(
+            Routes.WORKOUT_DONE,
+            arguments = listOf(
+                navArgument("sessionId") { type = NavType.LongType },
+                navArgument("fresh") { type = NavType.BoolType; defaultValue = false }
+            )
+        ) { entry ->
+            PushedPage {
+                WorkoutSummaryScreen(
+                    repo         = workouts,
+                    sessionId    = entry.arguments?.getLong("sessionId") ?: 0L,
+                    fresh        = entry.arguments?.getBoolean("fresh") == true,
+                    unit         = UnitSystem.of(user?.unitSystem),
+                    showCalories = user?.countCalories == true,
+                    onDone       = { navController.popBackStack() }
+                )
+            }
+        }
+
         composable(Routes.REMINDERS) {
             PushedPage {
                 NotificationsScreen(
@@ -273,6 +397,17 @@ fun HealthifyNavGraph() {
                 )
             }
         }
+    }
+}
+
+/** Hands exercise ids picked in the library (pick mode) to this destination once. */
+@Composable
+private fun OnPickedExercises(entry: NavBackStackEntry, onPicked: (List<String>) -> Unit) {
+    val picked by entry.savedStateHandle.getStateFlow<ArrayList<String>?>(Routes.PICKED, null).collectAsState()
+    LaunchedEffect(picked) {
+        val ids = picked ?: return@LaunchedEffect
+        entry.savedStateHandle[Routes.PICKED] = null
+        if (ids.isNotEmpty()) onPicked(ids)
     }
 }
 
@@ -371,10 +506,17 @@ private fun MainTabs(navController: NavHostController) {
                         )
                         TAB_MOVE     -> MoveScreen(
                             logRepo         = app.logRepository,
+                            workoutRepo     = app.workoutRepository,
                             stepsToday      = dashVm.uiState.stepsToday,
                             stepGoal        = dashVm.uiState.user?.stepGoal ?: 10_000,
                             healthConnected = dashVm.uiState.healthConnectConnected,
-                            onBack          = { goTo(TAB_HOME) }
+                            showCalories    = dashVm.uiState.user?.countCalories == true,
+                            onBack          = { goTo(TAB_HOME) },
+                            onOpenRoutine   = { ref -> navController.navigate(Routes.routine(ref)) },
+                            onNewRoutine    = { navController.navigate(Routes.routineEdit(RoutineEditorViewModel.NEW)) },
+                            onOpenLibrary   = { navController.navigate(Routes.exercises(pick = false)) },
+                            onOpenWorkout   = { id -> navController.navigate(Routes.workout(id)) },
+                            onOpenSummary   = { id -> navController.navigate(Routes.workoutDone(id, fresh = false)) }
                         )
                         TAB_INSIGHTS -> InsightsScreen(
                             repo   = repo,
