@@ -10,10 +10,11 @@ Character counts include the limit Play enforces.
 (9 / 30)
 
 ## Short description (≤ 80 chars)
-**Daily wellness check-ins, step + sleep insights, and gentle reminders that stick.**
+**Wellness check-ins, meals, workouts, steps and sleep, with reminders that stick.**
 (80 / 80)
 
 ### Alternates
+- `Log water, meals and workouts. Check in daily. See steps, sleep and your trend.` (79)
 - `Daily check-ins, mood + sleep tracking, smart reminders. Built for routine.` (75)
 - `Track mood, sleep, water, steps. Build a streak that rewards consistency.` (72)
 - `A simple daily wellness tracker. Mood, sleep, water, steps, and streaks.` (71)
@@ -23,95 +24,110 @@ Character counts include the limit Play enforces.
 ## Full description (≤ 4000 chars)
 
 ```
-Healthify is a calm, focused daily wellness tracker — not a social network,
-not a coach, not a fitness leaderboard. It is one minute a day to notice how
-you're doing, with the data to back it up.
+Healthify is a calm, focused wellness tracker — not a social network, not
+a fitness leaderboard. Log your day as it happens, check in each evening,
+and see how you're really doing, with the data to back it up.
 
 WHAT YOU GET
 
+• Log as you go
+  Water in one tap (or straight from a reminder with "+1 glass"), meals
+  and activities whenever they happen. Your evening check-in fills itself
+  in from what you logged.
+
 • Daily check-in
-  Log your mood, water, food quality, sleep, and a 1–5 rating of the day in
-  under 60 seconds. Each entry feeds a personal wellness score so you can see
-  trends over time.
+  Mood, water, food, sleep and a 1–5 rating of the day in under a minute,
+  turned into a 0–100 wellness score you can follow over time.
+
+• Food
+  Log meals by slot and how they went. Search the Open Food Facts database,
+  scan a barcode, or add your own foods. Calorie counting is optional and
+  off by default — turn it on for a daily estimate and macros.
+
+• Workouts
+  Ten ready-made routines, from morning mobility to barbell 5×5, or build
+  your own. 870+ exercises with how-to steps, built in and working
+  offline. The workout player saves each set as you tick it, shows last
+  time's numbers, runs rest timers and timed sets with a 3-2-1 countdown,
+  and marks your personal records.
 
 • Smart dashboard
-  Today's steps and last night's sleep, pulled live from Android Health
-  Connect (read-only, and you grant each one separately), shown next to
-  the water and mood you logged yourself. Steps and sleep are also the
-  two automatic inputs to your wellness score, so a check-in takes under
-  a minute — you don't retype numbers your phone already recorded.
-  Nothing is invented or estimated. Health Connect is optional: skip it
-  and you can type steps and sleep in by hand.
+  Today's steps and last night's sleep, read from Android Health Connect
+  (you grant each one separately), next to the water and mood you logged.
+  Steps and sleep also feed your wellness score, so you don't retype
+  numbers your phone already recorded. Health Connect is optional: skip it
+  and type them in by hand.
+
+• Save workouts to Health Connect (optional)
+  Off by default. Turn it on in Move settings and the workouts and
+  activities you log are added to Health Connect as exercise sessions, so
+  your other fitness apps see them too — type, name and time only.
 
 • Reliable reminders
-  Schedule water, movement, check-in, and wind-down nudges. Reminders use
-  exact alarms so a 6:00 PM check-in fires at 6:00 PM, not at 6:14. Edit the
-  time with an iOS-style scrolling wheel and turn each one on or off
-  independently.
+  Water, movement, check-in and wind-down nudges on exact alarms, so a
+  6:00 PM reminder fires at 6:00 PM. Turn each one on or off, or change
+  its time.
 
-• Insights at a glance
-  Weekly mood, weekly wellness average, streak length, and your longest
-  streak. The Insights tab shows your week Monday to Sunday with the mood
-  you logged for each day, or a blank cell when you skipped.
-
-• Streaks that survive the late check-in
-  The day boundary is 6 PM local time — log any time between 6 PM and the
-  next morning and your streak continues.
-
-• Cross-device sync
-  Reinstall the app, log in to your Google account on a new phone, and your
-  history is waiting for you. Sync is anonymous: we never ask for your name
-  or email.
+• Insights and streaks
+  Your wellness trend, weekly mood, averages, and current and longest
+  streak. The day ends at 6 PM, so a late check-in still keeps your streak.
 
 • Offline-first
-  Open the app on a plane, log a check-in, see your dashboard. Firestore
-  syncs whenever you're back online.
+  Everything works without a connection. Your logs sync anonymously to our
+  cloud database when you're back online.
 
 PRIVACY THAT MATCHES THE MARKETING
 
 • No ads. No trackers. No data sold to anyone.
-• Health Connect data stays on your device. Only daily summaries (e.g.
+• Health Connect readings stay on your device. Only daily summaries (e.g.
   "12 345 steps today") leave the phone.
-• Anonymous sign-in — no name, email, or phone number required.
+• Food searches and scanned barcodes go to Open Food Facts to look them
+  up. Nothing else is sent with them.
+• Anonymous sign-in — no account, email or phone number. A display name
+  is optional.
 • Your local database is excluded from Android cloud backup and device
-  transfer so health data does not roam through Google account backup.
-• You can request full data deletion at any time by emailing
-  deltapkr.developer@gmail.com.
+  transfer.
+• Request full data deletion any time at deltapkr.developer@gmail.com.
 
 Full Privacy Policy: https://deltapkr.github.io/Healthify/privacy/
 
 PERMISSIONS WE ASK FOR
 
 • Notifications — to deliver your reminders.
-• Exact alarms — so reminders fire at the precise minute you set.
+• Exact alarms — so reminders fire at the minute you set.
 • Boot completed — to re-arm reminders after a reboot.
 • Health Connect — reads Steps and Sleep only, granted separately,
-  revocable any time, and used solely to fill in the dashboard and your
-  wellness score. Optionally, only if you turn it on in Move settings,
-  saves your workouts there as exercise sessions. We ask for nothing
-  else: no heart rate, no distance, no calories, no location.
+  revocable any time, and used solely for the dashboard and your wellness
+  score. Optionally, only if you turn it on, saves your workouts there as
+  exercise sessions. Nothing else: no heart rate, no distance, no
+  calories, no location.
 
 PERMISSIONS WE WILL NEVER ASK FOR
 
 • Location.
-• Camera, microphone, SMS, call logs.
+• Camera (barcode scanning runs inside Google Play services), microphone,
+  SMS, call logs.
 • Contacts, calendar, or files.
-• Your name, email, or phone number.
 
 REQUIREMENTS
 
-• Android 8.0 (API 26) or higher.
-• Health Connect installed (free, by Google) if you want the dashboard to
-  fill in steps and sleep automatically. Optional — everything else in the
-  app works without it.
+• Android 8.0 or higher.
+• Health Connect (free, by Google) to fill in steps and sleep
+  automatically or to save workouts. Optional — everything else works
+  without it.
 
 Healthify is not a medical device. It does not diagnose, treat, or prevent
-any condition. If you have a health concern, see a clinician.
+any condition, and calorie targets are estimates, not medical advice. If
+you have a health concern, see a clinician.
 
 — Built by DeltaPKR. Feedback: deltapkr.developer@gmail.com
 ```
 
-(~3490 / 4000 chars)
+(3915 / 4000 chars)
+
+> Up to 1.4.0 this said a reinstall or new phone gets your history back.
+> It doesn't: Firestore sync is push-only, with no restore. Don't claim it
+> until restore ships.
 
 ---
 
@@ -169,14 +185,16 @@ adb exec-out screencap -p > screenshots/01_dashboard.png
 
 # repeat after navigating to each tab:
 #   01_dashboard.png         home with steps + sleep from Health Connect
-#   02_check_in.png          mid check-in (mood + water + food)
-#   03_insights.png          weekly mood strip + wellness average
-#   04_reminders.png         reminders list with the time-wheel open
-#   05_profile.png           streak counter + profile
+#   02_food.png              Food tab with a few meals logged
+#   03_food_search.png       a search or barcode result
+#   04_move.png              Move tab: workouts card and today's activities
+#   05_workout_player.png    the player mid-workout, rest timer showing
+#   06_workout_summary.png   a summary with a personal record
+#   07_check_in.png          mid check-in (mood + water + food)
+#   08_insights.png          wellness trend + weekly mood
 ```
 
-You need 2–8 of these. Recommended order for the listing: dashboard,
-check-in, insights, reminders.
+You need 2–8 of these; Play shows them in this order.
 
 ---
 

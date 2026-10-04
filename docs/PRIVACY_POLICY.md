@@ -45,7 +45,8 @@ During onboarding and daily check-ins you may enter:
 
 All of these are stored locally on the device in an SQLite database
 (`healthify.db`). A copy is synced to Firebase Firestore under an anonymous
-identifier so the same account can be used across devices.
+identifier. Sync is one-way today: the app sends its records to Firestore
+but does not yet restore them on a new install or another device.
 
 ### 1.2 Health Connect
 With your explicit per-data-type permission, Healthify reads the following
@@ -122,8 +123,8 @@ We use the data described in §1 to:
 1. Power core app features (check-ins, daily dashboard, food logging and
    the optional calorie estimate, weekly insights, streak tracking,
    reminders).
-2. Sync your records across devices so reinstalling the app does not lose
-   your history.
+2. Keep a cloud copy of your records under an anonymous identifier (one-way
+   today; restoring from it is not yet available).
 3. Diagnose and fix crashes via Firebase Crashlytics.
 4. Improve the product via aggregated, non-PII analytics.
 
