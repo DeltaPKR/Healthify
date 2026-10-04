@@ -4,15 +4,16 @@ A calm daily wellness tracker for Android. One check-in a day — mood,
 water, food, sleep, and a rating of how the day went — turned into a
 wellness score, a streak, and a weekly trend.
 
-**Status:** production on Google Play. Current release 1.4.0
-(versionCode 21): workouts on the Move tab — ten built-in routines or
-your own, an exercise library of ~870 exercises, and a set-by-set
-workout player with rest timer and personal records.
+**Status:** production on Google Play. Current release 1.4.1
+(versionCode 22): workouts and logged activities can be saved to Health
+Connect (optional, off by default), on top of 1.4.0's workouts — ten
+built-in routines or your own, an exercise library of ~870 exercises,
+and a set-by-set workout player with rest timer and personal records.
 
 | | |
 |---|---|
 | Package | `com.DeltaPKR.Healthify` |
-| Current version | 1.4.0 (21) |
+| Current version | 1.4.1 (22) |
 | Min / target SDK | 26 (Android 8.0) / 36 |
 | Privacy policy | https://deltapkr.github.io/Healthify/privacy/ |
 | Publisher | DeltaPKR — deltapkr.developer@gmail.com |
