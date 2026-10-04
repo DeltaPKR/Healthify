@@ -49,8 +49,9 @@ data class MealEntryEntity(
 )
 
 /**
- * One activity / workout. Phase 1 only logs finished ones (type + minutes);
- * the nullable [endedAt] leaves room for in-progress sessions later.
+ * One activity / workout: either quick-logged (type + minutes) or done in
+ * the workout player (source [LogSource.WORKOUT]), whose sets live in
+ * workout_sets. [endedAt] null = a player session still in progress.
  */
 @Entity(
     tableName = "workout_sessions",
@@ -66,7 +67,14 @@ data class WorkoutSessionEntity(
     val endedAt: Long?,                   // null = still in progress
     val durationMin: Int,
     val source: String,                   // LogSource
-    val updatedAt: Long = System.currentTimeMillis()
+    val updatedAt: Long = System.currentTimeMillis(),
+    // ── v5: guided workouts.
+    val routineRef: String? = null,       // RoutineRef ("builtin:…" / "custom:…"); null = quick log or empty workout
+    val plan: String? = null,             // WorkoutPlan JSON: the exercises this session works through
+    @ColumnInfo(defaultValue = "")
+    val notes: String = "",
+    val kcalEstimate: Float? = null,      // MET × body weight × hours; shown only with calorie counting on
+    val hcSyncedAt: Long? = null          // when written to Health Connect (1.4.1)
 )
 
 /** Per-day minutes, for the Move tab's week bars. */
@@ -119,6 +127,19 @@ interface WorkoutDao {
            GROUP BY date"""
     )
     fun minutesByDayFlow(from: String, to: String): Flow<List<DayMinutes>>
+
+    @Query("SELECT * FROM workout_sessions WHERE id = :id")
+    suspend fun byId(id: Long): WorkoutSessionEntity?
+
+    @Query("SELECT * FROM workout_sessions WHERE id = :id")
+    fun byIdFlow(id: Long): Flow<WorkoutSessionEntity?>
+
+    /** The workout-player session not yet finished, if any (there is at most one). */
+    @Query("SELECT * FROM workout_sessions WHERE endedAt IS NULL AND source = 'workout' ORDER BY startedAt DESC LIMIT 1")
+    fun activeFlow(): Flow<WorkoutSessionEntity?>
+
+    @Query("SELECT * FROM workout_sessions WHERE endedAt IS NULL AND source = 'workout' ORDER BY startedAt DESC LIMIT 1")
+    suspend fun active(): WorkoutSessionEntity?
 
     @Upsert
     suspend fun upsert(session: WorkoutSessionEntity): Long

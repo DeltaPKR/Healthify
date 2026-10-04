@@ -19,6 +19,7 @@ import com.healthify.app.notifications.NotificationChannels
 import com.healthify.app.notifications.NotificationScheduler
 import com.healthify.app.score.HealthScore
 import com.healthify.app.units.UnitsReview
+import com.healthify.app.workout.WorkoutRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -61,6 +62,8 @@ class HealthifyApp : Application() {
             )
         )
     }
+
+    val workoutRepository by lazy { WorkoutRepository(this, database, appScope) }
 
     // ── Health Connect ───────────────────────────────────────────────────────
     val healthConnectManager by lazy { HealthConnectManager(this) }

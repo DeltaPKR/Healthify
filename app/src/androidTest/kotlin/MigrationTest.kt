@@ -127,6 +127,32 @@ class MigrationTest {
         db.close()
     }
 
+    @Test
+    fun migrate4To5() {
+        helper.createDatabase(testDb, 4).use { db ->
+            db.execSQL(
+                """INSERT INTO workout_sessions (syncId, date, activityType, title, startedAt, endedAt,
+                   durationMin, source, updatedAt)
+                   VALUES ('w1', '2026-10-03', 'walk', '', 1000, 1801000, 30, 'quick', 1801000)"""
+            )
+        }
+
+        val db = helper.runMigrationsAndValidate(testDb, 5, true)
+
+        db.query("SELECT activityType, durationMin, routineRef, plan, notes, kcalEstimate, hcSyncedAt FROM workout_sessions").use {
+            it.moveToFirst()
+            assertEquals("walk", it.getString(0))
+            assertEquals(30, it.getInt(1))
+            assertTrue(it.isNull(2)); assertTrue(it.isNull(3))
+            assertEquals("", it.getString(4))
+            assertTrue(it.isNull(5)); assertTrue(it.isNull(6))
+        }
+        listOf("routines", "routine_exercises", "workout_sets", "custom_exercises").forEach { table ->
+            db.query("SELECT COUNT(*) FROM $table").use { it.moveToFirst(); assertEquals(0, it.getInt(0)) }
+        }
+        db.close()
+    }
+
     /** Opens a v1 file through the real builder (no destructive fallback) and DAOs. */
     @Test
     fun migrateAllThroughRoom() {

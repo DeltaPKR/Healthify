@@ -9,6 +9,7 @@ import com.healthify.app.logs.MealQuality
 import com.healthify.app.logs.MealType
 import com.healthify.app.score.HealthScore
 import com.healthify.app.time.DayClock
+import com.healthify.app.workout.WorkoutMath
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.launch
@@ -123,7 +124,8 @@ class LogRepository(
                 startedAt    = end - minutes * 60_000L,
                 endedAt      = end,
                 durationMin  = minutes,
-                source       = LogSource.QUICK
+                source       = LogSource.QUICK,
+                kcalEstimate = kcalFor(type, minutes)
             )
         )
     }
@@ -136,10 +138,14 @@ class LogRepository(
                 activityType = type.key,
                 durationMin  = minutes,
                 startedAt    = end - minutes * 60_000L,
-                endedAt      = end
+                endedAt      = end,
+                kcalEstimate = kcalFor(type, minutes)
             )
         )
     }
+
+    private suspend fun kcalFor(type: ActivityType, minutes: Int): Float? =
+        WorkoutMath.kcal(type.met, userDao.getUserOnce()?.weightKg ?: 0f, minutes)
 
     suspend fun saveWorkout(session: WorkoutSessionEntity): WorkoutSessionEntity {
         val stamped = session.copy(updatedAt = System.currentTimeMillis())

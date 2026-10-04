@@ -1,0 +1,179 @@
+[
+  {
+    "id": "morning_mobility",
+    "name": "Morning Mobility",
+    "emoji": "🌅",
+    "blurb": "Wake up your shoulders, spine and hips. No equipment.",
+    "level": "beginner",
+    "activity": "stretch",
+    "equipment": "None",
+    "items": [
+      { "ex": "Arm_Circles", "sets": 1, "sec": 30, "rest": 10 },
+      { "ex": "Shoulder_Circles", "sets": 1, "sec": 30, "rest": 10 },
+      { "ex": "Standing_Hip_Circles", "sets": 1, "sec": 40, "rest": 10, "note": "Half the time each direction" },
+      { "ex": "Cat_Stretch", "sets": 1, "sec": 45, "rest": 10 },
+      { "ex": "Worlds_Greatest_Stretch", "sets": 2, "sec": 30, "rest": 10, "note": "One set per side" },
+      { "ex": "Kneeling_Hip_Flexor", "sets": 2, "sec": 30, "rest": 10, "note": "One set per side" },
+      { "ex": "Standing_Toe_Touches", "sets": 1, "sec": 30, "rest": 10 },
+      { "ex": "Bodyweight_Squat", "sets": 2, "reps": 10, "rest": 30, "note": "Slow and controlled" }
+    ]
+  },
+  {
+    "id": "desk_break",
+    "name": "Desk Break Reset",
+    "emoji": "💻",
+    "blurb": "Five minutes for neck, shoulders and hips after a long sit.",
+    "level": "beginner",
+    "activity": "stretch",
+    "equipment": "None",
+    "items": [
+      { "ex": "Side_Neck_Stretch", "sets": 2, "sec": 20, "rest": 5, "note": "One set per side" },
+      { "ex": "Chin_To_Chest_Stretch", "sets": 1, "sec": 20, "rest": 5 },
+      { "ex": "Shoulder_Circles", "sets": 1, "sec": 30, "rest": 5 },
+      { "ex": "Chest_And_Front_Of_Shoulder_Stretch", "sets": 1, "sec": 30, "rest": 5, "note": "Use a door frame or a wall" },
+      { "ex": "Upper_Back_Stretch", "sets": 1, "sec": 30, "rest": 5 },
+      { "ex": "Wrist_Circles", "sets": 1, "sec": 20, "rest": 5 },
+      { "ex": "Standing_Hip_Flexors", "sets": 2, "sec": 20, "rest": 5, "note": "One set per side" },
+      { "ex": "Bodyweight_Squat", "sets": 1, "reps": 10, "rest": 0 }
+    ]
+  },
+  {
+    "id": "bodyweight_basics",
+    "name": "Bodyweight Basics",
+    "emoji": "🤸",
+    "blurb": "Squat, push, lunge, bridge and plank: a full-body session with no equipment.",
+    "level": "beginner",
+    "activity": "strength",
+    "equipment": "None",
+    "items": [
+      { "ex": "Bodyweight_Squat", "sets": 3, "reps": 12, "rest": 60 },
+      { "ex": "Pushups", "sets": 3, "reps": 8, "rest": 60, "note": "On your knees or hands on a bench if needed" },
+      { "ex": "Bodyweight_Walking_Lunge", "sets": 3, "reps": 10, "rest": 60, "note": "10 per leg" },
+      { "ex": "Butt_Lift_Bridge", "sets": 3, "reps": 12, "rest": 45 },
+      { "ex": "Plank", "sets": 3, "sec": 30, "rest": 45 },
+      { "ex": "Superman", "sets": 2, "sec": 20, "rest": 30 }
+    ]
+  },
+  {
+    "id": "core_foundations",
+    "name": "Core Foundations",
+    "emoji": "🎯",
+    "blurb": "Front, sides and back of the core, kind to the lower back.",
+    "level": "beginner",
+    "activity": "strength",
+    "equipment": "None",
+    "items": [
+      { "ex": "Dead_Bug", "sets": 3, "reps": 10, "rest": 45, "note": "10 per side" },
+      { "ex": "Plank", "sets": 3, "sec": 30, "rest": 45 },
+      { "ex": "Side_Bridge", "sets": 2, "sec": 20, "rest": 30, "note": "One set per side" },
+      { "ex": "Crunches", "sets": 3, "reps": 15, "rest": 45 },
+      { "ex": "Flutter_Kicks", "sets": 2, "reps": 20, "rest": 45 },
+      { "ex": "Superman", "sets": 2, "sec": 20, "rest": 30 }
+    ]
+  },
+  {
+    "id": "low_impact_cardio",
+    "name": "Low-Impact Cardio",
+    "emoji": "🔥",
+    "blurb": "Raise your heart rate without jumping: 40 seconds on, 20 off.",
+    "level": "beginner",
+    "activity": "hiit",
+    "equipment": "A step or stair",
+    "items": [
+      { "ex": "Step-up_with_Knee_Raise", "sets": 3, "sec": 40, "rest": 20, "note": "Swap legs each set" },
+      { "ex": "Bodyweight_Squat", "sets": 3, "sec": 40, "rest": 20 },
+      { "ex": "Incline_Push-Up", "sets": 3, "sec": 40, "rest": 20, "note": "Hands on a bench, table or wall" },
+      { "ex": "Butt_Lift_Bridge", "sets": 3, "sec": 40, "rest": 20 },
+      { "ex": "Mountain_Climbers", "sets": 3, "sec": 30, "rest": 30, "note": "Step the feet in to keep it low-impact" },
+      { "ex": "Air_Bike", "sets": 3, "sec": 30, "rest": 20, "note": "Slow bicycle crunches" }
+    ]
+  },
+  {
+    "id": "dumbbell_full_body",
+    "name": "Dumbbell Full Body",
+    "emoji": "🏋️",
+    "blurb": "One pair of dumbbells and a bench or the floor: every major muscle group.",
+    "level": "beginner",
+    "activity": "strength",
+    "equipment": "Dumbbells",
+    "items": [
+      { "ex": "Dumbbell_Squat", "sets": 3, "reps": 10, "rest": 90 },
+      { "ex": "Dumbbell_Bench_Press", "sets": 3, "reps": 10, "rest": 90, "note": "Or lying on the floor" },
+      { "ex": "One-Arm_Dumbbell_Row", "sets": 3, "reps": 10, "rest": 60, "note": "10 per arm" },
+      { "ex": "Dumbbell_Shoulder_Press", "sets": 3, "reps": 10, "rest": 60 },
+      { "ex": "Stiff-Legged_Dumbbell_Deadlift", "sets": 3, "reps": 10, "rest": 90 },
+      { "ex": "Dumbbell_Lunges", "sets": 2, "reps": 10, "rest": 60, "note": "10 per leg" },
+      { "ex": "Dumbbell_Bicep_Curl", "sets": 2, "reps": 12, "rest": 45 },
+      { "ex": "Plank", "sets": 2, "sec": 40, "rest": 45 }
+    ]
+  },
+  {
+    "id": "gym_upper",
+    "name": "Gym Upper Body",
+    "emoji": "💪",
+    "blurb": "Push and pull for chest, back, shoulders and arms on standard gym kit.",
+    "level": "intermediate",
+    "activity": "strength",
+    "equipment": "Gym",
+    "items": [
+      { "ex": "Barbell_Bench_Press_-_Medium_Grip", "sets": 4, "reps": 8, "rest": 120 },
+      { "ex": "Wide-Grip_Lat_Pulldown", "sets": 3, "reps": 10, "rest": 90 },
+      { "ex": "Dumbbell_Shoulder_Press", "sets": 3, "reps": 10, "rest": 90 },
+      { "ex": "Seated_Cable_Rows", "sets": 3, "reps": 10, "rest": 90 },
+      { "ex": "Side_Lateral_Raise", "sets": 3, "reps": 12, "rest": 60 },
+      { "ex": "Triceps_Pushdown", "sets": 3, "reps": 12, "rest": 60 },
+      { "ex": "EZ-Bar_Curl", "sets": 3, "reps": 10, "rest": 60 },
+      { "ex": "Face_Pull", "sets": 2, "reps": 15, "rest": 60 }
+    ]
+  },
+  {
+    "id": "gym_lower",
+    "name": "Gym Lower Body",
+    "emoji": "🦵",
+    "blurb": "Squat, hinge and machines for quads, hamstrings, glutes and calves.",
+    "level": "intermediate",
+    "activity": "strength",
+    "equipment": "Gym",
+    "items": [
+      { "ex": "Barbell_Squat", "sets": 4, "reps": 8, "rest": 150 },
+      { "ex": "Romanian_Deadlift", "sets": 3, "reps": 10, "rest": 120 },
+      { "ex": "Leg_Press", "sets": 3, "reps": 12, "rest": 90 },
+      { "ex": "Lying_Leg_Curls", "sets": 3, "reps": 12, "rest": 60 },
+      { "ex": "Barbell_Hip_Thrust", "sets": 3, "reps": 10, "rest": 90 },
+      { "ex": "Standing_Calf_Raises", "sets": 3, "reps": 15, "rest": 60 }
+    ]
+  },
+  {
+    "id": "barbell_5x5",
+    "name": "Barbell 5×5",
+    "emoji": "🏆",
+    "blurb": "Three big lifts, five sets of five. Add a little weight each time you finish every set.",
+    "level": "intermediate",
+    "activity": "strength",
+    "equipment": "Barbell and rack",
+    "items": [
+      { "ex": "Barbell_Squat", "sets": 5, "reps": 5, "rest": 180, "note": "Start light: a weight you could lift 8–10 times" },
+      { "ex": "Barbell_Bench_Press_-_Medium_Grip", "sets": 5, "reps": 5, "rest": 180 },
+      { "ex": "Bent_Over_Barbell_Row", "sets": 5, "reps": 5, "rest": 180 }
+    ]
+  },
+  {
+    "id": "evening_wind_down",
+    "name": "Evening Wind-Down",
+    "emoji": "🌙",
+    "blurb": "Slow floor stretches before bed. Breathe out into each one.",
+    "level": "beginner",
+    "activity": "stretch",
+    "equipment": "A mat or rug",
+    "items": [
+      { "ex": "Childs_Pose", "sets": 1, "sec": 60, "rest": 10 },
+      { "ex": "Cat_Stretch", "sets": 1, "sec": 45, "rest": 10 },
+      { "ex": "Hug_Knees_To_Chest", "sets": 1, "sec": 45, "rest": 10 },
+      { "ex": "One_Knee_To_Chest", "sets": 2, "sec": 30, "rest": 10, "note": "One set per side" },
+      { "ex": "Seated_Floor_Hamstring_Stretch", "sets": 1, "sec": 45, "rest": 10 },
+      { "ex": "Spinal_Stretch", "sets": 2, "sec": 30, "rest": 10, "note": "One set per side" },
+      { "ex": "Kneeling_Hip_Flexor", "sets": 2, "sec": 30, "rest": 10, "note": "One set per side" },
+      { "ex": "Side_Neck_Stretch", "sets": 2, "sec": 20, "rest": 0, "note": "One set per side" }
+    ]
+  }
+]

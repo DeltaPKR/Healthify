@@ -164,6 +164,7 @@ interface ReminderDao {
         UserEntity::class, CheckInEntity::class, ReminderEntity::class,
         WaterLogEntity::class, MealEntryEntity::class, WorkoutSessionEntity::class,
         FoodItemEntity::class,
+        RoutineEntity::class, RoutineExerciseEntity::class, WorkoutSetEntity::class, CustomExerciseEntity::class,
     ],
     version = AppDatabase.VERSION,
     exportSchema = true,
@@ -173,6 +174,10 @@ interface ReminderDao {
         // 3 → 4 (app 1.3.0): users + calorie settings, meal_entries +
         // nullable nutrient snapshot, + food_items. Additive only.
         AutoMigration(from = 3, to = 4),
+        // 4 → 5 (app 1.4.0): workout_sessions + routine/plan/notes/kcal/HC
+        // columns; + routines, routine_exercises, workout_sets,
+        // custom_exercises. Additive only.
+        AutoMigration(from = 4, to = 5),
     ]
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -183,9 +188,12 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun mealDao(): MealDao
     abstract fun workoutDao(): WorkoutDao
     abstract fun foodDao(): FoodDao
+    abstract fun routineDao(): RoutineDao
+    abstract fun workoutSetDao(): WorkoutSetDao
+    abstract fun customExerciseDao(): CustomExerciseDao
 
     companion object {
-        const val VERSION = 4
+        const val VERSION = 5
         const val NAME = "healthify.db"
     }
 }

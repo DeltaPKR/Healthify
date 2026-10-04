@@ -52,16 +52,21 @@ enum class MealQuality(val key: String, val label: String, val emoji: String, va
     }
 }
 
-/** Quick-logged activity kinds (Move tab and Home quick-log). */
-enum class ActivityType(val key: String, val label: String, val emoji: String) {
-    WALK("walk", "Walk", "🚶"),
-    RUN("run", "Run", "🏃"),
-    CYCLE("cycle", "Cycle", "🚴"),
-    YOGA("yoga", "Yoga", "🧘"),
-    STRENGTH("strength", "Strength", "🏋️"),
-    SWIM("swim", "Swim", "🏊"),
-    HIIT("hiit", "HIIT", "⚡"),
-    OTHER("other", "Other", "✨");
+/**
+ * Activity kinds (Move tab, Home quick-log, and what a finished workout is
+ * logged as). [met] is a typical moderate-effort value from the Compendium
+ * of Physical Activities, used only for the optional calorie estimate.
+ */
+enum class ActivityType(val key: String, val label: String, val emoji: String, val met: Float) {
+    WALK("walk", "Walk", "🚶", 3.5f),
+    RUN("run", "Run", "🏃", 9.8f),
+    CYCLE("cycle", "Cycle", "🚴", 7.5f),
+    YOGA("yoga", "Yoga", "🧘", 2.5f),
+    STRETCH("stretch", "Stretching", "🙆", 2.3f),
+    STRENGTH("strength", "Strength", "🏋️", 5.0f),
+    SWIM("swim", "Swim", "🏊", 7.0f),
+    HIIT("hiit", "HIIT", "⚡", 8.0f),
+    OTHER("other", "Other", "✨", 4.0f);
 
     companion object {
         fun of(key: String): ActivityType = entries.firstOrNull { it.key == key } ?: OTHER
@@ -75,6 +80,7 @@ object LogSource {
     const val CHECKIN      = "checkin"
     const val BACKFILL     = "backfill"   // water from pre-1.2.0 check-ins
     const val QUICK        = "quick"      // workout logged as type + minutes
+    const val WORKOUT      = "workout"    // done in the workout player, with sets
 }
 
 /** Weekly activity target shown on the Move tab (WHO adult guideline). */

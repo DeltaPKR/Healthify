@@ -10,9 +10,12 @@ import com.google.firebase.firestore.SetOptions
 import com.google.firebase.firestore.ktx.firestore
 import com.google.firebase.ktx.Firebase
 import com.healthify.app.data.db.CheckInEntity
+import com.healthify.app.data.db.CustomExerciseEntity
 import com.healthify.app.data.db.MealEntryEntity
+import com.healthify.app.data.db.RoutineWithItems
 import com.healthify.app.data.db.UserEntity
 import com.healthify.app.data.db.WorkoutSessionEntity
+import com.healthify.app.data.db.WorkoutSetEntity
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.tasks.await
 
@@ -31,7 +34,9 @@ enum class CloudSyncState(val label: String) {
  *   users/{uid}/checkins/{date} → CheckInEntity fields
  *   users/{uid}/water/{date}    → daily water total
  *   users/{uid}/meals/{syncId}  → MealEntryEntity fields
- *   users/{uid}/workouts/{syncId} → WorkoutSessionEntity fields
+ *   users/{uid}/workouts/{syncId} → WorkoutSessionEntity fields (+ sets for player workouts)
+ *   users/{uid}/routines/{syncId} → RoutineEntity + its exercises
+ *   users/{uid}/customExercises/{syncId} → CustomExerciseEntity fields
  * The security rules must allow all of these (see firestore.rules).
  *
  * Uses anonymous auth so users don't need to sign up.
@@ -244,10 +249,11 @@ object FirebaseSync {
         } catch (e: Exception) { /* queued offline */ }
     }
 
-    suspend fun syncWorkout(w: WorkoutSessionEntity) {
+    /** [sets] is passed for player workouts; quick-logged activities have none. */
+    suspend fun syncWorkout(w: WorkoutSessionEntity, sets: List<WorkoutSetEntity>? = null) {
         val uid = uid ?: return
         try {
-            val data = mapOf(
+            val data = mutableMapOf<String, Any?>(
                 "date"         to w.date,
                 "activityType" to w.activityType,
                 "title"        to w.title,
@@ -255,11 +261,78 @@ object FirebaseSync {
                 "endedAt"      to w.endedAt,
                 "durationMin"  to w.durationMin,
                 "source"       to w.source,
-                "updatedAt"    to w.updatedAt
+                "updatedAt"    to w.updatedAt,
+                "routineRef"   to w.routineRef,
+                "notes"        to w.notes,
+                "kcalEstimate" to w.kcalEstimate
             )
+            if (sets != null) data["sets"] = sets.map { s ->
+                mapOf(
+                    "exerciseId"  to s.exerciseId,
+                    "slot"        to s.slot,
+                    "setIndex"    to s.setIndex,
+                    "reps"        to s.reps,
+                    "weightKg"    to s.weightKg,
+                    "durationSec" to s.durationSec,
+                    "isWarmup"    to s.isWarmup,
+                    "prType"      to s.prType,
+                    "completedAt" to s.completedAt
+                )
+            }
             db.collection("users").document(uid)
               .collection("workouts").document(w.syncId)
               .set(data, SetOptions.merge()).await()
+        } catch (e: Exception) { /* queued offline */ }
+    }
+
+    suspend fun syncRoutine(r: RoutineWithItems) {
+        val uid = uid ?: return
+        try {
+            val data = mapOf(
+                "name"         to r.routine.name,
+                "emoji"        to r.routine.emoji,
+                "activityType" to r.routine.activityType,
+                "basedOn"      to r.routine.basedOn,
+                "createdAt"    to r.routine.createdAt,
+                "updatedAt"    to r.routine.updatedAt,
+                "exercises"    to r.items.sortedBy { it.position }.map { e ->
+                    mapOf(
+                        "exerciseId"  to e.exerciseId,
+                        "sets"        to e.sets,
+                        "reps"        to e.reps,
+                        "durationSec" to e.durationSec,
+                        "restSec"     to e.restSec,
+                        "note"        to e.note
+                    )
+                }
+            )
+            // Not merged: the exercise list is replaced as a whole.
+            db.collection("users").document(uid)
+              .collection("routines").document(r.routine.syncId)
+              .set(data).await()
+        } catch (e: Exception) { /* queued offline */ }
+    }
+
+    suspend fun deleteRoutine(syncId: String) {
+        val uid = uid ?: return
+        try {
+            db.collection("users").document(uid)
+              .collection("routines").document(syncId).delete().await()
+        } catch (e: Exception) { /* queued offline */ }
+    }
+
+    suspend fun syncCustomExercise(c: CustomExerciseEntity) {
+        val uid = uid ?: return
+        try {
+            db.collection("users").document(uid)
+              .collection("customExercises").document(c.syncId)
+              .set(mapOf(
+                  "name"      to c.name,
+                  "tracking"  to c.tracking,
+                  "muscle"    to c.muscle,
+                  "equipment" to c.equipment,
+                  "createdAt" to c.createdAt
+              ), SetOptions.merge()).await()
         } catch (e: Exception) { /* queued offline */ }
     }
 
