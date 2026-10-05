@@ -596,9 +596,10 @@ again, hence 23.
 - [ ] Build the signed AAB for 1.4.2 (23); upload to Internal testing.
 - [ ] Main store listing: app name **Fernday: Daily Wellness**; short and
       full description from `STORE_LISTING.md`; the new feature graphic
-      `docs/store-assets/feature-1024x500.png`; replace **all** screenshots
-      with ones from 1.4.2 (nothing showing the old name, the old 5-tab
-      layout or a real person's name).
+      `docs/store-assets/feature-1024x500.png`; delete **all** old
+      screenshots and upload `docs/store-assets/screenshots/01_score.png` …
+      `08_insights.png` in that order (made from 1.4.2 with demo data; see
+      `ASSETS.md`).
 - [ ] Store settings → Store listing contact details: clear the website if
       it points at `deltapkr.github.io/Healthify/`.
 - [ ] Release notes without the old name.

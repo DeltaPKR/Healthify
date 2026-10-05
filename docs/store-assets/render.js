@@ -1,9 +1,9 @@
-// Renders the Play Store assets from their SVG sources.
+// Renders the Play Store app icon from its SVG source. The feature graphic
+// and screenshots come from render-screenshots.js.
 // Run:
 //   cd docs/store-assets && npm install sharp && node render.js
 // Output:
 //   docs/store-assets/icon-512.png         (Play Store app icon)
-//   docs/store-assets/feature-1024x500.png (Play Store feature graphic)
 
 const fs = require("fs");
 const path = require("path");
@@ -20,7 +20,6 @@ async function render(svgFile, pngFile, width, height) {
 
 (async () => {
   await render("icon-512.svg",          "icon-512.png",          512,  512);
-  await render("feature-1024x500.svg",  "feature-1024x500.png",  1024, 500);
 })().catch((e) => {
   console.error(e);
   process.exit(1);

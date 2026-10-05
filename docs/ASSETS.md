@@ -1,80 +1,89 @@
 # Fernday — Store assets
 
-Source SVGs and rendered PNGs for the Play Store listing.
+Everything uploaded to the Play Store listing, and how to rebuild it.
 
 ## Files
 
-| File                            | Purpose                       | Spec                          |
-|---------------------------------|-------------------------------|-------------------------------|
-| `store-assets/icon-512.svg`     | App icon source               | —                             |
-| `store-assets/icon-512.png`     | **Upload to Play**            | 512 × 512, PNG, 20 KB         |
-| `store-assets/feature-1024x500.svg` | Feature graphic source    | —                             |
-| `store-assets/feature-1024x500.png` | **Upload to Play**        | 1024 × 500, PNG, 55 KB        |
+| File                                   | Upload to Play as        | Spec                     |
+|----------------------------------------|--------------------------|--------------------------|
+| `store-assets/icon-512.png`            | App icon                 | 512 × 512 PNG            |
+| `store-assets/feature-1024x500.png`    | Feature graphic          | 1024 × 500 PNG           |
+| `store-assets/screenshots/01_score.png` … `08_insights.png` | Phone screenshots, in this order | 1080 × 1920 PNG (9:16) |
 
-## Re-rendering
+Sources: `icon-512.svg` (rendered by `render.js`, needs `sharp`), and
+`render-screenshots.js`, which renders the screenshots and the feature
+graphic with headless Chrome from raw app captures.
 
-If you edit the SVGs:
+## Screenshots and feature graphic
+
+Each screenshot is a headline and a subline over a real app screen in a
+phone frame, on the app's own navy and green with the Plus Jakarta Sans
+font from `app/src/main/assets/fonts`. Headlines and their order live in
+`SLIDES` in `render-screenshots.js`.
+
+**Rules (Play policy, learned the hard way):**
+- Only Fernday's own name, colours and screens. No other app's look, and
+  never the old name (see `PLAY_CONSOLE.md` §17).
+- No third-party brand names on screen. A live Open Food Facts search shows
+  brands (e.g. yogurt makers), so the food slide uses generic foods.
+- Demo data only: the user is the fictional "Alex"; never a real person.
+- Captions must describe what the screen shows; no "#1", "best", awards or
+  prices.
+
+### 1. Capture the raw screens (emulator, debug build)
+
+The 2026-10 set was taken on the `healthify35` AVD (1080 × 2400, Android 15):
+
+1. `adb root`, then set a fixed time so the week charts are full:
+   `adb shell settings put global auto_time 0` and
+   `adb shell date 101019302026.00` (Saturday 19:30).
+2. `./gradlew :app:installDebug`, `adb shell pm clear com.DeltaPKR.Healthify`,
+   onboard as "Alex", decline Health Connect, then force-stop the app.
+3. Seed demo history with `run-as com.DeltaPKR.Healthify sqlite3
+   databases/healthify.db`: two weeks of `check_ins` (+ matching
+   `water_logs`), a few `workout_sessions`, last Thursday's "Gym Upper
+   Body" with its `workout_sets` (the baseline today's records beat),
+   today's `meal_entries`, and some generic `food_items` with `useCount > 0`
+   for the Recent list. Set `users.countCalories = 1` and the streak
+   fields.
+4. Clean status bar:
+   ```bash
+   adb shell settings put global sysui_demo_allowed 1
+   adb shell am broadcast -a com.android.systemui.demo -e command enter
+   adb shell am broadcast -a com.android.systemui.demo -e command clock -e hhmm 1930
+   adb shell am broadcast -a com.android.systemui.demo -e command battery -e level 100 -e plugged false
+   adb shell am broadcast -a com.android.systemui.demo -e command network -e wifi show -e level 4 -e fully true
+   adb shell am broadcast -a com.android.systemui.demo -e command network -e mobile hide
+   adb shell am broadcast -a com.android.systemui.demo -e command notifications -e visible false
+   ```
+5. Use the app normally and capture each screen with
+   `adb exec-out screencap -p > <raw-dir>/<name>.png`:
+
+   | Raw file          | Screen                                                  |
+   |-------------------|---------------------------------------------------------|
+   | `home.png`        | Home after the check-in                                 |
+   | `checkin.png`     | The check-in celebration                                |
+   | `food.png`        | Food tab, calories on                                   |
+   | `food_search.png` | Add food → Recent list (generic foods)                  |
+   | `move.png`        | Move tab after the workout                              |
+   | `player.png`      | Player with a record set ticked and the rest timer      |
+   | `records.png`     | The finished workout's summary (offer card dismissed)   |
+   | `insights.png`    | Insights                                                |
+
+### 2. Render
 
 ```bash
-cd docs/store-assets
-node render.js
+node docs/store-assets/render-screenshots.js <raw-dir>
 ```
 
-`sharp` is pinned in `package.json`; the first run installs it.
-
-## Screenshots
-
-Play requires **≥ 2 phone screenshots**. They must come from the real app,
-so capture them from the release build running on a connected device.
-
-```bash
-# 1. From repo root, install the AAB on the connected device:
-"$ANDROID_HOME/cmdline-tools/latest/bin/bundletool" build-apks \
-  --bundle=app/build/outputs/bundle/release/app-release.aab \
-  --output=/tmp/healthify.apks \
-  --connected-device \
-  --ks=$HOME/.android/keystores/healthify-release.jks \
-  --ks-key-alias=healthify
-
-"$ANDROID_HOME/cmdline-tools/latest/bin/bundletool" install-apks \
-  --apks=/tmp/healthify.apks
-
-# 2. Launch + capture each screen with adb:
-adb shell am start -n com.DeltaPKR.Healthify/.MainActivity
-sleep 3
-
-mkdir -p docs/store-assets/screenshots
-adb exec-out screencap -p > docs/store-assets/screenshots/01_dashboard.png
-# manually navigate to each tab, then run:
-adb exec-out screencap -p > docs/store-assets/screenshots/02_checkin.png
-adb exec-out screencap -p > docs/store-assets/screenshots/03_insights.png
-adb exec-out screencap -p > docs/store-assets/screenshots/04_reminders.png
-adb exec-out screencap -p > docs/store-assets/screenshots/05_profile.png
-```
-
-### Tips for good store screenshots
-
-- Use a device with a clean status bar (no carrier name, full battery,
-  signal strength visible). The Pixel 8 emulator with
-  `adb shell settings put global sysui_demo_allowed 1` then
-  `adb shell am broadcast -a com.android.systemui.demo -e command enter`
-  + further demo-mode commands gives a clean bar.
-- Don't crop status bars — Play prefers the full device chrome.
-- Long side must be 320–3840 px. A 1080×2400 Pixel screen is fine as-is.
-- First two screenshots show up in search results — make them count.
-  Recommended order:
-  1. Dashboard with steps + sleep + HR populated.
-  2. Daily check-in mid-entry.
-  3. Insights weekly mood strip.
-  4. Reminders list with the wheel time-picker visible.
-  5. Profile / streak.
+Writes the 8 screenshots and `feature-1024x500.png`. Set `CHROME` if
+Chrome isn't at the default Windows path.
 
 ## Design notes
 
-- Background: same `#070D1A` ↔ `#111E30` radial gradient as the in-app
-  theme — keeps icon, splash, and dashboard visually identical.
-- Accent: Fernday green `#1AD9A0` (matches `Theme.Healthify` accent).
-- Heart silhouette is the Material `Filled.Favorite` path; reused in
-  `mipmap-anydpi-v26/ic_launcher.xml` and the splash branding.
-- Feature graphic positions the heart at x=800/1024 — survives Play's
-  per-device crop which trims roughly the right 20–30 % on small surfaces.
+- Background: the app's navy (`#070D1A` → `#0D1730`) with soft green,
+  sky and lavender glows; accent words use the green → sky gradient.
+- The heart is the Material `Filled.Favorite` path, as in the launcher
+  icon and splash.
+- The feature graphic keeps the wordmark on the left; Play may crop the
+  right edge on small surfaces, which only clips the phones.

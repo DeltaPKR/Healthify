@@ -158,50 +158,15 @@ you have a health concern, see a clinician.
 
 ## Visual assets — what Play requires
 
-| Asset                    | Spec                         | Status                                   |
-|--------------------------|------------------------------|------------------------------------------|
-| App icon                 | 512 × 512 px, 32-bit PNG, ≤1 MB | ⚠️ Render needed — see `docs/ASSETS.md`  |
-| Feature graphic          | 1024 × 500 px, JPEG/PNG, ≤15 MB | ⚠️ Render needed — see `docs/ASSETS.md`  |
-| Phone screenshots        | min 2, max 8; 16:9 or 9:16; 320–3840 px on the long side | ⚠️ Capture from running release build    |
-| 7-inch tablet screenshots| Optional; min 1, max 8       | Skip (phone-first app)                   |
-| 10-inch tablet screenshots| Optional; min 1, max 8      | Skip                                     |
-| TV banner                | Skip (no TV target)          |                                          |
-| Wear OS screenshots      | Skip (no Wear target)        |                                          |
+| Asset             | Spec                                   | File                                                 |
+|-------------------|----------------------------------------|------------------------------------------------------|
+| App icon          | 512 × 512 PNG, ≤ 1 MB                  | `docs/store-assets/icon-512.png`                     |
+| Feature graphic   | 1024 × 500 PNG/JPEG                    | `docs/store-assets/feature-1024x500.png`             |
+| Phone screenshots | 2–8, 9:16, 320–3840 px on the long side | `docs/store-assets/screenshots/01_score.png` … `08_insights.png`, in that order |
+| Tablet, TV, Wear  | Skip (phone-first app)                 |                                                      |
 
-See `docs/ASSETS.md` for source SVGs + render instructions.
-
----
-
-## Screenshot capture script (when you have a device connected)
-
-```bash
-# 1. Install the release AAB to a connected device:
-"$ANDROID_HOME/cmdline-tools/latest/bin/bundletool" build-apks \
-  --bundle=app/build/outputs/bundle/release/app-release.aab \
-  --output=/tmp/healthify.apks \
-  --connected-device \
-  --ks=$HOME/.android/keystores/healthify-release.jks \
-  --ks-key-alias=healthify
-
-"$ANDROID_HOME/cmdline-tools/latest/bin/bundletool" install-apks \
-  --apks=/tmp/healthify.apks
-
-# 2. Launch + capture each screen with adb:
-adb shell am start -n com.DeltaPKR.Healthify/.MainActivity
-adb exec-out screencap -p > screenshots/01_dashboard.png
-
-# repeat after navigating to each tab:
-#   01_dashboard.png         home with steps + sleep from Health Connect
-#   02_food.png              Food tab with a few meals logged
-#   03_food_search.png       a search or barcode result
-#   04_move.png              Move tab: workouts card and today's activities
-#   05_workout_player.png    the player mid-workout, rest timer showing
-#   06_workout_summary.png   a summary with a personal record
-#   07_check_in.png          mid check-in (mood + water + food)
-#   08_insights.png          wellness trend + weekly mood
-```
-
-You need 2–8 of these; Play shows them in this order.
+How they were made, and the rules they follow (no other brands, demo
+data only, never the old name): `docs/ASSETS.md`.
 
 ---
 
