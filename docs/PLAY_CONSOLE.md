@@ -1,10 +1,10 @@
-# Healthify — Play Console submission cheat sheet
+# Fernday — Play Console submission cheat sheet
 
 Each section maps to a form/section in [Google Play Console](https://play.google.com/console).
 Copy answers verbatim where exact wording is requested.
 
 App package: `com.DeltaPKR.Healthify`
-App name: Healthify
+App name: Fernday
 Default language: English (United States) — `en-US`
 Category: Health & Fitness
 
@@ -82,7 +82,7 @@ Check the following in the Play Console form.
 
 #### App activity
 - ☑️ **App interactions** (Firebase Analytics events: check-in completed, screen views) — Collected, Not shared, Optional, TLS, **Cannot request deletion** (aggregated)
-- ☑️ **In-app search history** (since 1.3.0: food search text and looked-up barcodes, sent to Open Food Facts to fetch results) — Collected, **Processed ephemerally** ✅ (Healthify stores no search history; only foods the user logs), Not shared (user-initiated lookup the user expects to go to the food database), Optional, Purpose: App functionality, TLS
+- ☑️ **In-app search history** (since 1.3.0: food search text and looked-up barcodes, sent to Open Food Facts to fetch results) — Collected, **Processed ephemerally** ✅ (Fernday stores no search history; only foods the user logs), Not shared (user-initiated lookup the user expects to go to the food database), Optional, Purpose: App functionality, TLS
 
 #### App info and performance
 - ☑️ **Crash logs** — Collected, Not shared, Optional, TLS, Cannot request deletion (aggregated)
@@ -115,7 +115,7 @@ Installed apps, User-payment info.
 
 **Answer (paste verbatim):**
 
-> Healthify is a daily wellness reminder app. Users schedule notifications
+> Fernday is a daily wellness reminder app. Users schedule notifications
 > for water intake, movement, daily check-ins, and wind-down at specific
 > times of day (e.g. exactly 8:00 AM for the morning water reminder). If
 > the OS delays a reminder by even five minutes the user-facing contract
@@ -184,7 +184,7 @@ else. See the health apps declaration below.
 
 ### Core app functionality (paste verbatim)
 
-> Healthify is a daily wellness tracker. Through the day the user logs
+> Fernday is a daily wellness tracker. Through the day the user logs
 > water, meals and activities in a few taps; meals can be looked up by
 > name or barcode in the Open Food Facts database, with optional calorie
 > counting, and workouts can be followed set by set from built-in or
@@ -193,17 +193,17 @@ else. See the health apps declaration below.
 > streak, and weekly trends on the Insights screen.
 >
 > Two of the score's inputs — how much the user moved and how much they
-> slept — are already recorded by the phone or wearable. Healthify reads
+> slept — are already recorded by the phone or wearable. Fernday reads
 > exactly those two from Health Connect so the user doesn't have to
 > recall and retype numbers their device already has. Steps are shown on
 > the home dashboard and the Move tab, sleep on the home dashboard, and
 > both are inputs to the wellness score that is stored with each
 > check-in.
 >
-> Healthify requests two read permissions and one write permission.
+> Fernday requests two read permissions and one write permission.
 > The write is optional and off by default: when the user turns on "Save
 > to Health Connect" in Move settings (or accepts the offer shown after a
-> finished workout), the workouts and activities they log in Healthify
+> finished workout), the workouts and activities they log in Fernday
 > are added to Health Connect as exercise sessions, so their other health
 > and fitness apps can see them.
 
@@ -242,11 +242,11 @@ workouts to Health Connect.
 > activity logged by type and minutes, is written as one exercise
 > session: exercise type, title, start and end time — no sets, weights,
 > notes or calorie estimates. Each record carries the workout's own id,
-> so editing a workout in Healthify updates its copy and deleting it
+> so editing a workout in Fernday updates its copy and deleting it
 > deletes the copy. Turning the setting on also saves workouts logged
-> earlier. Healthify does not read exercise sessions back and holds no
+> earlier. Fernday does not read exercise sessions back and holds no
 > exercise read permission. Without this permission workouts stay in
-> Healthify only.
+> Fernday only.
 
 **No other Health Connect data types are requested.** Heart rate,
 distance and active calories were removed in version 1.0.15.
@@ -260,7 +260,7 @@ distance and active calories were removed in version 1.0.15.
   is written to Firestore as part of the check-in record, under an
   anonymous account with no name, email or phone number.
 - The one write permission, exercise, is used only after the user turns
-  it on, and only for workouts and activities they logged in Healthify.
+  it on, and only for workouts and activities they logged in Fernday.
   Writes happen when a workout is saved, edited or deleted, or at app
   launch to catch up on ones that failed; there is no other background
   work.
@@ -302,7 +302,7 @@ Required by Play. Capture a 30–60s screen recording showing, in order:
    Connect": the explanation, the switch, the system sheet asking only
    for exercise; then finish a short workout and show it in Health
    Connect (Settings → Health Connect → Data and access → Activity →
-   Exercise), with Healthify as the source.
+   Exercise), with Fernday as the source.
 
 Make sure the test device has real (or seeded) step and sleep data in
 Health Connect before recording — an empty dashboard is what triggered
@@ -565,3 +565,48 @@ the release that can be rejected, so it ships on its own.
 - [ ] Roll out to internal testing first and turn the switch on from a
       Play-installed build, on Android 14+ and, if you have one, an
       Android 13-or-lower phone with the Health Connect app.
+
+## 17. Release 1.4.2 (versionCode 23) — renamed to Fernday
+
+**What happened.** On 2026-10-05 the 1.4.1 production update was rejected
+under the **Impersonation policy**. Evidence named: the app name, the full
+description and the feature graphic, all saying "Healthify". Since December
+2023 HealthifyMe's app is itself called "Healthify" ("Healthify: AI Diet &
+Fitness", `com.healthifyme.basic`, 10M+ downloads, food and calorie
+tracking, steps, sleep, workouts, Health Connect). Once 1.4.1 added food
+logging and calories, the overlap was obvious. An appeal needs written
+authorization from the brand owner, so don't appeal; the previous version
+stays live meanwhile.
+
+**What 1.4.2 changes.** Everything users see says **Fernday**: the launcher
+label (`app_name`, which Health Connect's permission screens also show), the
+splash, the welcome screen, notifications, dialogs, Profile → About, the
+data-deletion email, the Open Food Facts user agent, the privacy policy,
+the data-deletion page, the store listing copy and the feature graphic.
+Unchanged on purpose: the package id `com.DeltaPKR.Healthify` (Play can't
+change it), code identifiers, `healthify.db`, `healthify_prefs` and the
+notification channel ids (changing those would wipe data or settings), and
+the GitHub Pages URLs (old installs link to them).
+
+versionCode 22 was used by the rejected upload and Play won't accept it
+again, hence 23.
+
+**Before resubmitting — all in the same submission:**
+
+- [ ] Build the signed AAB for 1.4.2 (23); upload to Internal testing.
+- [ ] Main store listing: app name **Fernday: Daily Wellness**; short and
+      full description from `STORE_LISTING.md`; the new feature graphic
+      `docs/store-assets/feature-1024x500.png`; replace **all** screenshots
+      with ones from 1.4.2 (nothing showing the old name, the old 5-tab
+      layout or a real person's name).
+- [ ] Store settings → Store listing contact details: clear the website if
+      it points at `deltapkr.github.io/Healthify/`.
+- [ ] Release notes without the old name.
+- [ ] Health apps declaration (§7): re-paste "Core app functionality" and
+      the three per-type texts (they now say Fernday) and the §16 exercise
+      write items. **Re-record the demo video with 1.4.2**: a video showing
+      "Allow Healthify to access Health Connect?" repeats the problem.
+- [ ] Data safety: no change. The data-deletion URL stays the same; the
+      page now says Fernday.
+- [ ] Production: create the release from the 1.4.2 bundle and send it
+      for review together with the listing and declaration changes.

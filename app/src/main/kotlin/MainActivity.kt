@@ -651,7 +651,7 @@ private fun HealthConnectRationaleDialog(
         )
         Spacer(Modifier.height(8.dp))
         Text(
-            "Healthify reads two things from Health Connect, so your " +
+            "Fernday reads two things from Health Connect, so your " +
             "dashboard and wellness score reflect what you actually did " +
             "today instead of what you had to type in:",
             style = MaterialTheme.typography.bodyMedium,
@@ -765,7 +765,7 @@ private fun SplashScreen() {
                 )
             }
             Text(
-                text = "Healthify",
+                text = "Fernday",
                 style = MaterialTheme.typography.headlineLarge.copy(brush = BrandGradient, fontSize = 36.sp),
                 modifier = Modifier.graphicsLayer {
                     alpha = intro.value.coerceIn(0f, 1f)

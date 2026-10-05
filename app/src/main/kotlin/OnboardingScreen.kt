@@ -219,7 +219,7 @@ private fun StepName(vm: OnboardingViewModel) {
         Text(
             buildAnnotatedString {
                 append("Welcome to\n")
-                withStyle(SpanStyle(brush = BrandGradient)) { append("Healthify") }
+                withStyle(SpanStyle(brush = BrandGradient)) { append("Fernday") }
                 append("!")
             },
             style = MaterialTheme.typography.headlineLarge.copy(fontSize = 38.sp, lineHeight = 44.sp)

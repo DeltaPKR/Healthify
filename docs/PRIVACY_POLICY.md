@@ -1,13 +1,13 @@
-# Healthify — Privacy Policy
+# Fernday — Privacy Policy
 
 **Effective date:** 2026-05-18
-**Last updated:** 2026-10-04
-**App:** Healthify (`com.DeltaPKR.Healthify`)
+**Last updated:** 2026-10-05
+**App:** Fernday (`com.DeltaPKR.Healthify`)
 **Publisher:** DeltaPKR
 **Contact:** deltapkr.developer@gmail.com
 
-This Privacy Policy explains what information the Healthify mobile application
-("Healthify", "the app", "we") collects, how it is used, where it is stored,
+This Privacy Policy explains what information the Fernday mobile application
+("Fernday", "the app", "we") collects, how it is used, where it is stored,
 and your rights regarding that information.
 
 ---
@@ -43,13 +43,13 @@ During onboarding and daily check-ins you may enter:
   an estimated calorie burn (shown only if calorie counting is on). The
   exercise library itself is part of the app and needs no connection.
 
-All of these are stored locally on the device in an SQLite database
-(`healthify.db`). A copy is synced to Firebase Firestore under an anonymous
+All of these are stored locally on the device in an SQLite database.
+A copy is synced to Firebase Firestore under an anonymous
 identifier. Sync is one-way today: the app sends its records to Firestore
 but does not yet restore them on a new install or another device.
 
 ### 1.2 Health Connect
-With your explicit per-data-type permission, Healthify reads the following
+With your explicit per-data-type permission, Fernday reads the following
 record types from Android Health Connect:
 
 | Health Connect record | Used for                                                                 |
@@ -57,7 +57,7 @@ record types from Android Health Connect:
 | Steps                 | Today's step count on the home dashboard, measured against your step goal, and one of the two automatic inputs to your daily wellness score |
 | Sleep sessions        | Last night's total sleep hours on the home dashboard, and the second automatic input to your daily wellness score |
 
-These are the only two Health Connect record types Healthify reads. It
+These are the only two Health Connect record types Fernday reads. It
 does **not** read heart rate, distance, active calories, weight,
 height, blood glucose, oxygen saturation, menstruation, nutrition,
 exercise sessions, or any other record type. Heart rate, distance and
@@ -65,22 +65,22 @@ active calories were requested by versions up to 1.0.14 and were removed
 in 1.0.15.
 
 Granting Health Connect access is optional. If you decline, or revoke it
-later in the Health Connect app, Healthify keeps working — you enter
+later in the Health Connect app, Fernday keeps working — you enter
 steps and sleep manually on the check-in screen instead.
 
 Health Connect data is read **on demand**, summarised, and the summary is
-stored alongside your check-in record. Healthify does not export raw Health
+stored alongside your check-in record. Fernday does not export raw Health
 Connect records to Firestore — only the daily summary (e.g. "12 345 steps
 today") is synced.
 
 **Saving workouts to Health Connect (optional, off by default).** If you
-turn on "Save to Health Connect" in the Move tab's settings, Healthify asks
+turn on "Save to Health Connect" in the Move tab's settings, Fernday asks
 for Health Connect's exercise write permission and then writes each workout
 you finish and each activity you log as an exercise session: its type,
 title, start and end time. Sets, weights, notes and calorie estimates are
 not written. Workouts you logged before turning it on are written too.
-Editing or deleting a workout in Healthify updates or deletes its copy.
-Healthify does not read exercise sessions back. Once written, a session is
+Editing or deleting a workout in Fernday updates or deletes its copy.
+Fernday does not read exercise sessions back. Once written, a session is
 in Health Connect on your device, where apps you allow to read exercise can
 see it. Turning the setting off stops new writes; sessions already written
 stay until you delete them in Health Connect.
@@ -98,7 +98,7 @@ stay until you delete them in Health Connect.
   completed a check-in"). No free-text inputs are sent.
 - **Food searches and barcodes.** When you search for a food or look up a
   barcode, the search text or barcode is sent to Open Food Facts (see §4).
-  Healthify keeps no history of your searches beyond the foods you choose
+  Fernday keeps no history of your searches beyond the foods you choose
   to log.
 
 ### 1.4 Information we do **not** collect
@@ -108,7 +108,7 @@ stay until you delete them in Health Connect.
 - We do not request precise location.
 - We do not access contacts, microphone, camera, SMS, call logs, or files
   on external storage. Barcode scanning uses Google's code scanner (see
-  §4), which runs in Google Play services: Healthify does not hold the
+  §4), which runs in Google Play services: Fernday does not hold the
   camera permission and never receives camera images, only the barcode
   number.
 - We do not share data with advertisers.
@@ -137,7 +137,7 @@ third-party marketing, or any automated decision making with legal effects.
 
 | Location                                                           | What is stored                                                                    |
 |--------------------------------------------------------------------|-----------------------------------------------------------------------------------|
-| On your device (`healthify.db`, app's private storage)             | Full profile, check-ins, water/meal/activity logs, workouts with their sets, your routines and exercises, reminders, your food list (looked-up foods are removed after 180 days unused) |
+| On your device (app's private storage)             | Full profile, check-ins, water/meal/activity logs, workouts with their sets, your routines and exercises, reminders, your food list (looked-up foods are removed after 180 days unused) |
 | Firebase Firestore (Google Cloud, EU/US multi-region)              | Anonymous UID, profile summary and calorie settings, daily check-in summaries, daily water totals, meal logs with their food details, activity and workout logs with their sets, your routines and exercises (mirror of on-device DB) |
 | Firebase Authentication                                            | Anonymous UID + sign-in token                                                     |
 | Firebase Crashlytics (release builds only)                         | Crash stack traces + device metadata + anonymous UID                              |
@@ -147,7 +147,7 @@ servers. The summary numbers derived from it (e.g. step count for a given
 day) are mirrored to Firestore as part of the daily check-in record.
 
 Android cloud backup (Auto Backup) and device-to-device transfer
-**deliberately exclude** `healthify.db` and Firebase installation files via
+**deliberately exclude** the app's database and Firebase installation files via
 the rules in `res/xml/backup_rules.xml` and `res/xml/data_extraction_rules.xml`.
 Your health data does not roam through Google account backup.
 
@@ -162,7 +162,7 @@ We use the following sub-processors. We do not share data with anyone else.
 | Google / Firebase         | Auth, Firestore, Crashlytics, Analytics | Anonymous UID, check-in summaries, water/meal/activity/workout logs, routines, crash reports |
 | Android Health Connect    | On-device health data store   | Reads steps and sleep with your permission; writes workouts as exercise sessions only if you turn that on. Stays on your device |
 | Open Food Facts (non-profit food database) | Food search and barcode lookup | The search text or barcode you look up, and your IP address as part of the connection. No account, UID or health data is sent. Their privacy policy: https://world.openfoodfacts.org/privacy |
-| Google Code Scanner (Google Play services) | Reading a barcode with the camera | Runs inside Google Play services under Google's privacy policy; Healthify receives only the barcode number |
+| Google Code Scanner (Google Play services) | Reading a barcode with the camera | Runs inside Google Play services under Google's privacy policy; Fernday receives only the barcode number |
 
 Food data shown in the app comes from Open Food Facts and is available
 under the Open Database License (https://opendatacommons.org/licenses/odbl/1-0/).
@@ -177,10 +177,10 @@ OS level via `network_security_config.xml`.
 You can, at any time:
 
 - **Revoke Health Connect access** — Android system settings → Health Connect →
-  Permissions → Healthify.
+  Permissions → Fernday.
 - **Stop saving workouts to Health Connect** — Move tab → settings → Save
   to Health Connect. Delete saved sessions in the Health Connect app.
-- **Disable notifications** — Android system settings → Apps → Healthify →
+- **Disable notifications** — Android system settings → Apps → Fernday →
   Notifications.
 - **Delete your data** — Uninstall the app to remove the local database.
   To delete the synced copy on Firestore, email
@@ -200,7 +200,7 @@ complaint with your supervisory authority.
 
 ## 6. Children
 
-Healthify is **not directed at children under 13**. We do not knowingly
+Fernday is **not directed at children under 13**. We do not knowingly
 collect data from children under 13. If you believe a child has provided
 data to us, contact deltapkr.developer@gmail.com and we will delete it.
 
@@ -245,5 +245,5 @@ after the effective date of any change constitutes acceptance.
 **Publisher:** DeltaPKR
 **Country of operation:** Armenia
 
-For data-protection inquiries please put "Healthify privacy" in the
+For data-protection inquiries please put "Fernday privacy" in the
 subject line.

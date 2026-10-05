@@ -38,12 +38,12 @@
 
   <!-- Wordmark + tagline on the left -->
   <g font-family="Inter, 'Helvetica Neue', Arial, sans-serif" fill="#FFFFFF">
-    <text x="72" y="210" font-size="84" font-weight="700" letter-spacing="-2">Healthify</text>
+    <text x="72" y="210" font-size="84" font-weight="700" letter-spacing="-2">Fernday</text>
     <text x="72" y="270" font-size="28" font-weight="400" fill="#9FB1C7">
-      A quiet daily wellness tracker.
+      A calm daily wellness tracker.
     </text>
     <text x="72" y="306" font-size="28" font-weight="400" fill="#9FB1C7">
-      Mood, sleep, water, steps — one minute a day.
+      Check-ins, meals, workouts, steps, sleep.
     </text>
   </g>
 </svg>

@@ -1,4 +1,11 @@
-# 🌿 Healthify
+# 🌿 Fernday
+
+> Formerly published as **Healthify**. Renamed in 1.4.2 after Google
+> rejected 1.4.1 under the Impersonation policy: HealthifyMe's app has been
+> called "Healthify" since December 2023. The package id
+> (`com.DeltaPKR.Healthify`), code identifiers and the GitHub Pages URLs
+> keep the old word; nothing users see does. See
+> `docs/PLAY_CONSOLE.md` §17.
 
 A calm daily wellness tracker for Android. One check-in a day — mood,
 water, food, sleep, and a rating of how the day went — turned into a
@@ -117,4 +124,4 @@ types.
 
 ---
 
-*Healthify · com.DeltaPKR.Healthify · minSdk 26 · targetSdk 36*
+*Fernday · com.DeltaPKR.Healthify · minSdk 26 · targetSdk 36*

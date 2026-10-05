@@ -59,7 +59,7 @@ class HealthifyApp : Application() {
             OpenFoodFactsClient(
                 cacheDir  = cacheDir,
                 // Open Food Facts asks every client to identify itself this way.
-                userAgent = "Healthify/${BuildConfig.VERSION_NAME} (deltapkr.developer@gmail.com)"
+                userAgent = "Fernday/${BuildConfig.VERSION_NAME} (deltapkr.developer@gmail.com)"
             )
         )
     }

@@ -126,7 +126,7 @@ fun MoveSettingsDialog(sync: WorkoutHealthSync, onDismiss: () -> Unit) {
             if (hc.denied) {
                 Spacer(Modifier.height(10.dp))
                 Text(
-                    "Healthify wasn't allowed to add exercise. You can allow it under Healthify in " +
+                    "Fernday wasn't allowed to add exercise. You can allow it under Fernday in " +
                         "Health Connect's app permissions.",
                     style = MaterialTheme.typography.bodySmall, color = Coral
                 )

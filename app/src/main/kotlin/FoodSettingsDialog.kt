@@ -61,7 +61,7 @@ fun FoodSettingsDialog(
         Spacer(Modifier.height(8.dp))
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
-                "Optional. Off, Healthify only tracks how your meals went — no calories or macros anywhere.",
+                "Optional. Off, Fernday only tracks how your meals went — no calories or macros anywhere.",
                 style = MaterialTheme.typography.bodySmall, color = TextMuted, modifier = Modifier.weight(1f)
             )
             Spacer(Modifier.width(12.dp))

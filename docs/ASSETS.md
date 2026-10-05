@@ -1,4 +1,4 @@
-# Healthify — Store assets
+# Fernday — Store assets
 
 Source SVGs and rendered PNGs for the Play Store listing.
 
@@ -73,7 +73,7 @@ adb exec-out screencap -p > docs/store-assets/screenshots/05_profile.png
 
 - Background: same `#070D1A` ↔ `#111E30` radial gradient as the in-app
   theme — keeps icon, splash, and dashboard visually identical.
-- Accent: Healthify green `#1AD9A0` (matches `Theme.Healthify` accent).
+- Accent: Fernday green `#1AD9A0` (matches `Theme.Healthify` accent).
 - Heart silhouette is the Material `Filled.Favorite` path; reused in
   `mipmap-anydpi-v26/ic_launcher.xml` and the splash branding.
 - Feature graphic positions the heart at x=800/1024 — survives Play's

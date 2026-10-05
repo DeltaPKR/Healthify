@@ -48,7 +48,7 @@ class QuickLogReceiver : BroadcastReceiver() {
                    else "Logged 💧 $total of $goal glasses today"
         val notification = NotificationCompat.Builder(context, NotificationChannels.REMINDERS)
             .setSmallIcon(R.drawable.ic_stat_water)
-            .setContentTitle("💧 Healthify")
+            .setContentTitle("💧 Fernday")
             .setContentText(text)
             .setOnlyAlertOnce(true)
             .setSilent(true)

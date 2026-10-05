@@ -1,4 +1,4 @@
-# Healthify — Store listing copy
+# Fernday — Store listing copy
 
 All text below is ready to paste into Play Console → **Main store listing**.
 Character counts include the limit Play enforces.
@@ -6,8 +6,16 @@ Character counts include the limit Play enforces.
 ---
 
 ## App name
-**Healthify**
-(9 / 30)
+**Fernday: Daily Wellness**
+(23 / 30)
+
+> **Never use "Healthify" anywhere users or reviewers see it** — title,
+> descriptions, release notes, graphics, screenshots, in-app text. Google
+> rejected 1.4.1 on 2026-10-05 under the **Impersonation** policy: since
+> Dec 2023 HealthifyMe's app (10M+ downloads, same features) is called
+> "Healthify". The app was renamed Fernday in 1.4.2; only the package id
+> `com.DeltaPKR.Healthify` (which Play can't change) and the GitHub Pages
+> URLs keep the old word. See `PLAY_CONSOLE.md` §17.
 
 ## Short description (≤ 80 chars)
 **Wellness check-ins, meals, workouts, steps and sleep, with reminders that stick.**
@@ -24,7 +32,7 @@ Character counts include the limit Play enforces.
 ## Full description (≤ 4000 chars)
 
 ```
-Healthify is a calm, focused wellness tracker — not a social network, not
+Fernday is a calm, focused wellness tracker — not a social network, not
 a fitness leaderboard. Log your day as it happens, check in each evening,
 and see how you're really doing, with the data to back it up.
 
@@ -89,8 +97,6 @@ PRIVACY THAT MATCHES THE MARKETING
   transfer.
 • Request full data deletion any time at deltapkr.developer@gmail.com.
 
-Full Privacy Policy: https://deltapkr.github.io/Healthify/privacy/
-
 PERMISSIONS WE ASK FOR
 
 • Notifications — to deliver your reminders.
@@ -116,14 +122,14 @@ REQUIREMENTS
   automatically or to save workouts. Optional — everything else works
   without it.
 
-Healthify is not a medical device. It does not diagnose, treat, or prevent
+Fernday is not a medical device. It does not diagnose, treat, or prevent
 any condition, and calorie targets are estimates, not medical advice. If
 you have a health concern, see a clinician.
 
 — Built by DeltaPKR. Feedback: deltapkr.developer@gmail.com
 ```
 
-(3915 / 4000 chars)
+(3843 / 4000 chars)
 
 > Up to 1.4.0 this said a reinstall or new phone gets your history back.
 > It doesn't: Firestore sync is push-only, with no restore. Don't claim it
@@ -140,7 +146,8 @@ you have a health concern, see a clinician.
 ## Contact details
 - **Email (required, public):** deltapkr.developer@gmail.com
 - **Phone:** (leave blank — optional)
-- **Website:** https://deltapkr.github.io/Healthify/ (or your real domain — update if you buy one)
+- **Website:** leave blank. The only site is the privacy page, whose URL
+  still contains the old name; the privacy policy has its own field.
 
 ---
 

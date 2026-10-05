@@ -1,4 +1,4 @@
-# Healthify — Privacy-policy hosting via GitHub Pages
+# Fernday — Privacy-policy hosting via GitHub Pages
 
 The privacy policy lives at `docs/privacy/index.html` in this repo. Once you
 enable GitHub Pages from the repo's `main` branch with the `/docs` folder as

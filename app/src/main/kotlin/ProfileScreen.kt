@@ -345,7 +345,7 @@ fun ProfileScreen(
             SectionLabel("About")
             GlassCard(Modifier.fillMaxWidth(), shape = RoundedCornerShape(20.dp)) {
                 Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                    InfoRow("🌿 App", "Healthify v${BuildConfig.VERSION_NAME}")
+                    InfoRow("🌿 App", "Fernday v${BuildConfig.VERSION_NAME}")
                     HorizontalDivider(color = Divider)
                     DataSourceRow("🥫 Food data", "Open Food Facts, under the Open Database License",
                         "https://world.openfoodfacts.org/", "Open the Open Food Facts website")
@@ -811,14 +811,14 @@ private fun DeleteDataRow() {
             .fillMaxWidth()
             .clickable {
                 val body = buildString {
-                    append("Please delete my Healthify cloud data.\n\n")
+                    append("Please delete my Fernday cloud data.\n\n")
                     append("Anonymous Firebase UID: ")
                     append(uid ?: "(not signed in yet — please attach a screenshot of the Profile screen)")
                     append("\n\nApprox. install date: ")
                 }
                 val mailto = Uri.parse(
                     "mailto:deltapkr.developer@gmail.com" +
-                    "?subject=" + Uri.encode("Healthify data deletion request") +
+                    "?subject=" + Uri.encode("Fernday data deletion request") +
                     "&body=" + Uri.encode(body)
                 )
                 val intent = Intent(Intent.ACTION_SENDTO, mailto)

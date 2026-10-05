@@ -179,7 +179,7 @@ object NotificationScheduler {
         )
         val notification = NotificationCompat.Builder(context, NotificationChannels.STREAK)
             .setSmallIcon(R.drawable.ic_stat_healthify)
-            .setContentTitle("🏆 Healthify")
+            .setContentTitle("🏆 Fernday")
             .setContentText("🔥 $streak day streak! ${streakMsg(streak)}")
             .setAutoCancel(true)
             .setContentIntent(pi)
@@ -219,7 +219,7 @@ object NotificationScheduler {
      */
     fun getNotifText(reminder: ReminderEntity, isCheckInReminder: Boolean): String {
         if (isCheckInReminder) {
-            return "How's your day going? Open Healthify for your check-in ❤️"
+            return "How's your day going? Open Fernday for your check-in ❤️"
         }
         // Water reminders build their own text with today's progress
         // (ReminderReceiver), so "water" isn't handled here.
@@ -361,7 +361,7 @@ class ReminderReceiver : BroadcastReceiver() {
         else NotificationScheduler.getNotifText(reminder, isCheckInReminder)
         val notification = NotificationCompat.Builder(context, channel)
             .setSmallIcon(if (water != null) R.drawable.ic_stat_water else R.drawable.ic_stat_healthify)
-            .setContentTitle("${reminder.emoji} Healthify")
+            .setContentTitle("${reminder.emoji} Fernday")
             .setContentText(text)
             .setAutoCancel(true)
             .setContentIntent(pi)
